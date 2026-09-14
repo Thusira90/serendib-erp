@@ -21,6 +21,7 @@ import { QrCard } from "@/components/qr-card";
 import { MoveButton } from "@/components/move-button";
 import { EditGemstoneButton } from "./edit-gemstone-button";
 import { CommentsThread } from "@/components/comments-thread";
+import { AddToCollectionButton } from "@/components/add-to-collection-button";
 
 export default async function GemstoneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("gemstone:read");
@@ -44,13 +45,21 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   });
   if (!g) return notFound();
 
-  const [genealogy, audit, labs, customers, locations] = await Promise.all([
+  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships] = await Promise.all([
     buildGemstoneGenealogy(g.id),
     prisma.auditLog.findMany({ where: { entity: "Gemstone", entityId: g.id }, orderBy: { at: "desc" }, take: 30 }),
     prisma.laboratory.findMany({ orderBy: { name: "asc" } }),
     prisma.customer.findMany({ orderBy: { displayName: "asc" } }),
     prisma.inventoryLocation.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
+    prisma.collection.findMany({
+      where: { isArchived: false },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, code: true, name: true },
+    }),
+    prisma.collectionItem.findMany({ where: { gemstoneId: g.id }, select: { collectionId: true } }),
   ]);
+  const membershipSet = new Set(itemMemberships.map((m) => m.collectionId));
+  const collectionsForPicker = activeCollections.map((c) => ({ ...c, already: membershipSet.has(c.id) }));
   const canMove = can(session.user.role, "location:write");
   const canEditGem = can(session.user.role, "gemstone:write");
 
@@ -201,6 +210,13 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
               </CardContent>
             </Card>
             <QrCard code={g.code} kind="gemstone" label={`${g.gemType}${g.variety ? ` · ${g.variety}` : ""}`} />
+            {can(session.user.role, "collection:write") && (
+              <AddToCollectionButton
+                gemstoneId={g.id}
+                collections={collectionsForPicker}
+                defaultCurrency={g.currency}
+              />
+            )}
           </div>
         </TabsContent>
 

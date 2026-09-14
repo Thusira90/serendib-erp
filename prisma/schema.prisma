@@ -200,6 +200,9 @@ model Gemstone {
   quotations     Quotation[]
   reservations   Reservation[]
   salesOrders    SalesOrder[]
+
+  // Collections (curated share bundles for customers)
+  collectionItems CollectionItem[]
 }
 
 // ─── Gemstone transformations (the genealogy engine) ─────────────────────────
@@ -567,7 +570,65 @@ model Customer {
   salesOrders   SalesOrder[]
   payments      Payment[]
 
+  // Curated Collections we've built for or shared with this customer.
+  collections   Collection[]
+
   @@index([displayName])
+}
+
+// ─── Collections (curated share bundles) ─────────────────────────────────────
+// A Collection is a saved bundle of gemstones with a public share URL. Used
+// to send a customer a hand-picked shortlist ("here are 6 sapphires for you")
+// or to publish current stock under a memorable link. Every collection has:
+//   - a short unambiguous shareCode used in the public URL (/share/<code>)
+//   - optional expiry and password (hashed) for time-boxed/private sharing
+//   - view counters so sales can see engagement without extra infra
+
+model Collection {
+  id            String   @id @default(cuid())
+  code          String   @unique              // COL-2026-0007 — internal
+  shareCode     String   @unique              // K7XR2P — used in public URL
+  name          String
+  intro         String?                       // shown at top of share page
+
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
+
+  createdById   String?
+  createdByName String?                       // denormalized: preserved on user delete
+
+  expiresAt     DateTime?
+  passwordHash  String?
+  isArchived    Boolean  @default(false)
+
+  viewCount     Int      @default(0)
+  lastViewedAt  DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         CollectionItem[]
+
+  @@index([shareCode])
+  @@index([customerId])
+}
+
+model CollectionItem {
+  id             String   @id @default(cuid())
+  collectionId   String
+  collection     Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  gemstoneId     String
+  gemstone       Gemstone @relation(fields: [gemstoneId], references: [id])
+
+  displayOrder   Int      @default(0)
+  priceOverride  Decimal?
+  currency       String?                       // populated only when priceOverride is set
+  note           String?                       // free-text note to the customer
+
+  createdAt      DateTime @default(now())
+
+  @@unique([collectionId, gemstoneId])
+  @@index([gemstoneId])
 }
 
 // ─── Enquiries ───────────────────────────────────────────────────────────────

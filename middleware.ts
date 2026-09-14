@@ -10,6 +10,7 @@ export default auth((req) => {
     pathname.startsWith("/verify/") ||
     pathname === "/catalogue" ||
     pathname.startsWith("/catalogue/") ||
+    pathname.startsWith("/share/") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico";
   if (!isAuthed && !isPublic) {

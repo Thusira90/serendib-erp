@@ -40,7 +40,22 @@ export const codePrefix = {
   shipment: "SHP",
   expense: "EXP",
   supplier: "SUP",
+  collection: "COL",
 } as const;
+
+/**
+ * Generates a short, unambiguous public share code (default 6 chars). Omits
+ * O/0 and I/1 to keep the URL readable when someone dictates it over a phone
+ * call. Uniqueness is checked against the DB by the caller.
+ */
+export function generateShareCode(len = 6): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < len; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
 
 /**
  * Mints a year-less code (e.g. SUP-0042) using a bucket in IdSequence

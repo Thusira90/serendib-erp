@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Diamond, Gem, GitBranch, Scissors, Users,
   Warehouse, ScrollText, PackageOpen, Building2, Award, Sparkles,
   Users2, Mail, FileText, Lock, Receipt, Plane, BarChart3, Inbox, ReceiptText,
-  Settings,
+  Settings, LayoutGrid,
 } from "lucide-react";
 
 type NavItem = {
@@ -36,6 +36,7 @@ const nav: NavItem[] = [
   { href: "/reservations",  label: "Reservations",      icon: Lock,             needs: "reservation:read", group: "Sales" },
   { href: "/sales",         label: "Sales",             icon: Receipt,          needs: "sale:read", group: "Sales" },
   { href: "/shipments",     label: "Shipments",         icon: Plane,            needs: "shipment:read", group: "Sales" },
+  { href: "/collections",   label: "Collections",       icon: LayoutGrid,       needs: "collection:read", group: "Sales" },
   { href: "/parcels",       label: "Parcels",           icon: PackageOpen,      needs: "rough:read", group: "Purchasing" },
   { href: "/suppliers",     label: "Suppliers",         icon: Building2,        needs: "supplier:read", group: "Purchasing" },
   { href: "/expenses",      label: "Expenses",          icon: ReceiptText,      needs: "expense:read", group: "Financials" },
