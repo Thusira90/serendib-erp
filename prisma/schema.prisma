@@ -1,0 +1,873 @@
+// Serendib Gemstones ERP — Milestone 1 schema.
+// Every gemstone (rough and finished) has a permanent unique ID.
+// Finished gemstones link back to their parent rough(s) through
+// GemstoneTransformation records, which support 1:1, 1:many and many:1.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Dev uses SQLite for zero-setup local runs.
+  // Prod should swap this back to "postgresql" (see README).
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & RBAC ────────────────────────────────────────────────────────────
+
+
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  role  String  @default("SALES")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cuttingJobs   CuttingJob[]  @relation("CutterJobs")
+  auditEntries  AuditLog[]
+  notifications Notification[]
+}
+
+// ─── Suppliers ───────────────────────────────────────────────────────────────
+
+model Supplier {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  country     String?
+  city        String?
+  contact     String?
+  email       String?
+  phone       String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  parcels     Parcel[]
+  roughStones RoughStone[]
+}
+
+// ─── Parcels (a purchase of many rough stones together) ──────────────────────
+
+model Parcel {
+  id            String   @id @default(cuid())
+  code          String   @unique          // PARCEL-2026-0045
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  purchaseDate  DateTime
+  origin        String?
+  totalWeightCt Decimal
+  totalCost     Decimal
+  currency      String   @default("USD")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  roughStones   RoughStone[]
+}
+
+// ─── Rough stones ────────────────────────────────────────────────────────────
+
+
+
+model RoughStone {
+  id             String        @id @default(cuid())
+  code           String        @unique        // SGS-R-2026-000147
+  supplierId     String?
+  supplier       Supplier?     @relation(fields: [supplierId], references: [id])
+  parcelId       String?
+  parcel         Parcel?       @relation(fields: [parcelId], references: [id])
+  locationId     String?
+  location       InventoryLocation? @relation(fields: [locationId], references: [id])
+
+  purchaseDate   DateTime
+  gemType        String                          // "Sapphire", "Spinel", "Garnet", ...
+  variety        String?                         // "Blue Sapphire", "Padparadscha", ...
+  species        String?
+  origin         String?                         // "Sri Lanka", "Mogok", ...
+  mineSource     String?
+
+  weightCt       Decimal
+  lengthMm       Decimal?
+  widthMm        Decimal?
+  heightMm       Decimal?
+  shape          String?
+  color          String?
+  transparency   String?
+  clarity        String?
+  inclusions     String?
+  surface        String?
+  fractures      String?
+  observations   String?
+
+  purchasePrice  Decimal
+  currency       String   @default("USD")
+  pricePerCt     Decimal?
+
+  initialValuation Decimal?
+  valuationBy    String?
+  valuationDate  DateTime?
+  valuationNotes String?
+
+  status  String  @default("PURCHASED")
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Genealogy: transformation records where this rough is an input
+  transformationsAsInput TransformationInput[]
+
+  // Cutting
+  cuttingPlans  CuttingPlan[]
+  cuttingJobs   CuttingJob[]
+
+  // Media
+  digitalAssets DigitalAsset[]
+}
+
+// ─── Finished gemstones ──────────────────────────────────────────────────────
+
+
+
+model Gemstone {
+  id             String    @id @default(cuid())
+  code           String    @unique          // SGS-G-2026-000381
+  locationId     String?
+  location       InventoryLocation? @relation(fields: [locationId], references: [id])
+
+  gemType        String
+  variety        String?
+  species        String?
+  origin         String?
+  treatment      String?
+  treatmentStatus String?
+
+  weightCt       Decimal
+  lengthMm       Decimal?
+  widthMm        Decimal?
+  depthMm        Decimal?
+  shape          String?
+  cut            String?
+  facetingStyle  String?
+
+  colorHue       String?
+  colorTone      String?
+  colorSaturation String?
+  colorDescription String?
+  clarity        String?
+  transparency   String?
+  luster         String?
+  fluorescence   String?
+  inclusions     String?
+  symmetry       String?
+  polish         String?
+
+  // Cost rollup (computed at write-time from allocated costs).
+  totalCost      Decimal @default(0)
+  costPerCt      Decimal @default(0)
+  currency       String   @default("USD")
+
+  askingPrice    Decimal?
+  minimumPrice   Decimal?
+  pricePerCt     Decimal?
+
+  status  String  @default("IN_PROGRESS")
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Genealogy: transformation records where this gemstone is an output
+  transformationsAsOutput TransformationOutput[]
+
+  // Cost allocations (parent-cost + operational-cost lines allocated to this stone)
+  costAllocations CostAllocation[]
+
+  // Price history
+  priceHistory   PriceHistory[]
+
+  // Certification, CGI, digital assets
+  certificates   Certificate[]
+  cgiProjects    CGIProject[]
+  digitalAssets  DigitalAsset[]
+
+  // Sales pipeline
+  enquiries      Enquiry[]
+  quotations     Quotation[]
+  reservations   Reservation[]
+  salesOrders    SalesOrder[]
+}
+
+// ─── Gemstone transformations (the genealogy engine) ─────────────────────────
+// One transformation record represents a lapidary or splitting event where
+// one or more input rough stones become one or more output finished stones,
+// with a measured yield and loss.
+
+
+
+model GemstoneTransformation {
+  id           String   @id @default(cuid())
+  code         String   @unique              // TX-2026-00127
+  type  String  @default("CUTTING")
+  performedAt  DateTime
+  operator     String?
+  cost         Decimal @default(0)
+  currency     String   @default("USD")
+  notes        String?
+
+  cuttingJobId String?  @unique
+  cuttingJob   CuttingJob? @relation(fields: [cuttingJobId], references: [id])
+
+  inputs       TransformationInput[]
+  outputs      TransformationOutput[]
+
+  // Denormalized totals for reporting.
+  totalInputWeightCt  Decimal @default(0)
+  totalOutputWeightCt Decimal @default(0)
+  wasteWeightCt       Decimal @default(0)
+  yieldPct            Decimal @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model TransformationInput {
+  id               String   @id @default(cuid())
+  transformationId String
+  transformation   GemstoneTransformation @relation(fields: [transformationId], references: [id], onDelete: Cascade)
+  roughStoneId     String
+  roughStone       RoughStone @relation(fields: [roughStoneId], references: [id])
+  inputWeightCt    Decimal
+  inputCost        Decimal @default(0)
+
+  @@unique([transformationId, roughStoneId])
+}
+
+model TransformationOutput {
+  id               String   @id @default(cuid())
+  transformationId String
+  transformation   GemstoneTransformation @relation(fields: [transformationId], references: [id], onDelete: Cascade)
+  gemstoneId       String
+  gemstone         Gemstone @relation(fields: [gemstoneId], references: [id])
+  outputWeightCt   Decimal
+  allocatedCost    Decimal @default(0)
+
+  @@unique([transformationId, gemstoneId])
+}
+
+// ─── Cutting ─────────────────────────────────────────────────────────────────
+
+
+
+model CuttingPlan {
+  id            String   @id @default(cuid())
+  roughStoneId  String
+  roughStone    RoughStone @relation(fields: [roughStoneId], references: [id])
+  name          String    // "Plan A", "Plan B"
+  proposedShape String?
+  proposedLengthMm Decimal?
+  proposedWidthMm  Decimal?
+  proposedDepthMm  Decimal?
+  expectedWeightCt Decimal?
+  expectedYieldPct Decimal?
+  expectedValue    Decimal?
+  cutterRecommendation String?
+  riskAssessment String?
+  notes         String?
+  selected      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CuttingJob {
+  id            String   @id @default(cuid())
+  code          String   @unique              // CJ-2026-00127
+  roughStoneId  String
+  roughStone    RoughStone @relation(fields: [roughStoneId], references: [id])
+  cutterId      String?
+  cutter        User?    @relation("CutterJobs", fields: [cutterId], references: [id])
+
+  startedAt     DateTime?
+  expectedCompletion DateTime?
+  completedAt   DateTime?
+
+  plannedCut    String?
+  actualCut     String?
+  targetWeightCt Decimal?
+  expectedYieldPct Decimal?
+  actualYieldPct   Decimal?
+
+  cuttingCost   Decimal @default(0)
+  laborCost     Decimal @default(0)
+  machineCost   Decimal @default(0)
+  currency      String   @default("USD")
+
+  notes         String?
+  status  String  @default("PENDING")
+
+  transformation GemstoneTransformation?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── Inventory locations (hierarchical) ──────────────────────────────────────
+
+model InventoryLocation {
+  id         String  @id @default(cuid())
+  code       String  @unique
+  name       String
+  parentId   String?
+  parent     InventoryLocation?  @relation("LocationTree", fields: [parentId], references: [id])
+  children   InventoryLocation[] @relation("LocationTree")
+
+  roughStones RoughStone[]
+  gemstones   Gemstone[]
+  movements   InventoryMovement[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+
+
+model InventoryMovement {
+  id           String   @id @default(cuid())
+  itemKind  String
+  roughStoneId String?
+  gemstoneId   String?
+  toLocationId String
+  toLocation   InventoryLocation @relation(fields: [toLocationId], references: [id])
+  fromLocationId String?
+  movedById    String?
+  movedByName  String?
+  reason       String?
+  movedAt      DateTime @default(now())
+}
+
+// ─── Cost allocations (feeds true-cost rollup) ───────────────────────────────
+
+
+
+model CostAllocation {
+  id           String   @id @default(cuid())
+  gemstoneId   String
+  gemstone     Gemstone @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+  type  String
+  description  String?
+  amount       Decimal
+  currency     String   @default("USD")
+  incurredAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+// ─── Price history (never overwritten) ───────────────────────────────────────
+
+model PriceHistory {
+  id           String   @id @default(cuid())
+  gemstoneId   String
+  gemstone     Gemstone @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+  oldPrice     Decimal?
+  newPrice     Decimal
+  currency     String   @default("USD")
+  reason       String?
+  changedBy    String?
+  changedAt    DateTime @default(now())
+}
+
+// ─── Audit log ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  at           DateTime @default(now())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  userName     String?
+  entity       String            // "RoughStone", "Gemstone", ...
+  entityId     String
+  entityCode   String?           // "SGS-R-2026-000147"
+  action       String            // "CREATE", "UPDATE", "STATUS_CHANGE", "PRICE_CHANGE", ...
+  field        String?           // when a single field changed
+  oldValue     String?
+  newValue     String?
+  metadata     String?
+  ipAddress    String?
+
+  @@index([entity, entityId])
+  @@index([at])
+}
+
+// ─── ID sequence helper ──────────────────────────────────────────────────────
+// Serial counter per (prefix, year) so we can mint SGS-R-2026-000147 style IDs
+// deterministically inside a transaction without a race.
+
+model IdSequence {
+  id        String @id @default(cuid())
+  prefix    String            // "SGS-R", "SGS-G", "PARCEL", "CJ", "TX", "CGI", "CERT"
+  year      Int
+  lastValue Int    @default(0)
+
+  @@unique([prefix, year])
+}
+
+// ─── Certification ───────────────────────────────────────────────────────────
+
+model Laboratory {
+  id       String   @id @default(cuid())
+  code     String   @unique
+  name     String
+  country  String?
+  website  String?
+  notes    String?
+  createdAt DateTime @default(now())
+
+  certificates Certificate[]
+}
+
+
+
+
+
+model Certificate {
+  id                    String   @id @default(cuid())
+  code                  String   @unique         // CERT-2026-00042 (internal)
+  gemstoneId            String
+  gemstone              Gemstone @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+  laboratoryId          String
+  laboratory            Laboratory @relation(fields: [laboratoryId], references: [id])
+  certificateNumber     String?                  // lab-issued number
+  type  String  @default("IDENTIFICATION")
+  status  String  @default("NOT_SUBMITTED")
+
+  submissionDate        DateTime?
+  returnDate            DateTime?
+  issueDate             DateTime?
+
+  originDetermination   String?
+  treatmentDetermination String?
+  weightCt              Decimal?
+  dimensions            String?
+  colorGrade            String?
+  comments              String?
+
+  laboratoryFees        Decimal?
+  currency              String   @default("USD")
+
+  documentUrl           String?                  // path or URL to PDF
+  imageUrl              String?                  // path or URL to scan image
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([gemstoneId])
+}
+
+// ─── CGI ─────────────────────────────────────────────────────────────────────
+
+
+
+model CGIProject {
+  id            String   @id @default(cuid())
+  code          String   @unique              // CGI-2026-00482
+  gemstoneId    String
+  gemstone      Gemstone @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+  artist        String?
+  software      String?
+  softwareVersion String?
+  status  String  @default("REQUESTED")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  versions      CGIVersion[]
+
+  @@index([gemstoneId])
+}
+
+model CGIVersion {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     CGIProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version     Int
+  code        String   @unique                // CGI-2026-00482-V1
+  isMaster    Boolean  @default(false)
+  approvedAt  DateTime?
+  approvedBy  String?
+
+  renderUrl   String?
+  modelUrl    String?
+  animationUrl String?
+  thumbnailUrl String?
+
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@unique([projectId, version])
+}
+
+// ─── Digital assets (photos, videos, media) ──────────────────────────────────
+
+
+
+model DigitalAsset {
+  id            String   @id @default(cuid())
+  gemstoneId    String?
+  gemstone      Gemstone? @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+  roughStoneId  String?
+  roughStone    RoughStone? @relation(fields: [roughStoneId], references: [id], onDelete: Cascade)
+  kind  String
+  url           String
+  contentType   String?
+  originalName  String?
+  caption       String?
+  isPrimary     Boolean  @default(false)
+  createdBy     String?
+  createdAt     DateTime @default(now())
+
+  @@index([gemstoneId])
+  @@index([roughStoneId])
+}
+
+// ─── Customers (CRM) ─────────────────────────────────────────────────────────
+
+
+
+
+
+model Customer {
+  id            String   @id @default(cuid())
+  code          String   @unique              // CUST-2026-0012
+  kind  String  @default("INDIVIDUAL")
+  type  String  @default("PRIVATE_BUYER")
+  displayName   String                        // "James Chen" or "Maison Aurel"
+  companyName   String?
+  country       String?
+  city          String?
+  addressLine   String?
+  email         String?
+  phone         String?
+  website       String?
+  socialProfile String?
+  notes         String?
+
+  // Free-form preferences — matches the JSON shape defined in
+  // src/lib/customer-preferences.ts (types, colors, shapes, size / budget bands).
+  preferences   String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  enquiries     Enquiry[]
+  quotations    Quotation[]
+  reservations  Reservation[]
+  salesOrders   SalesOrder[]
+  payments      Payment[]
+
+  @@index([displayName])
+}
+
+// ─── Enquiries ───────────────────────────────────────────────────────────────
+
+
+
+model Enquiry {
+  id            String   @id @default(cuid())
+  code          String   @unique              // ENQ-2026-0007
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  gemstoneId    String?
+  gemstone      Gemstone? @relation(fields: [gemstoneId], references: [id])
+
+  requirement   String                        // free-text "3-5ct unheated Ceylon blue…"
+  preferredOrigin    String?
+  preferredTreatment String?
+  preferredShape     String?
+  minWeightCt   Decimal?
+  maxWeightCt   Decimal?
+  budgetMin     Decimal?
+  budgetMax     Decimal?
+  currency      String   @default("USD")
+  quantity      Int      @default(1)
+
+  salespersonId String?
+  followUpDate  DateTime?
+  status  String  @default("NEW")
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  quotations    Quotation[]
+
+  @@index([customerId])
+  @@index([gemstoneId])
+}
+
+// ─── Quotations ──────────────────────────────────────────────────────────────
+
+
+
+model Quotation {
+  id            String   @id @default(cuid())
+  code          String   @unique              // Q-2026-0021
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  gemstoneId    String
+  gemstone      Gemstone @relation(fields: [gemstoneId], references: [id])
+  enquiryId     String?
+  enquiry       Enquiry? @relation(fields: [enquiryId], references: [id])
+
+  price         Decimal
+  currency      String   @default("USD")
+  validUntil    DateTime?
+  paymentTerms  String?
+  deliveryTerms String?
+  shippingTerms String?
+  notes         String?
+
+  status  String  @default("DRAFT")
+  sentAt        DateTime?
+  respondedAt   DateTime?
+
+  salespersonId String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([gemstoneId])
+}
+
+// ─── Reservations ────────────────────────────────────────────────────────────
+
+
+
+model Reservation {
+  id            String   @id @default(cuid())
+  code          String   @unique              // RES-2026-0011
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  gemstoneId    String
+  gemstone      Gemstone @relation(fields: [gemstoneId], references: [id])
+  quotationId   String?
+
+  price         Decimal
+  deposit       Decimal?
+  currency      String   @default("USD")
+  reservedAt    DateTime @default(now())
+  expiresAt     DateTime?
+  releasedAt    DateTime?
+  releasedReason String?
+
+  salespersonId String?
+  status  String  @default("ACTIVE")
+  notes         String?
+
+  // Prevents two ACTIVE reservations for the same gemstone at the same time.
+  // Enforced via partial unique index in a follow-up migration; the app-level
+  // transaction in reserveGemstone also asserts this.
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([gemstoneId, status])
+  @@index([customerId])
+}
+
+// ─── Sales orders ────────────────────────────────────────────────────────────
+
+
+
+model SalesOrder {
+  id             String   @id @default(cuid())
+  code           String   @unique             // SO-2026-0007
+  invoiceNumber  String   @unique             // INV-2026-0007
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  gemstoneId     String
+  gemstone       Gemstone @relation(fields: [gemstoneId], references: [id])
+  quotationId    String?
+  reservationId  String?
+
+  agreedPrice    Decimal
+  currency       String   @default("USD")
+  taxAmount      Decimal @default(0)
+  totalAmount    Decimal   // agreedPrice + taxAmount
+
+  saleDate       DateTime @default(now())
+  salespersonId  String?
+  notes          String?
+  status  String  @default("CONFIRMED")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  payments       Payment[]
+  shipment       Shipment?
+
+  @@index([customerId])
+  @@index([gemstoneId])
+}
+
+// ─── Payments ────────────────────────────────────────────────────────────────
+
+
+
+model Payment {
+  id            String   @id @default(cuid())
+  code          String   @unique              // PAY-2026-0031
+  salesOrderId  String
+  salesOrder    SalesOrder @relation(fields: [salesOrderId], references: [id])
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+
+  amount        Decimal
+  currency      String   @default("USD")
+  method  String  @default("BANK_TRANSFER")
+  reference     String?
+  receivedAt    DateTime @default(now())
+  notes         String?
+  recordedBy    String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([salesOrderId])
+  @@index([customerId])
+}
+
+// ─── Shipments (export / delivery) ───────────────────────────────────────────
+
+
+
+model Shipment {
+  id             String   @id @default(cuid())
+  code           String   @unique             // SHP-2026-0011
+  salesOrderId   String   @unique             // one shipment per sales order in this milestone
+  salesOrder     SalesOrder @relation(fields: [salesOrderId], references: [id])
+
+  courier        String?
+  trackingNumber String?
+  destination    String?
+  destCountry    String?
+
+  shippingCost   Decimal?
+  insuranceCost  Decimal?
+  declaredValue  Decimal?
+  currency       String   @default("USD")
+
+  preparedAt     DateTime?
+  packedAt       DateTime?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+
+  commercialInvoiceUrl String?
+  packingListUrl       String?
+  customsUrl           String?
+
+  notes          String?
+  status  String  @default("PREPARING")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([salesOrderId])
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type  String
+  title       String
+  body        String?
+  entity      String?
+  entityId    String?
+  entityCode  String?
+  url         String?
+  readAt      DateTime?
+  dismissedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+// ─── Expenses (first-class general expenses, separate from per-stone allocations) ─
+
+model Expense {
+  id            String   @id @default(cuid())
+  code          String   @unique             // EXP-2026-0031
+  category      String                       // ExpenseCategory (see src/lib/enums.ts)
+  amount        Decimal
+  currency      String   @default("USD")
+  vendor        String?
+  description   String
+  incurredAt    DateTime @default(now())
+
+  // Optional link to a business entity — an expense may be for a specific
+  // gemstone, rough, cutting job, customer engagement, or shipment; or just
+  // general (no link).
+  relatedEntity String?                      // "Gemstone" | "RoughStone" | "CuttingJob" | "Customer" | "Shipment"
+  relatedId     String?
+  relatedCode   String?
+
+  receiptUrl    String?
+  status        String   @default("RECORDED") // ExpenseStatus
+  recordedBy    String?
+  approvedBy    String?
+  approvedAt    DateTime?
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([category])
+  @@index([incurredAt])
+  @@index([relatedEntity, relatedId])
+}
+
+// ─── Company settings (singleton — id = "singleton") ────────────────────────
+
+model CompanySettings {
+  id                 String   @id @default("singleton")
+  legalName          String   @default("Serendib Gemstones (Pvt) Ltd")
+  tradingName        String?
+  addressLine        String?
+  city               String?
+  country            String   @default("Sri Lanka")
+  taxId              String?
+  registrationNumber String?
+  email              String?
+  phone              String?
+  website            String?
+
+  defaultCurrency    String   @default("USD")
+  defaultPaymentTerms  String @default("50% on order, 50% before shipping")
+  defaultDeliveryTerms String @default("Insured courier, 5–7 business days")
+  defaultShippingTerms String @default("DAP customer address")
+
+  updatedAt          DateTime @updatedAt
+}
+
+// ─── Cross-entity comments ──────────────────────────────────────────────────
+
+model Comment {
+  id         String   @id @default(cuid())
+  entity     String                       // "Gemstone" | "RoughStone" | "Customer" | "CuttingJob" | "SalesOrder" | "Enquiry"
+  entityId   String
+  entityCode String?
+  text       String
+  authorId   String?
+  authorName String?
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId, createdAt])
+}

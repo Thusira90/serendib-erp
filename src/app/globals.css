@@ -1,0 +1,212 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* SGS luxury light palette — cream ground, deep teal primary, purple accent */
+    --background: 40 25% 96%;        /* #F7F5F1 bone */
+    --foreground: 180 15% 8%;        /* #0F1414 ink */
+
+    --card: 0 0% 100%;
+    --card-foreground: 180 15% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 180 15% 8%;
+
+    --primary: 191 42% 30%;          /* #2C5F6C teal */
+    --primary-foreground: 40 25% 98%;
+
+    --secondary: 40 15% 94%;         /* soft stone */
+    --secondary-foreground: 180 15% 12%;
+
+    --muted: 40 15% 94%;
+    --muted-foreground: 200 8% 40%;
+
+    --accent: 285 67% 24%;           /* #501464 purple */
+    --accent-foreground: 40 25% 98%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 40 25% 98%;
+
+    --border: 40 10% 88%;
+    --input: 40 10% 88%;
+    --ring: 191 42% 30%;
+
+    --radius: 0.5rem;
+
+    --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-serif: "Cormorant Garamond", "Playfair Display", Georgia, serif;
+  }
+
+  .dark {
+    --background: 200 20% 6%;
+    --foreground: 40 20% 95%;
+
+    --card: 200 18% 9%;
+    --card-foreground: 40 20% 95%;
+
+    --popover: 200 18% 9%;
+    --popover-foreground: 40 20% 95%;
+
+    --primary: 191 42% 45%;
+    --primary-foreground: 200 20% 6%;
+
+    --secondary: 200 14% 14%;
+    --secondary-foreground: 40 20% 95%;
+
+    --muted: 200 14% 14%;
+    --muted-foreground: 200 8% 65%;
+
+    --accent: 285 50% 55%;
+    --accent-foreground: 200 20% 6%;
+
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 40 20% 95%;
+
+    --border: 200 14% 18%;
+    --input: 200 14% 18%;
+    --ring: 191 42% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.01em;
+  }
+  h1 { @apply text-3xl font-medium; }
+  h2 { @apply text-2xl font-medium; }
+  h3 { @apply text-xl font-medium; }
+}
+
+@layer components {
+  .surface {
+    @apply bg-card border rounded-lg;
+  }
+  .surface-luxe {
+    @apply bg-card border rounded-lg shadow-luxe;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Visual genealogy tree (CSS-drawn connectors) */
+.gtree, .gtree ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.gtree {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100%;
+}
+.gtree > li {
+  position: relative;
+  padding-top: 0;
+}
+.gtree ul {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 28px;
+  position: relative;
+}
+/* Vertical stub descending from parent to horizontal bar */
+.gtree ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  border-left: 1px solid hsl(var(--border));
+  height: 14px;
+}
+.gtree ul > li {
+  position: relative;
+  padding: 14px 12px 0 12px;
+  text-align: center;
+}
+/* Horizontal connector halves — one from center to left, one to right */
+.gtree ul > li::before,
+.gtree ul > li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  height: 14px;
+  width: 50%;
+  border-top: 1px solid hsl(var(--border));
+}
+.gtree ul > li::before { left: 0; right: 50%; }
+.gtree ul > li::after  { left: 50%; right: 0; }
+/* Stub from horizontal bar down into each child card */
+.gtree ul > li > .gtree-stub {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 1px solid hsl(var(--border));
+  height: 14px;
+  width: 0;
+}
+/* First/last siblings: trim the horizontal bar so it stops cleanly */
+.gtree ul > li:first-child::before { border: 0; }
+.gtree ul > li:last-child::after { border: 0; }
+/* Only child: no need for horizontals */
+.gtree ul > li:only-child::before,
+.gtree ul > li:only-child::after {
+  border: 0;
+}
+.gtree ul > li:only-child > .gtree-stub {
+  height: 14px;
+}
+
+@media print {
+  html, body {
+    background: #ffffff !important;
+    color: #0F1414 !important;
+  }
+  /* Force gradient / brand color blocks to still print (Chrome, Edge, Safari) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .no-print, .print\:hide {
+    display: none !important;
+  }
+  a[href]::after {
+    content: "";
+  }
+  /* Card containers on the invoice/quotation should read as clean pages */
+  .print-page {
+    box-shadow: none !important;
+    border: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  section, .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  @page {
+    margin: 15mm 12mm;
+  }
+}
