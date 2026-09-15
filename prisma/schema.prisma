@@ -8,10 +8,14 @@ generator client {
 }
 
 datasource db {
-  // Dev uses SQLite for zero-setup local runs.
-  // Prod should swap this back to "postgresql" (see README).
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  // Postgres in production and dev. DATABASE_URL points at the transaction
+  // pooler (Supavisor 6543) for the app runtime; DIRECT_URL uses the
+  // session-mode pooler (5432) for migrations, which are incompatible with
+  // pgbouncer transaction mode. In CI or local runs without Supabase, both
+  // env vars can point at any Postgres instance (or a local docker-compose).
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Users & RBAC ────────────────────────────────────────────────────────────
