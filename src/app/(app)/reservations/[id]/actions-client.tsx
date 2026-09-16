@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Clock, X, ShoppingCart } from "lucide-react";
 import { extendReservation, releaseReservation, createSale } from "@/app/(app)/sales/actions";
@@ -113,13 +114,9 @@ export function ConvertToSaleButton({
           <input type="hidden" name="customerId" value={customerId} />
           <input type="hidden" name="gemstoneId" value={gemstoneId} />
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 col-span-2">
               <Label>Agreed price *</Label>
-              <Input name="agreedPrice" required inputMode="decimal" defaultValue={price} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Currency</Label>
-              <Input name="currency" defaultValue={currency} />
+              <CurrencyInput amountName="agreedPrice" currencyName="currency" required defaultAmount={price} defaultCurrency={currency} />
             </div>
             <div className="space-y-1.5">
               <Label>Tax</Label>

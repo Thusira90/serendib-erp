@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { recordPayment } from "@/app/(app)/sales/actions";
@@ -21,8 +22,9 @@ export function RecordPaymentButton({ salesOrderId, currency, suggestedAmount }:
         <DialogHeader><DialogTitle>Record payment</DialogTitle></DialogHeader>
         <form action={(fd) => start(async () => { await recordPayment(fd); setOpen(false); })} className="space-y-3">
           <input type="hidden" name="salesOrderId" value={salesOrderId} />
-          <Field label="Amount *"><Input name="amount" required inputMode="decimal" defaultValue={suggestedAmount.toFixed(2)} /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue={currency} /></Field>
+          <Field label="Amount *">
+            <CurrencyInput amountName="amount" currencyName="currency" required defaultAmount={suggestedAmount.toFixed(2)} defaultCurrency={currency} />
+          </Field>
           <Field label="Method">
             <select name="method" defaultValue="BANK_TRANSFER" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="BANK_TRANSFER">Bank transfer</option>

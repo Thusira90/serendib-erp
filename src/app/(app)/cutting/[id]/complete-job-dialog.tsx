@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencySelect } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Trash2, CheckCircle2 } from "lucide-react";
 import { completeCuttingJob } from "@/app/(app)/cutting/actions";
@@ -73,7 +74,7 @@ export function CompleteJobDialog({
             <F label="Cutting cost"><Input name="cuttingCost" inputMode="decimal" defaultValue={defaultCuttingCost || ""} /></F>
             <F label="Labour cost"><Input name="laborCost" inputMode="decimal" defaultValue={defaultLaborCost || ""} /></F>
             <F label="Machine cost"><Input name="machineCost" inputMode="decimal" defaultValue={defaultMachineCost || ""} /></F>
-            <F label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></F>
+            <F label="Currency (all costs)"><CurrencySelect name="currency" defaultValue={defaultCurrency} /></F>
             <F label="Notes" span><Textarea name="notes" rows={2} /></F>
           </section>
 

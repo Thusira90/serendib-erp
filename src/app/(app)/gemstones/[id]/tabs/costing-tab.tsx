@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -78,8 +78,10 @@ function AddCostDialog({ gemstoneId, currency }: { gemstoneId: string; currency:
               <option value="OTHER">Other</option>
             </select>
           </div>
-          <div className="space-y-1.5"><Label>Amount *</Label><Input name="amount" required inputMode="decimal" /></div>
-          <div className="space-y-1.5"><Label>Currency</Label><Input name="currency" defaultValue={currency} /></div>
+          <div className="space-y-1.5">
+            <Label>Amount *</Label>
+            <CurrencyInput amountName="amount" currencyName="currency" required defaultCurrency={currency} />
+          </div>
           <div className="space-y-1.5"><Label>Description</Label><Textarea name="description" rows={2} /></div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

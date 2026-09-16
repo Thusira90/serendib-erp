@@ -113,6 +113,39 @@ export const EXPENSE_STATUSES = [
 ] as const;
 export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
 
+/**
+ * ISO-4217 currencies we surface in the currency picker.
+ * LKR is the base for a Sri Lankan business — everything else shows a live
+ * conversion hint next to the amount.
+ */
+export const CURRENCIES = [
+  { code: "LKR", name: "Sri Lankan Rupee", symbol: "Rs" },
+  { code: "USD", name: "US Dollar", symbol: "$" },
+  { code: "EUR", name: "Euro", symbol: "€" },
+  { code: "GBP", name: "British Pound", symbol: "£" },
+  { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
+  { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+  { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
+  { code: "HKD", name: "Hong Kong Dollar", symbol: "HK$" },
+  { code: "SGD", name: "Singapore Dollar", symbol: "S$" },
+  { code: "AUD", name: "Australian Dollar", symbol: "A$" },
+  { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+  { code: "NZD", name: "New Zealand Dollar", symbol: "NZ$" },
+  { code: "AED", name: "UAE Dirham", symbol: "AED" },
+  { code: "SAR", name: "Saudi Riyal", symbol: "SAR" },
+  { code: "INR", name: "Indian Rupee", symbol: "₹" },
+  { code: "THB", name: "Thai Baht", symbol: "฿" },
+  { code: "MYR", name: "Malaysian Ringgit", symbol: "RM" },
+  { code: "IDR", name: "Indonesian Rupiah", symbol: "Rp" },
+  { code: "KRW", name: "South Korean Won", symbol: "₩" },
+  { code: "ZAR", name: "South African Rand", symbol: "R" },
+  { code: "BRL", name: "Brazilian Real", symbol: "R$" },
+] as const;
+export type CurrencyCode = (typeof CURRENCIES)[number]["code"];
+
+/** Base currency used for reporting rollups and live-rate hints. */
+export const BASE_CURRENCY = "LKR";
+
 export const NOTIFICATION_TYPES = [
   "SALE_CREATED","PAYMENT_RECORDED","RESERVATION_CREATED","RESERVATION_RELEASED",
   "RESERVATION_EXPIRING","QUOTATION_ACCEPTED","QUOTATION_EXPIRING","CERTIFICATE_ISSUED",

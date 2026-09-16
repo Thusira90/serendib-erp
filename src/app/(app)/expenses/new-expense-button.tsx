@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { EXPENSE_CATEGORIES } from "@/lib/enums";
@@ -12,7 +13,7 @@ import { createExpense } from "./actions";
 
 const label = (c: string) => c.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
 
-export function NewExpenseButton() {
+export function NewExpenseButton({ defaultCurrency }: { defaultCurrency: string }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   return (
@@ -32,8 +33,9 @@ export function NewExpenseButton() {
               {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{label(c)}</option>)}
             </select>
           </Field>
-          <Field label="Amount *"><Input name="amount" required inputMode="decimal" /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue="USD" /></Field>
+          <Field label="Amount *" span>
+            <CurrencyInput amountName="amount" currencyName="currency" required defaultCurrency={defaultCurrency} />
+          </Field>
           <Field label="Date"><Input name="incurredAt" type="date" defaultValue={new Date().toISOString().slice(0,10)} /></Field>
           <Field label="Vendor"><Input name="vendor" placeholder="Supplier / payee" /></Field>
           <Field label="Description *" span><Input name="description" required placeholder="Office rent April 2026" /></Field>

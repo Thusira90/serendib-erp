@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -62,8 +62,10 @@ function ChangePriceDialog({ gemstoneId, currency, currentPrice }: { gemstoneId:
           <div className="text-sm text-muted-foreground">
             Current asking: <span className="num text-foreground">{currentPrice != null ? formatCurrency(currentPrice, currency) : "—"}</span>
           </div>
-          <div className="space-y-1.5"><Label>New asking price *</Label><Input name="newPrice" required inputMode="decimal" /></div>
-          <div className="space-y-1.5"><Label>Currency</Label><Input name="currency" defaultValue={currency} /></div>
+          <div className="space-y-1.5">
+            <Label>New asking price *</Label>
+            <CurrencyInput amountName="newPrice" currencyName="currency" required defaultCurrency={currency} />
+          </div>
           <div className="space-y-1.5"><Label>Reason (recommended)</Label><Textarea name="reason" rows={2} placeholder="Certificate received; market uplift" /></div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
