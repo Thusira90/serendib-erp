@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FileText } from "lucide-react";
 import { createQuotation } from "@/app/(app)/sales/actions";
@@ -70,13 +71,15 @@ export function QuickQuoteButton({
               ))}
             </select>
           </div>
-          <div className="space-y-1.5">
+          <div className="col-span-2 space-y-1.5">
             <Label>Price *</Label>
-            <Input name="price" required inputMode="decimal" defaultValue={selected?.askingPrice ?? ""} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Currency</Label>
-            <Input name="currency" defaultValue={selected?.currency ?? defaultCurrency} />
+            <CurrencyInput
+              amountName="price"
+              currencyName="currency"
+              required
+              defaultAmount={selected?.askingPrice ?? ""}
+              defaultCurrency={selected?.currency ?? defaultCurrency}
+            />
           </div>
           <div className="space-y-1.5"><Label>Valid until</Label><Input name="validUntil" type="date" /></div>
           <div className="space-y-1.5"><Label>Payment terms</Label><Input name="paymentTerms" /></div>

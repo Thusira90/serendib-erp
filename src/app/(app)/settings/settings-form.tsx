@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencySelect } from "@/components/ui/currency-input";
 import { updateCompanySettings } from "./actions";
 
 type S = {
@@ -56,7 +57,7 @@ export function SettingsForm({ existing, canWrite }: { existing: S; canWrite: bo
       </Section>
 
       <Section title="Commercial defaults">
-        <F label="Default currency"><Input name="defaultCurrency" defaultValue={existing.defaultCurrency} /></F>
+        <F label="Default currency"><CurrencySelect name="defaultCurrency" defaultValue={existing.defaultCurrency} /></F>
         <F label="Payment terms" wide><Input name="defaultPaymentTerms" defaultValue={existing.defaultPaymentTerms} /></F>
         <F label="Delivery terms" wide><Input name="defaultDeliveryTerms" defaultValue={existing.defaultDeliveryTerms} /></F>
         <F label="Shipping terms" wide><Input name="defaultShippingTerms" defaultValue={existing.defaultShippingTerms} /></F>

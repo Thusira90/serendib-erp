@@ -18,6 +18,7 @@ export async function getCompanySettings() {
       city: "Colombo",
       country: "Sri Lanka",
       email: "sales@serendib.lk",
+      defaultCurrency: "LKR",
     },
   });
 }

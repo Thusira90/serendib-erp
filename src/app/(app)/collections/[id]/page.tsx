@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import { ArrowLeft, LayoutGrid, Eye, ExternalLink, Trash2, Archive } from "lucide-react";
 import { archiveCollection, removeStoneFromCollection, updateCollectionItem, updateCollectionMeta } from "../actions";
@@ -115,7 +116,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
                           )}
                         </div>
                         {canWrite && (
-                          <form action={updateCollectionItem} className="mt-3 grid grid-cols-[1fr_140px_60px_auto] gap-2 items-end">
+                          <form action={updateCollectionItem} className="mt-3 grid grid-cols-[1fr_200px_auto] gap-2 items-end">
                             <input type="hidden" name="itemId" value={item.id} />
                             <input type="hidden" name="displayOrder" value={item.displayOrder} />
                             <div className="space-y-0.5">
@@ -124,11 +125,13 @@ export default async function CollectionDetailPage({ params }: { params: Promise
                             </div>
                             <div className="space-y-0.5">
                               <Label className="text-[10px]">Price override</Label>
-                              <Input name="priceOverride" defaultValue={item.priceOverride?.toString() ?? ""} inputMode="decimal" className="h-8 text-xs" />
-                            </div>
-                            <div className="space-y-0.5">
-                              <Label className="text-[10px]">Ccy</Label>
-                              <Input name="currency" defaultValue={item.currency ?? item.gemstone.currency} className="h-8 text-xs" />
+                              <CurrencyInput
+                                amountName="priceOverride"
+                                currencyName="currency"
+                                size="sm"
+                                defaultAmount={item.priceOverride?.toString() ?? ""}
+                                defaultCurrency={item.currency ?? item.gemstone.currency}
+                              />
                             </div>
                             <Button size="sm" variant="outline" className="h-8">Save</Button>
                           </form>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getCompanySettings } from "@/lib/company-settings";
 import { NewExpenseButton } from "./new-expense-button";
 import { Coins, ReceiptText } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
@@ -25,11 +26,12 @@ export default async function ExpensesPage() {
   const monthEnd = endOfMonth(now);
   const yearStart = new Date(now.getUTCFullYear(), 0, 1);
 
-  const [all, thisMonth, ytd, byCategory] = await Promise.all([
+  const [all, thisMonth, ytd, byCategory, company] = await Promise.all([
     prisma.expense.findMany({ orderBy: { incurredAt: "desc" }, take: 200 }),
     prisma.expense.aggregate({ where: { incurredAt: { gte: monthStart, lte: monthEnd } }, _sum: { amount: true }, _count: { _all: true } }),
     prisma.expense.aggregate({ where: { incurredAt: { gte: yearStart } }, _sum: { amount: true } }),
     prisma.expense.groupBy({ by: ["category"], where: { incurredAt: { gte: yearStart } }, _sum: { amount: true } }),
+    getCompanySettings(),
   ]);
 
   const chart = byCategory
@@ -43,7 +45,7 @@ export default async function ExpensesPage() {
           <h1 className="font-serif text-3xl flex items-center gap-3"><ReceiptText className="h-7 w-7 text-sgs-purple-500" /> Expenses</h1>
           <p className="text-sm text-muted-foreground">General operating expenses. Per-stone allocations remain on the gemstone's costing tab.</p>
         </div>
-        {canWrite && <NewExpenseButton />}
+        {canWrite && <NewExpenseButton defaultCurrency={company.defaultCurrency} />}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getCompanySettings } from "@/lib/company-settings";
 import { NewQuotationButton } from "./new-quotation-button";
 import { FileText } from "lucide-react";
 
@@ -15,10 +16,11 @@ const statusVariant: Record<string, "muted" | "teal" | "warning" | "success" | "
 export default async function QuotationsPage() {
   const session = await requireCapability("quotation:read");
   const canWrite = can(session.user.role, "quotation:write");
-  const [quotations, customers, gemstones] = await Promise.all([
+  const [quotations, customers, gemstones, company] = await Promise.all([
     prisma.quotation.findMany({ orderBy: { createdAt: "desc" }, include: { customer: true, gemstone: true } }),
     prisma.customer.findMany({ orderBy: { displayName: "asc" } }),
     prisma.gemstone.findMany({ where: { status: { in: ["AVAILABLE","IN_PROGRESS"] } }, orderBy: { createdAt: "desc" }, take: 200 }),
+    getCompanySettings(),
   ]);
   return (
     <div className="space-y-6">
@@ -30,6 +32,7 @@ export default async function QuotationsPage() {
         {canWrite && <NewQuotationButton
           customers={customers.map(c => ({ id: c.id, code: c.code, displayName: c.displayName }))}
           gemstones={gemstones.map(g => ({ id: g.id, code: g.code, gemType: g.gemType, variety: g.variety, askingPrice: g.askingPrice ? Number(g.askingPrice) : null, currency: g.currency }))}
+          defaultCurrency={company.defaultCurrency}
         />}
       </div>
 

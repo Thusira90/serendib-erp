@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LayoutGrid, Plus, Check } from "lucide-react";
 import { addStoneToCollection } from "@/app/(app)/collections/actions";
@@ -86,15 +87,14 @@ export function AddToCollectionButton({
                   <Label>Note to customer (optional)</Label>
                   <Input name="note" placeholder="Perfect for your bridal request" />
                 </div>
-                <div className="grid grid-cols-[1fr_100px] gap-2">
-                  <div className="space-y-1.5">
-                    <Label>Price override (optional)</Label>
-                    <Input name="priceOverride" inputMode="decimal" placeholder="Overrides list price on this collection only" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Ccy</Label>
-                    <Input name="currency" defaultValue={defaultCurrency} />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label>Price override (optional)</Label>
+                  <CurrencyInput
+                    amountName="priceOverride"
+                    currencyName="currency"
+                    defaultCurrency={defaultCurrency}
+                    placeholder="Overrides list price on this collection only"
+                  />
                 </div>
               </div>
             )}

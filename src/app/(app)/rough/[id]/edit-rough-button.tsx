@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { ROUGH_STATUSES } from "@/lib/enums";
@@ -56,8 +57,9 @@ export function EditRoughButton({
           <F label="Origin"><Input name="origin" defaultValue={rough.origin ?? ""} /></F>
           <F label="Color"><Input name="color" defaultValue={rough.color ?? ""} /></F>
           <F label="Clarity"><Input name="clarity" defaultValue={rough.clarity ?? ""} /></F>
-          <F label="Purchase price *"><Input name="purchasePrice" required inputMode="decimal" defaultValue={rough.purchasePrice} /></F>
-          <F label="Currency"><Input name="currency" defaultValue={rough.currency} /></F>
+          <F label="Purchase price *" span>
+            <CurrencyInput amountName="purchasePrice" currencyName="currency" required defaultAmount={rough.purchasePrice} defaultCurrency={rough.currency} />
+          </F>
           <F label="Status">
             <select name="status" defaultValue={rough.status} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
               {ROUGH_STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}

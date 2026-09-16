@@ -1,13 +1,15 @@
 import { requireCapability } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCompanySettings } from "@/lib/company-settings";
 import { ParcelIntakeForm } from "./parcel-intake-form";
 
 export default async function NewParcelPage() {
   await requireCapability("rough:write");
-  const [suppliers, locations] = await Promise.all([
+  const [suppliers, locations, company] = await Promise.all([
     prisma.supplier.findMany({ orderBy: { name: "asc" }, select: { id: true, code: true, name: true } }),
     prisma.inventoryLocation.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
+    getCompanySettings(),
   ]);
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -21,7 +23,7 @@ export default async function NewParcelPage() {
       <Card>
         <CardHeader><CardTitle>Intake</CardTitle></CardHeader>
         <CardContent>
-          <ParcelIntakeForm suppliers={suppliers} locations={locations} />
+          <ParcelIntakeForm suppliers={suppliers} locations={locations} defaultCurrency={company.defaultCurrency} />
         </CardContent>
       </Card>
     </div>

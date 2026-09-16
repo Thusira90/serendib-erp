@@ -43,6 +43,7 @@ export default async function EnquiriesPage() {
         {canWrite && <NewEnquiryButton
           customers={customers.map(c => ({ id: c.id, code: c.code, displayName: c.displayName }))}
           gemstones={gemstones.map(g => ({ id: g.id, code: g.code, gemType: g.gemType, variety: g.variety }))}
+          defaultCurrency={company.defaultCurrency}
         />}
       </div>
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { GEMSTONE_STATUSES } from "@/lib/enums";
 import { createFinishedGemstone } from "../create-actions";
 
@@ -74,8 +75,9 @@ export function GemstoneIntakeForm({
       </Section>
 
       <Section title="Commercial">
-        <F label="Acquisition cost *"><Input name="acquisitionCost" required inputMode="decimal" placeholder="8500" /></F>
-        <F label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></F>
+        <F label="Acquisition cost *" wide>
+          <CurrencyInput amountName="acquisitionCost" currencyName="currency" required defaultCurrency={defaultCurrency} placeholder="8500" />
+        </F>
         <F label="Asking price"><Input name="askingPrice" inputMode="decimal" /></F>
         <F label="Minimum acceptable"><Input name="minimumPrice" inputMode="decimal" /></F>
       </Section>

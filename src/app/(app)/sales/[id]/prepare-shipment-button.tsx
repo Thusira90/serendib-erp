@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencySelect } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plane } from "lucide-react";
 import { createShipment } from "@/app/(app)/shipments/actions";
@@ -34,7 +35,7 @@ export function PrepareShipmentButton({
             <Field label="Tracking #"><Input name="trackingNumber" /></Field>
             <Field label="Destination" span><Input name="destination" defaultValue={defaultDestination} /></Field>
             <Field label="Destination country"><Input name="destCountry" defaultValue={defaultCountry} /></Field>
-            <Field label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></Field>
+            <Field label="Currency (all amounts)"><CurrencySelect name="currency" defaultValue={defaultCurrency} /></Field>
             <Field label="Shipping cost"><Input name="shippingCost" inputMode="decimal" /></Field>
             <Field label="Insurance cost"><Input name="insuranceCost" inputMode="decimal" /></Field>
             <Field label="Declared value" span><Input name="declaredValue" inputMode="decimal" defaultValue={defaultDeclaredValue} /></Field>

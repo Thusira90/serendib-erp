@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Lock, Receipt, ShoppingBag, Unlock } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -140,8 +141,10 @@ function ReserveDialog({ gemstoneId, customers, askingPrice, currency }: {
               {customers.map((c) => <option key={c.id} value={c.id}>{c.displayName} · {c.code}</option>)}
             </select>
           </div>
-          <div className="space-y-1.5"><Label>Agreed price *</Label><Input name="price" required inputMode="decimal" defaultValue={askingPrice ?? ""} /></div>
-          <div className="space-y-1.5"><Label>Currency</Label><Input name="currency" defaultValue={currency} /></div>
+          <div className="space-y-1.5">
+            <Label>Agreed price *</Label>
+            <CurrencyInput amountName="price" currencyName="currency" required defaultAmount={askingPrice ?? ""} defaultCurrency={currency} />
+          </div>
           <div className="space-y-1.5"><Label>Deposit paid</Label><Input name="deposit" inputMode="decimal" /></div>
           <div className="space-y-1.5"><Label>Expires on</Label><Input name="expiresAt" type="date" /></div>
           <div className="space-y-1.5"><Label>Notes</Label><Textarea name="notes" rows={2} /></div>
@@ -194,9 +197,11 @@ function SellDialog({ gemstoneId, customers, askingPrice, currency, reservationI
               </select>
             )}
           </div>
-          <div className="space-y-1.5"><Label>Agreed price *</Label><Input name="agreedPrice" required inputMode="decimal" defaultValue={askingPrice ?? ""} /></div>
+          <div className="space-y-1.5">
+            <Label>Agreed price *</Label>
+            <CurrencyInput amountName="agreedPrice" currencyName="currency" required defaultAmount={askingPrice ?? ""} defaultCurrency={currency} />
+          </div>
           <div className="space-y-1.5"><Label>Tax</Label><Input name="taxAmount" inputMode="decimal" defaultValue="0" /></div>
-          <div className="space-y-1.5"><Label>Currency</Label><Input name="currency" defaultValue={currency} /></div>
           <div className="space-y-1.5"><Label>Sale date</Label><Input name="saleDate" type="date" /></div>
           <div className="space-y-1.5"><Label>Notes</Label><Textarea name="notes" rows={2} /></div>
           {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>}

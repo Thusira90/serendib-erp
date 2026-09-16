@@ -5,18 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { createQuotation } from "@/app/(app)/sales/actions";
 
 export function NewQuotationButton({
-  customers, gemstones, defaultCustomerId, defaultGemstoneId, defaultPrice,
+  customers, gemstones, defaultCustomerId, defaultGemstoneId, defaultPrice, defaultCurrency,
 }: {
   customers: { id: string; code: string; displayName: string }[];
   gemstones: { id: string; code: string; gemType: string; variety: string | null; askingPrice: number | null; currency: string }[];
   defaultCustomerId?: string;
   defaultGemstoneId?: string;
   defaultPrice?: number;
+  defaultCurrency: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -40,8 +42,9 @@ export function NewQuotationButton({
               {gemstones.map((g) => <option key={g.id} value={g.id}>{g.code} · {g.gemType}{g.variety ? ` (${g.variety})` : ""}{g.askingPrice ? ` — ${g.askingPrice} ${g.currency}` : ""}</option>)}
             </select>
           </Field>
-          <Field label="Price *"><Input name="price" required inputMode="decimal" defaultValue={defaultPrice ?? ""} /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue="USD" /></Field>
+          <Field label="Price *" span>
+            <CurrencyInput amountName="price" currencyName="currency" required defaultAmount={defaultPrice ?? ""} defaultCurrency={defaultCurrency} />
+          </Field>
           <Field label="Valid until"><Input name="validUntil" type="date" /></Field>
           <Field label="Payment terms"><Input name="paymentTerms" placeholder="50% on order, 50% before shipping" /></Field>
           <Field label="Delivery terms" span><Input name="deliveryTerms" placeholder="Insured courier, 5–7 business days" /></Field>
