@@ -84,7 +84,7 @@ export async function createCertificate(fd: FormData) {
         colorGrade: str(fd.get("colorGrade")),
         comments: str(fd.get("comments")),
         laboratoryFees: parseDec(fd.get("laboratoryFees")),
-        currency: str(fd.get("currency")) ?? "USD",
+        currency: str(fd.get("currency")) ?? "LKR",
         documentUrl: document?.url ?? str(fd.get("documentUrl")),
         imageUrl: image?.url ?? str(fd.get("imageUrl")),
       },

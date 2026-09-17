@@ -48,7 +48,7 @@ export default async function CuttingReport() {
             {d.cutters.length === 0 ? <div className="text-sm text-muted-foreground">No cutting data.</div> : (
               <HBarChart
                 data={d.cutters.map((c) => ({ label: c.name, value: c.totalCost }))}
-                valueFormat={compactCurrency("USD")}
+                valueFormat={compactCurrency("LKR")}
                 accent="sgs-purple"
               />
             )}

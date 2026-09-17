@@ -109,7 +109,7 @@ export async function createFinishedGemstone(fd: FormData) {
     symmetry: str(fd.get("symmetry")),
     polish: str(fd.get("polish")),
     acquisitionCost: dec(fd.get("acquisitionCost")) ?? 0,
-    currency: str(fd.get("currency")) ?? "USD",
+    currency: str(fd.get("currency")) ?? "LKR",
     askingPrice: dec(fd.get("askingPrice")),
     minimumPrice: dec(fd.get("minimumPrice")),
     supplierId: str(fd.get("supplierId")),

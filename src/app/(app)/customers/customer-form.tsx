@@ -26,7 +26,7 @@ type Existing = {
 export function CustomerForm({ existing }: { existing?: Existing }) {
   const [pending, start] = useTransition();
   const action = existing ? updateCustomer : createCustomer;
-  const p = existing?.preferences ?? { gemTypes: [], varieties: [], origins: [], colors: [], shapes: [], treatments: [], minWeightCt: null, maxWeightCt: null, budgetMin: null, budgetMax: null, currency: "USD" };
+  const p = existing?.preferences ?? { gemTypes: [], varieties: [], origins: [], colors: [], shapes: [], treatments: [], minWeightCt: null, maxWeightCt: null, budgetMin: null, budgetMax: null, currency: "LKR" };
   const csv = (a: string[]) => a.join(", ");
   const numOrEmpty = (n: number | null) => (n == null ? "" : String(n));
   return (

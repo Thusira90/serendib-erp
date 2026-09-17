@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { Plus, Trash2 } from "lucide-react";
 import { createParcelWithRoughs } from "../actions";
 
@@ -31,11 +30,10 @@ const parseNum = (v: string) => {
 };
 
 export function ParcelIntakeForm({
-  suppliers, locations, defaultCurrency,
+  suppliers, locations,
 }: {
   suppliers: { id: string; code: string; name: string }[];
   locations: { id: string; code: string; name: string }[];
-  defaultCurrency: string;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -75,16 +73,11 @@ export function ParcelIntakeForm({
           </F>
           <F label="Purchase date *"><Input name="purchaseDate" type="date" required defaultValue={new Date().toISOString().slice(0,10)} /></F>
           <F label="Origin"><Input name="origin" placeholder="Ratnapura, Sri Lanka" /></F>
-          <F label="Total cost *" span>
-            <CurrencyInput
-              amountName="totalCost"
-              currencyName="currency"
-              value={totalCost}
-              onAmountChange={setTotalCost}
-              defaultCurrency={defaultCurrency}
-              required
-            />
+          <F label="Total cost *">
+            <Input name="totalCost" required inputMode="decimal" value={totalCost}
+              onChange={(e) => setTotalCost(e.target.value)} />
           </F>
+          <F label="Currency"><Input name="currency" defaultValue="LKR" /></F>
           <F label="Storage location">
             <select name="locationId" defaultValue="" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="">— Unassigned —</option>

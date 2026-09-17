@@ -49,6 +49,6 @@ export function HBarChart({
   );
 }
 
-export const currencyFormat = (currency = "USD") => (v: number) => formatCurrency(v, currency);
-export const compactCurrency = (currency = "USD") => (v: number) =>
+export const currencyFormat = (currency = "LKR") => (v: number) => formatCurrency(v, currency);
+export const compactCurrency = (currency = "LKR") => (v: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency, notation: "compact", maximumFractionDigits: 1 }).format(v);

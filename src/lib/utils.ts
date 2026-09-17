@@ -7,11 +7,14 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(
   amount: number | null | undefined,
-  currency: string = "USD",
+  currency: string = "LKR",
   opts: Intl.NumberFormatOptions = {}
 ) {
   if (amount == null) return "—";
-  return new Intl.NumberFormat("en-US", {
+  // en-LK gives the Sri Lankan number grouping / spacing convention for LKR
+  // while still rendering foreign currency codes correctly (Intl falls back
+  // to the currency's own conventions when needed).
+  return new Intl.NumberFormat("en-LK", {
     style: "currency",
     currency,
     maximumFractionDigits: 2,

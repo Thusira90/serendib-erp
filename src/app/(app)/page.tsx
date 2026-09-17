@@ -106,7 +106,7 @@ export default async function DashboardPage() {
             <Link href="/reports/sales" className="text-xs text-sgs-teal-600 hover:underline">Full sales report →</Link>
           </CardHeader>
           <CardContent>
-            <ColumnChart data={monthly} formatValue={compactCurrency("USD")} />
+            <ColumnChart data={monthly} formatValue={compactCurrency("LKR")} />
             <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
               <Metric label="Rough weight"       value={formatCarat(Number(roughAgg._sum.weightCt ?? 0))} />
               <Metric label="Finished weight"    value={formatCarat(Number(gemAgg._sum.weightCt ?? 0))} />

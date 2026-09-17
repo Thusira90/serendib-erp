@@ -34,7 +34,7 @@ export default async function SalesReport() {
       <Card>
         <CardHeader><CardTitle>Revenue by month · cash collected (line)</CardTitle></CardHeader>
         <CardContent>
-          <ColumnChart data={monthly} formatValue={compactCurrency("USD")} secondaryLabel="Collected" />
+          <ColumnChart data={monthly} formatValue={compactCurrency("LKR")} secondaryLabel="Collected" />
         </CardContent>
       </Card>
 
@@ -43,7 +43,7 @@ export default async function SalesReport() {
           <CardHeader><CardTitle>By country</CardTitle></CardHeader>
           <CardContent>
             {d.byCountry.length === 0 ? <Empty /> : (
-              <HBarChart data={d.byCountry.map((r) => ({ label: r.key, value: r.value }))} valueFormat={compactCurrency("USD")} />
+              <HBarChart data={d.byCountry.map((r) => ({ label: r.key, value: r.value }))} valueFormat={compactCurrency("LKR")} />
             )}
           </CardContent>
         </Card>
@@ -51,7 +51,7 @@ export default async function SalesReport() {
           <CardHeader><CardTitle>By gemstone type</CardTitle></CardHeader>
           <CardContent>
             {d.byGemType.length === 0 ? <Empty /> : (
-              <HBarChart data={d.byGemType.map((r) => ({ label: r.key, value: r.value }))} valueFormat={compactCurrency("USD")} accent="sgs-purple" />
+              <HBarChart data={d.byGemType.map((r) => ({ label: r.key, value: r.value }))} valueFormat={compactCurrency("LKR")} accent="sgs-purple" />
             )}
           </CardContent>
         </Card>

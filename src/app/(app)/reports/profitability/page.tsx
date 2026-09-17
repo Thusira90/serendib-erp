@@ -34,7 +34,7 @@ export default async function ProfitabilityReport() {
             ) : (
               <HBarChart
                 data={d.byVariety.map((r) => ({ label: r.key, value: r.value }))}
-                valueFormat={compactCurrency("USD")}
+                valueFormat={compactCurrency("LKR")}
                 accent="sgs-purple"
               />
             )}

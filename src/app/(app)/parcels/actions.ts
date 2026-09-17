@@ -49,7 +49,7 @@ export async function createParcelWithRoughs(fd: FormData) {
     purchaseDate: str(fd.get("purchaseDate")) ?? "",
     origin: str(fd.get("origin")),
     totalCost: dec(fd.get("totalCost")) ?? 0,
-    currency: str(fd.get("currency")) ?? "USD",
+    currency: str(fd.get("currency")) ?? "LKR",
     notes: str(fd.get("notes")),
     locationId: str(fd.get("locationId")),
   });

@@ -67,7 +67,7 @@ model Parcel {
   origin        String?
   totalWeightCt Decimal
   totalCost     Decimal
-  currency      String   @default("USD")
+  currency      String   @default("LKR")
   notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -110,7 +110,7 @@ model RoughStone {
   observations   String?
 
   purchasePrice  Decimal
-  currency       String   @default("USD")
+  currency       String   @default("LKR")
   pricePerCt     Decimal?
 
   initialValuation Decimal?
@@ -174,7 +174,7 @@ model Gemstone {
   // Cost rollup (computed at write-time from allocated costs).
   totalCost      Decimal @default(0)
   costPerCt      Decimal @default(0)
-  currency       String   @default("USD")
+  currency       String   @default("LKR")
 
   askingPrice    Decimal?
   minimumPrice   Decimal?
@@ -223,7 +223,7 @@ model GemstoneTransformation {
   performedAt  DateTime
   operator     String?
   cost         Decimal @default(0)
-  currency     String   @default("USD")
+  currency     String   @default("LKR")
   notes        String?
 
   cuttingJobId String?  @unique
@@ -311,7 +311,7 @@ model CuttingJob {
   cuttingCost   Decimal @default(0)
   laborCost     Decimal @default(0)
   machineCost   Decimal @default(0)
-  currency      String   @default("USD")
+  currency      String   @default("LKR")
 
   notes         String?
   status  String  @default("PENDING")
@@ -367,7 +367,7 @@ model CostAllocation {
   type  String
   description  String?
   amount       Decimal
-  currency     String   @default("USD")
+  currency     String   @default("LKR")
   incurredAt   DateTime @default(now())
   createdAt    DateTime @default(now())
 }
@@ -380,7 +380,7 @@ model PriceHistory {
   gemstone     Gemstone @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
   oldPrice     Decimal?
   newPrice     Decimal
-  currency     String   @default("USD")
+  currency     String   @default("LKR")
   reason       String?
   changedBy    String?
   changedAt    DateTime @default(now())
@@ -462,7 +462,7 @@ model Certificate {
   comments              String?
 
   laboratoryFees        Decimal?
-  currency              String   @default("USD")
+  currency              String   @default("LKR")
 
   documentUrl           String?                  // path or URL to PDF
   imageUrl              String?                  // path or URL to scan image
@@ -655,7 +655,7 @@ model Enquiry {
   maxWeightCt   Decimal?
   budgetMin     Decimal?
   budgetMax     Decimal?
-  currency      String   @default("USD")
+  currency      String   @default("LKR")
   quantity      Int      @default(1)
 
   salespersonId String?
@@ -687,7 +687,7 @@ model Quotation {
   enquiry       Enquiry? @relation(fields: [enquiryId], references: [id])
 
   price         Decimal
-  currency      String   @default("USD")
+  currency      String   @default("LKR")
   validUntil    DateTime?
   paymentTerms  String?
   deliveryTerms String?
@@ -722,7 +722,7 @@ model Reservation {
 
   price         Decimal
   deposit       Decimal?
-  currency      String   @default("USD")
+  currency      String   @default("LKR")
   reservedAt    DateTime @default(now())
   expiresAt     DateTime?
   releasedAt    DateTime?
@@ -759,7 +759,7 @@ model SalesOrder {
   reservationId  String?
 
   agreedPrice    Decimal
-  currency       String   @default("USD")
+  currency       String   @default("LKR")
   taxAmount      Decimal @default(0)
   totalAmount    Decimal   // agreedPrice + taxAmount
 
@@ -791,7 +791,7 @@ model Payment {
   customer      Customer @relation(fields: [customerId], references: [id])
 
   amount        Decimal
-  currency      String   @default("USD")
+  currency      String   @default("LKR")
   method  String  @default("BANK_TRANSFER")
   reference     String?
   receivedAt    DateTime @default(now())
@@ -822,7 +822,7 @@ model Shipment {
   shippingCost   Decimal?
   insuranceCost  Decimal?
   declaredValue  Decimal?
-  currency       String   @default("USD")
+  currency       String   @default("LKR")
 
   preparedAt     DateTime?
   packedAt       DateTime?
@@ -872,7 +872,7 @@ model Expense {
   code          String   @unique             // EXP-2026-0031
   category      String                       // ExpenseCategory (see src/lib/enums.ts)
   amount        Decimal
-  currency      String   @default("USD")
+  currency      String   @default("LKR")
   vendor        String?
   description   String
   incurredAt    DateTime @default(now())

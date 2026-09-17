@@ -5,19 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { createRoughStone } from "./actions";
 import Link from "next/link";
 
 type Option = { id: string; name: string; code?: string };
 
 export function RoughForm({
-  suppliers, parcels, locations, defaultCurrency,
+  suppliers, parcels, locations,
 }: {
   suppliers: Option[];
   parcels: (Option & { supplier?: { name: string } })[];
   locations: (Option & { code: string })[];
-  defaultCurrency: string;
 }) {
   const [pending, start] = useTransition();
 
@@ -46,9 +44,8 @@ export function RoughForm({
       </Section>
 
       <Section title="Commercial">
-        <Field label="Purchase price *">
-          <CurrencyInput amountName="purchasePrice" currencyName="currency" required defaultCurrency={defaultCurrency} placeholder="8900" />
-        </Field>
+        <Field label="Purchase price *"><Input name="purchasePrice" required inputMode="decimal" placeholder="8900" /></Field>
+        <Field label="Currency"><Input name="currency" defaultValue="LKR" /></Field>
         <Field label="Initial valuation"><Input name="initialValuation" inputMode="decimal" /></Field>
         <Field label="Valued by"><Input name="valuationBy" /></Field>
         <Field label="Valuation notes" wide><Textarea name="valuationNotes" rows={2} /></Field>

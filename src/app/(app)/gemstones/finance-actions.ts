@@ -19,7 +19,7 @@ const costSchema = z.object({
   type: z.enum(COST_TYPES),
   amount: z.number().positive(),
   description: z.string().optional().nullable(),
-  currency: z.string().default("USD"),
+  currency: z.string().default("LKR"),
 });
 
 export async function addCostAllocation(fd: FormData) {
@@ -29,7 +29,7 @@ export async function addCostAllocation(fd: FormData) {
     type: str(fd.get("type")),
     amount: parseDec(fd.get("amount")),
     description: str(fd.get("description")),
-    currency: str(fd.get("currency")) ?? "USD",
+    currency: str(fd.get("currency")) ?? "LKR",
   });
 
   await prisma.$transaction(async (tx) => {
@@ -75,7 +75,7 @@ export async function addCostAllocation(fd: FormData) {
 const priceSchema = z.object({
   gemstoneId: z.string().min(1),
   newPrice: z.number().nonnegative(),
-  currency: z.string().default("USD"),
+  currency: z.string().default("LKR"),
   reason: z.string().optional().nullable(),
 });
 
@@ -84,7 +84,7 @@ export async function changeAskingPrice(fd: FormData) {
   const parsed = priceSchema.parse({
     gemstoneId: str(fd.get("gemstoneId")),
     newPrice: parseDec(fd.get("newPrice")),
-    currency: str(fd.get("currency")) ?? "USD",
+    currency: str(fd.get("currency")) ?? "LKR",
     reason: str(fd.get("reason")),
   });
 

@@ -143,7 +143,7 @@ export async function addStoneToCollection(fd: FormData) {
         displayOrder: nextOrder,
         note: parsed.note,
         priceOverride: parsed.priceOverride,
-        currency: parsed.priceOverride != null ? parsed.currency ?? "USD" : null,
+        currency: parsed.priceOverride != null ? parsed.currency ?? "LKR" : null,
       },
     });
     await tx.collection.update({ where: { id: parsed.collectionId }, data: { updatedAt: new Date() } });
@@ -184,7 +184,7 @@ export async function updateCollectionItem(fd: FormData) {
     where: { id: itemId },
     data: {
       note, priceOverride, displayOrder,
-      currency: priceOverride != null ? currency ?? "USD" : null,
+      currency: priceOverride != null ? currency ?? "LKR" : null,
     },
   });
   await writeAudit({

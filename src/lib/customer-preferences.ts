@@ -11,7 +11,7 @@ export const customerPreferencesSchema = z.object({
   maxWeightCt: z.number().nullable().default(null),
   budgetMin: z.number().nullable().default(null),
   budgetMax: z.number().nullable().default(null),
-  currency: z.string().default("USD"),
+  currency: z.string().default("LKR"),
 });
 
 export type CustomerPreferences = z.infer<typeof customerPreferencesSchema>;

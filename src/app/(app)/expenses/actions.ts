@@ -39,7 +39,7 @@ export async function createExpense(fd: FormData) {
   const parsed = createSchema.parse({
     category: str(fd.get("category")) ?? "OTHER",
     amount: dec(fd.get("amount")),
-    currency: str(fd.get("currency")) ?? "USD",
+    currency: str(fd.get("currency")) ?? "LKR",
     vendor: str(fd.get("vendor")),
     description: str(fd.get("description")) ?? "",
     incurredAt: date(fd.get("incurredAt")),

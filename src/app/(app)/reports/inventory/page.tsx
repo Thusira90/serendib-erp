@@ -39,7 +39,7 @@ export default async function InventoryReport() {
             ) : (
               <HBarChart
                 data={d.roughByOrigin.map((r) => ({ label: r.key, value: r.value }))}
-                valueFormat={compactCurrency("USD")}
+                valueFormat={compactCurrency("LKR")}
                 accent="sgs-teal"
               />
             )}
@@ -53,7 +53,7 @@ export default async function InventoryReport() {
             ) : (
               <HBarChart
                 data={d.gemByOrigin.map((r) => ({ label: r.key, value: r.asking }))}
-                valueFormat={compactCurrency("USD")}
+                valueFormat={compactCurrency("LKR")}
                 accent="sgs-purple"
               />
             )}
@@ -67,7 +67,7 @@ export default async function InventoryReport() {
             ) : (
               <HBarChart
                 data={d.roughByType.map((r) => ({ label: r.key, value: r.value }))}
-                valueFormat={compactCurrency("USD")}
+                valueFormat={compactCurrency("LKR")}
                 accent="sgs-teal"
               />
             )}
@@ -81,7 +81,7 @@ export default async function InventoryReport() {
             ) : (
               <HBarChart
                 data={d.gemByType.map((r) => ({ label: r.key, value: r.asking }))}
-                valueFormat={compactCurrency("USD")}
+                valueFormat={compactCurrency("LKR")}
                 accent="sgs-purple"
               />
             )}

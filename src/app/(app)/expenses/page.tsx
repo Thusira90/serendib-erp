@@ -62,7 +62,7 @@ export default async function ExpensesPage() {
             {chart.length === 0 ? (
               <div className="text-sm text-muted-foreground">No expenses recorded.</div>
             ) : (
-              <HBarChart data={chart} valueFormat={compactCurrency("USD")} accent="sgs-purple" />
+              <HBarChart data={chart} valueFormat={compactCurrency("LKR")} accent="sgs-purple" />
             )}
           </CardContent>
         </Card>

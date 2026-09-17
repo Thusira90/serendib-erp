@@ -189,7 +189,7 @@ export async function completeCuttingJob(fd: FormData) {
     cuttingCost: dec(fd.get("cuttingCost")),
     laborCost: dec(fd.get("laborCost")),
     machineCost: dec(fd.get("machineCost")),
-    currency: str(fd.get("currency")) ?? "USD",
+    currency: str(fd.get("currency")) ?? "LKR",
     notes: str(fd.get("notes")),
     outputs,
   });

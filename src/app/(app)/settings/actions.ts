@@ -42,7 +42,7 @@ export async function updateCompanySettings(fd: FormData) {
     email: opt(fd.get("email")),
     phone: opt(fd.get("phone")),
     website: opt(fd.get("website")),
-    defaultCurrency: str(fd.get("defaultCurrency")) || "USD",
+    defaultCurrency: str(fd.get("defaultCurrency")) || "LKR",
     defaultPaymentTerms: str(fd.get("defaultPaymentTerms")),
     defaultDeliveryTerms: str(fd.get("defaultDeliveryTerms")),
     defaultShippingTerms: str(fd.get("defaultShippingTerms")),

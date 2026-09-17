@@ -62,7 +62,7 @@ function fdPreferences(fd: FormData) {
     maxWeightCt: dec(fd.get("prefMaxWeightCt")),
     budgetMin: dec(fd.get("prefBudgetMin")),
     budgetMax: dec(fd.get("prefBudgetMax")),
-    currency: str(fd.get("prefCurrency")) ?? "USD",
+    currency: str(fd.get("prefCurrency")) ?? "LKR",
   });
 }
 

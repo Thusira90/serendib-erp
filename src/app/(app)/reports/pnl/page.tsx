@@ -80,7 +80,7 @@ export default async function PnlReport() {
             {p.opexByCategory.length === 0 ? (
               <div className="text-sm text-muted-foreground">No operating expenses in the window.</div>
             ) : (
-              <HBarChart data={p.opexByCategory.map((r) => ({ label: r.key, value: r.value }))} valueFormat={compactCurrency("USD")} accent="sgs-purple" />
+              <HBarChart data={p.opexByCategory.map((r) => ({ label: r.key, value: r.value }))} valueFormat={compactCurrency("LKR")} accent="sgs-purple" />
             )}
           </CardContent>
         </Card>
@@ -90,7 +90,7 @@ export default async function PnlReport() {
             {p.revenueByCountry.length === 0 ? (
               <div className="text-sm text-muted-foreground">No revenue yet.</div>
             ) : (
-              <HBarChart data={p.revenueByCountry.map((r) => ({ label: r.key, value: r.value }))} valueFormat={compactCurrency("USD")} />
+              <HBarChart data={p.revenueByCountry.map((r) => ({ label: r.key, value: r.value }))} valueFormat={compactCurrency("LKR")} />
             )}
           </CardContent>
         </Card>

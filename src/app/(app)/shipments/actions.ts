@@ -47,7 +47,7 @@ export async function createShipment(fd: FormData) {
     shippingCost: dec(fd.get("shippingCost")),
     insuranceCost: dec(fd.get("insuranceCost")),
     declaredValue: dec(fd.get("declaredValue")),
-    currency: str(fd.get("currency")) ?? "USD",
+    currency: str(fd.get("currency")) ?? "LKR",
     notes: str(fd.get("notes")),
   });
 
