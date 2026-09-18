@@ -146,6 +146,15 @@ export type CurrencyCode = (typeof CURRENCIES)[number]["code"];
 /** Base currency used for reporting rollups and live-rate hints. */
 export const BASE_CURRENCY = "LKR";
 
+export const DIRECTOR_ROLES = [
+  "Chairman",
+  "Managing Director",
+  "Executive Director",
+  "Non-Executive Director",
+  "Director",
+] as const;
+export type DirectorRole = (typeof DIRECTOR_ROLES)[number];
+
 export const NOTIFICATION_TYPES = [
   "SALE_CREATED","PAYMENT_RECORDED","RESERVATION_CREATED","RESERVATION_RELEASED",
   "RESERVATION_EXPIRING","QUOTATION_ACCEPTED","QUOTATION_EXPIRING","CERTIFICATE_ISSUED",

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { subMonths, startOfMonth, endOfMonth, format, differenceInCalendarDays } from "date-fns";
 import {
   Diamond, Gem, Scissors, TrendingUp, Coins, AlertTriangle,
-  Lock, FileText, Mail, Plane,
+  Lock, FileText, Mail, Plane, Crown,
 } from "lucide-react";
 import { dashboardAlerts } from "@/lib/reports";
 import { sweepExpiredReservations } from "@/lib/sweeper";
@@ -28,6 +28,7 @@ export default async function DashboardPage() {
     salesThisMonth, salesThisYear, allPayments,
     lastAudit, alerts,
     lastSale, lastEnquiry,
+    activeDirectorCount, allContributions,
   ] = await Promise.all([
     prisma.roughStone.count(),
     prisma.roughStone.aggregate({ _sum: { weightCt: true, purchasePrice: true } }),
@@ -43,7 +44,17 @@ export default async function DashboardPage() {
     dashboardAlerts(),
     prisma.salesOrder.findFirst({ orderBy: { saleDate: "desc" }, select: { saleDate: true } }),
     prisma.enquiry.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+    prisma.director.count({ where: { active: true } }),
+    prisma.capitalContribution.findMany({ select: { amount: true, currency: true } }),
   ]);
+
+  // Capital in the base currency only — mixed-currency rollups need live
+  // rates that aren't fetched server-side. The /directors page shows the
+  // per-currency breakdown for everything else.
+  const capitalInBase = allContributions
+    .filter((c) => c.currency === "LKR")
+    .reduce((s, c) => s + Number(c.amount), 0);
+  const otherCurrencyContribs = allContributions.filter((c) => c.currency !== "LKR").length;
 
   const revenueMonth = sum(salesThisMonth, (o) => Number(o.totalAmount));
   const revenueYtd   = sum(salesThisYear,  (o) => Number(o.totalAmount));
@@ -91,6 +102,26 @@ export default async function DashboardPage() {
         <KpiTile label="Finished gemstones"  value={String(gemCount)}   icon={<Gem />} href="/gemstones" />
         <KpiTile label="Available to sell"   value={String(availableGems)} icon={<TrendingUp />} href="/gemstones" />
         <KpiTile label="In cutting"          value={String(inCutting)}     icon={<Scissors />} href="/cutting" />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <KpiTile
+          label="Directors' capital (LKR)"
+          value={formatCurrency(capitalInBase)}
+          icon={<Crown />}
+          accent="purple"
+          href="/directors"
+        />
+        <KpiTile
+          label="Active directors"
+          value={
+            otherCurrencyContribs > 0
+              ? `${activeDirectorCount} · ${otherCurrencyContribs} non-LKR contribs`
+              : String(activeDirectorCount)
+          }
+          icon={<Crown />}
+          href="/directors"
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

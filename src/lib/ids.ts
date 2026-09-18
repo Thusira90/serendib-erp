@@ -41,6 +41,8 @@ export const codePrefix = {
   expense: "EXP",
   supplier: "SUP",
   collection: "COL",
+  director: "DIR",
+  capital: "CC",
 } as const;
 
 /**

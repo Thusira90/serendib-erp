@@ -922,6 +922,56 @@ model CompanySettings {
   updatedAt          DateTime @updatedAt
 }
 
+// ─── Directors + capital contributions ──────────────────────────────────────
+// A Director represents a shareholder/owner in the business. sharePct is the
+// human-declared ownership percentage — the app does NOT enforce that all
+// directors' shares add up to 100 (a company can be partially owned by
+// non-listed entities, and interim states during a cap-table change would
+// otherwise be rejected). CapitalContribution is the money paid in by a
+// director; a director may have many contributions over time.
+
+model Director {
+  id            String   @id @default(cuid())
+  code          String   @unique              // DIR-0001 — global, year-less counter
+  name          String
+  role          String   @default("Director") // "Chairman", "Managing Director", ...
+  email         String?
+  phone         String?
+  nationalId    String?
+  address       String?
+  sharePct      Decimal  @default(0)          // 0..100 ownership
+  active        Boolean  @default(true)
+  joinedAt      DateTime @default(now())
+  leftAt        DateTime?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contributions CapitalContribution[]
+
+  @@index([active])
+}
+
+model CapitalContribution {
+  id            String   @id @default(cuid())
+  code          String   @unique              // CC-2026-0001
+  directorId    String
+  director      Director @relation(fields: [directorId], references: [id], onDelete: Cascade)
+
+  amount        Decimal
+  currency      String   @default("LKR")
+  method        String   @default("BANK_TRANSFER") // PaymentMethod values reused
+  reference     String?
+  contributedAt DateTime @default(now())
+  receiptUrl    String?
+  notes         String?
+  recordedBy    String?
+  createdAt     DateTime @default(now())
+
+  @@index([directorId, contributedAt])
+  @@index([contributedAt])
+}
+
 // ─── Cross-entity comments ──────────────────────────────────────────────────
 
 model Comment {
