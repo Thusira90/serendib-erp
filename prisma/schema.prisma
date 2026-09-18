@@ -922,13 +922,25 @@ model CompanySettings {
   updatedAt          DateTime @updatedAt
 }
 
-// ─── Directors + capital contributions ──────────────────────────────────────
-// A Director represents a shareholder/owner in the business. sharePct is the
-// human-declared ownership percentage — the app does NOT enforce that all
-// directors' shares add up to 100 (a company can be partially owned by
-// non-listed entities, and interim states during a cap-table change would
-// otherwise be rejected). CapitalContribution is the money paid in by a
-// director; a director may have many contributions over time.
+// ─── Directors, Shareholders, Share register, Capital ledger ────────────────
+// Modelled after the SGS ERP architecture spec §16–21:
+//   * Director  — person holding a board seat. Ownership (share %) is DERIVED
+//     from the share register, never stored on the Director row.
+//   * Shareholder — person or entity that holds shares. May optionally point
+//     to a Director row when the same person plays both roles.
+//   * ShareClass — issued share class (ORD, PREF, …) with face value.
+//   * ShareTransaction — append-only ledger of share ISSUE / TRANSFER /
+//     CANCEL events. The historical register must remain reconstructable
+//     from this table alone; ShareLot is a materialised current-state cache.
+//   * ShareLot — denormalised "current holdings" per (shareholder, class),
+//     recomputed inside the same transaction that writes ShareTransaction.
+//   * CapitalTransaction — every money movement between the company and a
+//     director/shareholder. `type` distinguishes SHARE_CAPITAL from
+//     DIRECTOR_LOAN, ADVANCE, EXPENSE_PAID_ON_BEHALF, WITHDRAWAL,
+//     LOAN_REPAY, ADVANCE_REPAY, DIVIDEND — so the capital ledger can
+//     be rolled up by category without ambiguity. `status` (DRAFT/POSTED/
+//     REVERSED) is the hook the accounting engine will use in Phase 2 to
+//     enforce immutability of posted entries and to wire in the GL.
 
 model Director {
   id            String   @id @default(cuid())
@@ -939,7 +951,6 @@ model Director {
   phone         String?
   nationalId    String?
   address       String?
-  sharePct      Decimal  @default(0)          // 0..100 ownership
   active        Boolean  @default(true)
   joinedAt      DateTime @default(now())
   leftAt        DateTime?
@@ -947,29 +958,135 @@ model Director {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  contributions CapitalContribution[]
+  shareholder   Shareholder?
+  capitalTransactions CapitalTransaction[]
 
   @@index([active])
 }
 
-model CapitalContribution {
+model Shareholder {
   id            String   @id @default(cuid())
-  code          String   @unique              // CC-2026-0001
-  directorId    String
-  director      Director @relation(fields: [directorId], references: [id], onDelete: Cascade)
+  code          String   @unique              // SH-0001 — global, year-less counter
+  kind          String   @default("INDIVIDUAL") // INDIVIDUAL | ENTITY
+  name          String
+  email         String?
+  phone         String?
+  nationalId    String?                       // NIC / passport / company reg number
+  address       String?
+  notes         String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  directorId    String?  @unique              // 1:0..1 back-link when same person holds a board seat
+  director      Director? @relation(fields: [directorId], references: [id])
+
+  lots                ShareLot[]
+  transactionsFrom    ShareTransaction[]      @relation("ShareTransferor")
+  transactionsTo      ShareTransaction[]      @relation("ShareTransferee")
+  capitalTransactions CapitalTransaction[]
+
+  @@index([active])
+}
+
+model ShareClass {
+  id            String   @id @default(cuid())
+  code          String   @unique              // "ORD", "PREF"
+  name          String                        // "Ordinary shares"
+  faceValue     Decimal                       // per share
+  currency      String   @default("LKR")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lots          ShareLot[]
+  transactions  ShareTransaction[]
+}
+
+model ShareLot {
+  id            String   @id @default(cuid())
+  shareholderId String
+  shareholder   Shareholder @relation(fields: [shareholderId], references: [id], onDelete: Cascade)
+  shareClassId  String
+  shareClass    ShareClass  @relation(fields: [shareClassId], references: [id])
+  numberOfShares Decimal   @default(0)        // current holding, updated by ShareTransaction
+  paidUpAmount   Decimal   @default(0)        // total paid-in for this holding
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([shareholderId, shareClassId])
+  @@index([shareholderId])
+}
+
+model ShareTransaction {
+  id            String   @id @default(cuid())
+  code          String   @unique              // ST-2026-0001
+  type          String                        // SHARE_ISSUE | SHARE_TRANSFER | SHARE_CANCEL
+  shareClassId  String
+  shareClass    ShareClass @relation(fields: [shareClassId], references: [id])
+  numberOfShares Decimal
+  pricePerShare  Decimal                      // price paid or transfer value per share
+  totalAmount    Decimal                      // numberOfShares * pricePerShare
+  currency       String   @default("LKR")
+
+  transferorId  String?                       // Shareholder losing shares — null for ISSUE
+  transferor    Shareholder? @relation("ShareTransferor", fields: [transferorId], references: [id])
+  transfereeId  String?                       // Shareholder gaining shares — null for CANCEL
+  transferee    Shareholder? @relation("ShareTransferee", fields: [transfereeId], references: [id])
+
+  transactionDate DateTime @default(now())
+  reference       String?                     // board resolution, transfer form ref, …
+  documentUrl     String?
+  notes           String?
+  recordedBy      String?
+  createdAt       DateTime @default(now())
+
+  // When the paired capital transaction (SHARE_CAPITAL for an ISSUE) exists,
+  // this back-link makes the audit trail navigable in both directions.
+  capitalTransactionId String? @unique
+  capitalTransaction   CapitalTransaction? @relation(fields: [capitalTransactionId], references: [id])
+
+  @@index([transactionDate])
+  @@index([shareClassId])
+}
+
+model CapitalTransaction {
+  id            String   @id @default(cuid())
+  code          String   @unique              // CT-2026-0001
+  type          String                        // SHARE_CAPITAL | DIRECTOR_LOAN | LOAN_REPAY | ADVANCE | ADVANCE_REPAY | EXPENSE_PAID_ON_BEHALF | WITHDRAWAL | DIVIDEND
+
+  // Exactly one of these is set depending on `type`. Enforced in the action layer.
+  directorId    String?
+  director      Director? @relation(fields: [directorId], references: [id])
+  shareholderId String?
+  shareholder   Shareholder? @relation(fields: [shareholderId], references: [id])
 
   amount        Decimal
   currency      String   @default("LKR")
   method        String   @default("BANK_TRANSFER") // PaymentMethod values reused
   reference     String?
-  contributedAt DateTime @default(now())
+  transactionDate DateTime @default(now())
   receiptUrl    String?
   notes         String?
   recordedBy    String?
   createdAt     DateTime @default(now())
 
-  @@index([directorId, contributedAt])
-  @@index([contributedAt])
+  // Posting lifecycle — DRAFT while under review, POSTED once accepted,
+  // REVERSED after a reversing entry. Once POSTED, edits are refused; the
+  // only allowed change is REVERSAL via a paired CapitalTransaction.
+  status        String   @default("POSTED")   // DRAFT | POSTED | REVERSED
+  postedAt      DateTime?
+  postedBy      String?
+  reversalOfId  String?  @unique              // this row IS the reversal of that row
+  reversalOf    CapitalTransaction? @relation("CapitalReversal", fields: [reversalOfId], references: [id])
+  reversedBy    CapitalTransaction? @relation("CapitalReversal")
+
+  // For type=SHARE_CAPITAL, we create a matching ShareTransaction; this
+  // hard-link is the audit thread between money-in and shares-out.
+  shareTransaction ShareTransaction?
+
+  @@index([directorId, transactionDate])
+  @@index([shareholderId, transactionDate])
+  @@index([type])
 }
 
 // ─── Cross-entity comments ──────────────────────────────────────────────────

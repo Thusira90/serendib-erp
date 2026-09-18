@@ -48,7 +48,11 @@ export type Capability =
   | "collection:read"
   | "collection:write"
   | "director:read"
-  | "director:write";
+  | "director:write"
+  | "shareholder:read"
+  | "shareholder:write"
+  | "capital:read"
+  | "capital:write";
 
 const matrix: Record<Role, Capability[]> = {
   ADMINISTRATOR: [
@@ -65,6 +69,8 @@ const matrix: Record<Role, Capability[]> = {
     "expense:read","expense:write","settings:read","settings:write",
     "collection:read","collection:write",
     "director:read","director:write",
+    "shareholder:read","shareholder:write",
+    "capital:read","capital:write",
   ],
   MANAGEMENT: [
     "rough:read","gemstone:read","cutting:read","genealogy:read",
@@ -73,7 +79,7 @@ const matrix: Record<Role, Capability[]> = {
     "customer:read","enquiry:read","quotation:read","reservation:read",
     "sale:read","payment:read","shipment:read","report:read",
     "expense:read","settings:read","collection:read",
-    "director:read",
+    "director:read","shareholder:read","capital:read",
   ],
   GEM_BUYER: [
     "rough:read","rough:write","supplier:read","supplier:write",
@@ -103,6 +109,8 @@ const matrix: Record<Role, Capability[]> = {
     "customer:read","quotation:read","reservation:read","sale:read","sale:write",
     "payment:read","payment:write","shipment:read","report:read",
     "director:read","director:write",
+    "shareholder:read","shareholder:write",
+    "capital:read","capital:write",
   ],
   WAREHOUSE: [
     "rough:read","gemstone:read","location:read","location:write","dashboard:read",

@@ -155,6 +155,58 @@ export const DIRECTOR_ROLES = [
 ] as const;
 export type DirectorRole = (typeof DIRECTOR_ROLES)[number];
 
+export const SHAREHOLDER_KINDS = ["INDIVIDUAL", "ENTITY"] as const;
+export type ShareholderKind = (typeof SHAREHOLDER_KINDS)[number];
+
+/**
+ * The ledger of every money movement between the company and its
+ * directors/shareholders. Grouping in ledger rollups (spec §20):
+ *   - Share capital column   = SHARE_CAPITAL
+ *   - Director loan column   = DIRECTOR_LOAN - LOAN_REPAY
+ *   - Advances column        = ADVANCE - ADVANCE_REPAY
+ *   - Expenses paid          = EXPENSE_PAID_ON_BEHALF
+ *   - Withdrawals column     = WITHDRAWAL
+ *   - Dividends column       = DIVIDEND
+ * Outstanding balance the company owes the director is:
+ *   (loan - loan_repay) + (advance - advance_repay) + expenses_paid - withdrawals
+ * SHARE_CAPITAL and DIVIDEND move on the equity side and don't affect that.
+ */
+export const CAPITAL_TXN_TYPES = [
+  "SHARE_CAPITAL",
+  "DIRECTOR_LOAN",
+  "LOAN_REPAY",
+  "ADVANCE",
+  "ADVANCE_REPAY",
+  "EXPENSE_PAID_ON_BEHALF",
+  "WITHDRAWAL",
+  "DIVIDEND",
+] as const;
+export type CapitalTxnType = (typeof CAPITAL_TXN_TYPES)[number];
+
+/** Which party (director-side vs shareholder-side) each type applies to. */
+export const CAPITAL_TXN_META: Record<CapitalTxnType, {
+  label: string;
+  party: "director" | "shareholder";
+  /** Sign for the director-payable balance calc. 0 = does not touch balance. */
+  balanceSign: -1 | 0 | 1;
+  hint: string;
+}> = {
+  SHARE_CAPITAL:          { label: "Share capital paid in",  party: "shareholder", balanceSign:  0, hint: "Money received from a shareholder in exchange for shares. Pair this with a share issue." },
+  DIRECTOR_LOAN:          { label: "Director loan received", party: "director",    balanceSign:  1, hint: "Money lent by a director to the company." },
+  LOAN_REPAY:             { label: "Loan repayment paid",    party: "director",    balanceSign: -1, hint: "Company repaying part of a director loan." },
+  ADVANCE:                { label: "Director advance",       party: "director",    balanceSign:  1, hint: "Temporary funds provided by a director." },
+  ADVANCE_REPAY:          { label: "Advance repayment",      party: "director",    balanceSign: -1, hint: "Company returning a director advance." },
+  EXPENSE_PAID_ON_BEHALF: { label: "Expense paid on behalf", party: "director",    balanceSign:  1, hint: "Director personally paid a company expense — company now owes the director." },
+  WITHDRAWAL:             { label: "Director withdrawal",    party: "director",    balanceSign: -1, hint: "Director drew money from the company." },
+  DIVIDEND:               { label: "Dividend paid",          party: "shareholder", balanceSign:  0, hint: "Distribution to a shareholder out of retained earnings." },
+};
+
+export const CAPITAL_TXN_STATUSES = ["DRAFT", "POSTED", "REVERSED"] as const;
+export type CapitalTxnStatus = (typeof CAPITAL_TXN_STATUSES)[number];
+
+export const SHARE_TXN_TYPES = ["SHARE_ISSUE", "SHARE_TRANSFER", "SHARE_CANCEL"] as const;
+export type ShareTxnType = (typeof SHARE_TXN_TYPES)[number];
+
 export const NOTIFICATION_TYPES = [
   "SALE_CREATED","PAYMENT_RECORDED","RESERVATION_CREATED","RESERVATION_RELEASED",
   "RESERVATION_EXPIRING","QUOTATION_ACCEPTED","QUOTATION_EXPIRING","CERTIFICATE_ISSUED",

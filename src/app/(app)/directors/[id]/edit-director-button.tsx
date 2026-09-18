@@ -18,7 +18,6 @@ type Director = {
   phone: string | null;
   nationalId: string | null;
   address: string | null;
-  sharePct: number;
   active: boolean;
   joinedAt: Date;
   leftAt: Date | null;
@@ -42,9 +41,7 @@ export function EditDirectorButton({ director }: { director: Director }) {
           className="grid grid-cols-2 gap-3"
         >
           <input type="hidden" name="id" value={director.id} />
-          <Field label="Name *" span>
-            <Input name="name" required defaultValue={director.name} />
-          </Field>
+          <Field label="Name *" span><Input name="name" required defaultValue={director.name} /></Field>
           <Field label="Role *">
             <select name="role" defaultValue={director.role} required
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
@@ -54,16 +51,7 @@ export function EditDirectorButton({ director }: { director: Director }) {
               )}
             </select>
           </Field>
-          <Field label="Share % *">
-            <Input name="sharePct" required inputMode="decimal" defaultValue={director.sharePct.toString()} />
-          </Field>
-          <Field label="Email"><Input name="email" type="email" defaultValue={director.email ?? ""} /></Field>
-          <Field label="Phone"><Input name="phone" defaultValue={director.phone ?? ""} /></Field>
-          <Field label="National ID"><Input name="nationalId" defaultValue={director.nationalId ?? ""} /></Field>
-          <Field label="Joined"><Input name="joinedAt" type="date" defaultValue={dateInput(director.joinedAt)} /></Field>
-          <Field label="Left"><Input name="leftAt" type="date" defaultValue={dateInput(director.leftAt)} /></Field>
-          <Field label="Address" span><Input name="address" defaultValue={director.address ?? ""} /></Field>
-          <Field label="Status" span>
+          <Field label="Status">
             <div className="flex gap-4 items-center h-9 text-sm">
               <label className="flex items-center gap-2">
                 <input type="radio" name="active" value="true" defaultChecked={director.active} /> Active
@@ -73,6 +61,12 @@ export function EditDirectorButton({ director }: { director: Director }) {
               </label>
             </div>
           </Field>
+          <Field label="Joined"><Input name="joinedAt" type="date" defaultValue={dateInput(director.joinedAt)} /></Field>
+          <Field label="Left"><Input name="leftAt" type="date" defaultValue={dateInput(director.leftAt)} /></Field>
+          <Field label="Email"><Input name="email" type="email" defaultValue={director.email ?? ""} /></Field>
+          <Field label="Phone"><Input name="phone" defaultValue={director.phone ?? ""} /></Field>
+          <Field label="National ID"><Input name="nationalId" defaultValue={director.nationalId ?? ""} /></Field>
+          <Field label="Address" span><Input name="address" defaultValue={director.address ?? ""} /></Field>
           <Field label="Notes" span><Textarea name="notes" rows={2} defaultValue={director.notes ?? ""} /></Field>
           <div className="col-span-full flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

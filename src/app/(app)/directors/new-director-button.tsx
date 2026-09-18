@@ -20,6 +20,10 @@ export function NewDirectorButton() {
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Add director</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground -mt-1">
+          A director is a person holding a board seat. If the same person also holds shares,
+          record them as a Shareholder from the Shareholders page and link back to this director.
+        </p>
         <form
           action={(fd) => start(async () => { await createDirector(fd); setOpen(false); })}
           className="grid grid-cols-2 gap-3"
@@ -31,11 +35,10 @@ export function NewDirectorButton() {
               {DIRECTOR_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </Field>
-          <Field label="Share % *"><Input name="sharePct" required inputMode="decimal" placeholder="25.00" /></Field>
+          <Field label="Joined"><Input name="joinedAt" type="date" defaultValue={new Date().toISOString().slice(0,10)} /></Field>
           <Field label="Email"><Input name="email" type="email" placeholder="aloka@serendib.lk" /></Field>
           <Field label="Phone"><Input name="phone" placeholder="+94 77 123 4567" /></Field>
-          <Field label="National ID / passport"><Input name="nationalId" placeholder="199012345678" /></Field>
-          <Field label="Joined"><Input name="joinedAt" type="date" defaultValue={new Date().toISOString().slice(0,10)} /></Field>
+          <Field label="National ID / passport" span><Input name="nationalId" placeholder="199012345678" /></Field>
           <Field label="Address" span><Input name="address" placeholder="12 Galle Road, Colombo 03" /></Field>
           <Field label="Notes" span><Textarea name="notes" rows={2} placeholder="Board resolution number, appointment context…" /></Field>
           <div className="col-span-full flex justify-end gap-2 pt-2">

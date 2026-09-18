@@ -5,38 +5,37 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getCompanySettings } from "@/lib/company-settings";
-import { RecordContributionButton } from "../record-contribution-button";
 import { EditDirectorButton } from "./edit-director-button";
-import { DeleteContributionButton } from "./delete-contribution-button";
-import { Crown, ChevronLeft, FileText } from "lucide-react";
+import { CAPITAL_TXN_META } from "@/lib/enums";
+import { Crown, ChevronLeft, FileText, ExternalLink } from "lucide-react";
 
-const methodLabel = (m: string) =>
-  m.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
+const methodLabel = (m: string) => m.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
 
 export default async function DirectorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await requireCapability("director:read");
   const canWrite = can(session.user.role, "director:write");
+  const canViewCapital = can(session.user.role, "capital:read");
 
-  const [director, allDirectors, company] = await Promise.all([
-    prisma.director.findUnique({
-      where: { id },
-      include: { contributions: { orderBy: { contributedAt: "desc" } } },
-    }),
-    prisma.director.findMany({ orderBy: { name: "asc" } }),
-    getCompanySettings(),
-  ]);
+  const director = await prisma.director.findUnique({
+    where: { id },
+    include: {
+      shareholder: { include: { lots: { include: { shareClass: true } } } },
+      capitalTransactions: canViewCapital ? { orderBy: { transactionDate: "desc" } } : false,
+    },
+  });
   if (!director) notFound();
 
-  const totals = new Map<string, number>();
-  for (const c of director.contributions) {
-    const amt = Number(c.amount);
-    totals.set(c.currency, (totals.get(c.currency) ?? 0) + amt);
+  const txns = director.capitalTransactions ?? [];
+  const totalsByType = new Map<string, Map<string, number>>();
+  for (const t of txns) {
+    if (t.status === "REVERSED") continue;
+    const key = t.type;
+    const perCcy = totalsByType.get(key) ?? new Map<string, number>();
+    perCcy.set(t.currency, (perCcy.get(t.currency) ?? 0) + Number(t.amount));
+    totalsByType.set(key, perCcy);
   }
-  const totalRows = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
 
   return (
     <div className="space-y-6">
@@ -60,21 +59,13 @@ export default async function DirectorDetailPage({ params }: { params: Promise<{
             </div>
           </div>
           {canWrite && (
-            <div className="flex gap-2">
-              <EditDirectorButton director={{
-                id: director.id, name: director.name, role: director.role,
-                email: director.email, phone: director.phone,
-                nationalId: director.nationalId, address: director.address,
-                sharePct: Number(director.sharePct), active: director.active,
-                joinedAt: director.joinedAt, leftAt: director.leftAt,
-                notes: director.notes,
-              }} />
-              <RecordContributionButton
-                directors={allDirectors.map((d) => ({ id: d.id, name: d.name, code: d.code, active: d.active }))}
-                defaultCurrency={company.defaultCurrency}
-                presetDirectorId={director.id}
-              />
-            </div>
+            <EditDirectorButton director={{
+              id: director.id, name: director.name, role: director.role,
+              email: director.email, phone: director.phone,
+              nationalId: director.nationalId, address: director.address,
+              active: director.active, joinedAt: director.joinedAt,
+              leftAt: director.leftAt, notes: director.notes,
+            }} />
           )}
         </div>
       </div>
@@ -83,7 +74,6 @@ export default async function DirectorDetailPage({ params }: { params: Promise<{
         <Card>
           <CardHeader><CardTitle>Profile</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <KV label="Share %" value={`${Number(director.sharePct).toFixed(2)}%`} />
             <KV label="Email" value={director.email ?? "—"} />
             <KV label="Phone" value={director.phone ?? "—"} />
             <KV label="National ID" value={director.nationalId ?? "—"} />
@@ -100,85 +90,126 @@ export default async function DirectorDetailPage({ params }: { params: Promise<{
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Capital contributed</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Shareholder link</CardTitle>
+          </CardHeader>
           <CardContent>
-            {totalRows.length === 0 ? (
-              <div className="text-sm text-muted-foreground text-center py-6">
-                No contributions recorded yet.
+            {director.shareholder ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Link href={`/shareholders/${director.shareholder.id}`} className="text-sgs-teal-700 hover:underline inline-flex items-center gap-1 font-medium">
+                    {director.shareholder.name} <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                  <Badge variant="muted">{director.shareholder.code}</Badge>
+                  <Badge variant="muted">{director.shareholder.kind}</Badge>
+                </div>
+                {director.shareholder.lots.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    {director.shareholder.lots.map((l) => (
+                      <div key={l.id} className="rounded-md border bg-secondary/30 px-3 py-2">
+                        <div className="font-medium">{Number(l.numberOfShares).toLocaleString()} {l.shareClass.code}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Paid-up {formatCurrency(Number(l.paidUpAmount), l.shareClass.currency)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">No shares issued to this shareholder yet.</div>
+                )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {totalRows.map(([ccy, amt]) => (
-                  <div key={ccy} className="rounded-lg border bg-secondary/40 px-4 py-3">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{ccy}</div>
-                    <div className="font-serif text-2xl num">{formatCurrency(amt, ccy)}</div>
-                    <div className="text-[10px] text-muted-foreground mt-1">
-                      {director.contributions.filter((c) => c.currency === ccy).length} contribution(s)
-                    </div>
-                  </div>
-                ))}
+              <div className="text-sm text-muted-foreground">
+                This director is not on the share register. If they also hold shares, add them from{" "}
+                <Link href="/shareholders" className="text-sgs-teal-700 hover:underline">Shareholders</Link> and link back.
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>Contribution history</CardTitle>
-          <div className="text-xs text-muted-foreground">{director.contributions.length} entries</div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Reference</TableHead>
-                <TableHead>Recorded by</TableHead>
-                <TableHead>Receipt</TableHead>
-                {canWrite && <TableHead />}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {director.contributions.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={canWrite ? 8 : 7} className="text-center text-sm text-muted-foreground py-8">
-                    No contributions recorded yet.
-                  </TableCell>
-                </TableRow>
-              )}
-              {director.contributions.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-mono text-xs">{c.code}</TableCell>
-                  <TableCell className="text-xs">{formatDate(c.contributedAt)}</TableCell>
-                  <TableCell className="text-right num font-medium">
-                    {formatCurrency(Number(c.amount), c.currency)}
-                  </TableCell>
-                  <TableCell><Badge variant="muted">{methodLabel(c.method)}</Badge></TableCell>
-                  <TableCell className="text-xs">{c.reference ?? "—"}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{c.recordedBy ?? "—"}</TableCell>
-                  <TableCell>
-                    {c.receiptUrl ? (
-                      <Link href={c.receiptUrl} target="_blank" className="inline-flex items-center gap-1 text-xs text-sgs-teal-700 hover:underline">
-                        <FileText className="h-3.5 w-3.5" /> View
-                      </Link>
-                    ) : "—"}
-                  </TableCell>
-                  {canWrite && (
-                    <TableCell>
-                      <DeleteContributionButton id={c.id} code={c.code} />
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {canViewCapital && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Director-side capital movement</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Loans, advances, expenses-paid-on-behalf and withdrawals — see the full{" "}
+              <Link href="/capital" className="text-sgs-teal-700 hover:underline">Capital ledger</Link> for the ledger view.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {totalsByType.size > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {Array.from(totalsByType.entries()).map(([type, perCcy]) => (
+                  <div key={type} className="rounded-md border bg-secondary/30 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {CAPITAL_TXN_META[type as keyof typeof CAPITAL_TXN_META]?.label ?? type}
+                    </div>
+                    {Array.from(perCcy.entries()).map(([ccy, amt]) => (
+                      <div key={ccy} className="num text-sm font-medium">
+                        {formatCurrency(amt, ccy)}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
 
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Receipt</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {txns.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
+                      No director-side capital movement yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {txns.map((t) => {
+                  const meta = CAPITAL_TXN_META[t.type as keyof typeof CAPITAL_TXN_META];
+                  return (
+                    <TableRow key={t.id} className={t.status === "REVERSED" ? "opacity-60" : ""}>
+                      <TableCell className="font-mono text-xs">{t.code}</TableCell>
+                      <TableCell className="text-xs">{formatDate(t.transactionDate)}</TableCell>
+                      <TableCell className="text-xs">
+                        <Badge variant="muted">{meta?.label ?? t.type}</Badge>
+                      </TableCell>
+                      <TableCell className={`text-right num font-medium ${Number(t.amount) < 0 ? "text-red-600" : ""}`}>
+                        {formatCurrency(Number(t.amount), t.currency)}
+                      </TableCell>
+                      <TableCell className="text-xs">{methodLabel(t.method)}</TableCell>
+                      <TableCell className="text-xs">{t.reference ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={t.status === "POSTED" ? "success" : t.status === "REVERSED" ? "danger" : "muted"}>
+                          {t.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {t.receiptUrl ? (
+                          <Link href={t.receiptUrl} target="_blank" className="inline-flex items-center gap-1 text-xs text-sgs-teal-700 hover:underline">
+                            <FileText className="h-3.5 w-3.5" /> View
+                          </Link>
+                        ) : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

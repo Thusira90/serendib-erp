@@ -45,15 +45,27 @@ export default async function DashboardPage() {
     prisma.salesOrder.findFirst({ orderBy: { saleDate: "desc" }, select: { saleDate: true } }),
     prisma.enquiry.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     prisma.director.count({ where: { active: true } }),
-    prisma.capitalContribution.findMany({ select: { amount: true, currency: true } }),
+    prisma.capitalTransaction.findMany({
+      where: { status: "POSTED" },
+      select: { amount: true, currency: true, type: true },
+    }),
   ]);
 
   // Capital in the base currency only — mixed-currency rollups need live
-  // rates that aren't fetched server-side. The /directors page shows the
+  // rates that aren't fetched server-side. The /capital ledger shows the
   // per-currency breakdown for everything else.
+  //
+  // We treat "capital raised" as SHARE_CAPITAL + net director loans/advances +
+  // expenses paid on behalf, minus withdrawals — the same signed sum used in
+  // the "Outstanding balance" column on the ledger.
+  const balanceSign: Record<string, 1 | 0 | -1> = {
+    SHARE_CAPITAL: 1, DIRECTOR_LOAN: 1, LOAN_REPAY: -1,
+    ADVANCE: 1, ADVANCE_REPAY: -1, EXPENSE_PAID_ON_BEHALF: 1,
+    WITHDRAWAL: -1, DIVIDEND: -1,
+  };
   const capitalInBase = allContributions
     .filter((c) => c.currency === "LKR")
-    .reduce((s, c) => s + Number(c.amount), 0);
+    .reduce((s, c) => s + Number(c.amount) * (balanceSign[c.type] ?? 0), 0);
   const otherCurrencyContribs = allContributions.filter((c) => c.currency !== "LKR").length;
 
   const revenueMonth = sum(salesThisMonth, (o) => Number(o.totalAmount));
@@ -106,17 +118,17 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <KpiTile
-          label="Directors' capital (LKR)"
+          label="Capital raised (LKR)"
           value={formatCurrency(capitalInBase)}
           icon={<Crown />}
           accent="purple"
-          href="/directors"
+          href="/capital"
         />
         <KpiTile
           label="Active directors"
           value={
             otherCurrencyContribs > 0
-              ? `${activeDirectorCount} · ${otherCurrencyContribs} non-LKR contribs`
+              ? `${activeDirectorCount} · ${otherCurrencyContribs} non-LKR entries`
               : String(activeDirectorCount)
           }
           icon={<Crown />}
