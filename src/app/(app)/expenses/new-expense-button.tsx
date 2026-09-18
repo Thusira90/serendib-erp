@@ -12,7 +12,7 @@ import { createExpense } from "./actions";
 
 const label = (c: string) => c.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
 
-export function NewExpenseButton() {
+export function NewExpenseButton({ defaultCurrency = "LKR" }: { defaultCurrency?: string }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   return (
@@ -33,7 +33,7 @@ export function NewExpenseButton() {
             </select>
           </Field>
           <Field label="Amount *"><Input name="amount" required inputMode="decimal" /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue="LKR" /></Field>
+          <Field label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></Field>
           <Field label="Date"><Input name="incurredAt" type="date" defaultValue={new Date().toISOString().slice(0,10)} /></Field>
           <Field label="Vendor"><Input name="vendor" placeholder="Supplier / payee" /></Field>
           <Field label="Description *" span><Input name="description" required placeholder="Office rent April 2026" /></Field>

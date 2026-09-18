@@ -10,13 +10,14 @@ import { Plus } from "lucide-react";
 import { createQuotation } from "@/app/(app)/sales/actions";
 
 export function NewQuotationButton({
-  customers, gemstones, defaultCustomerId, defaultGemstoneId, defaultPrice,
+  customers, gemstones, defaultCustomerId, defaultGemstoneId, defaultPrice, defaultCurrency = "LKR",
 }: {
   customers: { id: string; code: string; displayName: string }[];
   gemstones: { id: string; code: string; gemType: string; variety: string | null; askingPrice: number | null; currency: string }[];
   defaultCustomerId?: string;
   defaultGemstoneId?: string;
   defaultPrice?: number;
+  defaultCurrency?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -41,7 +42,7 @@ export function NewQuotationButton({
             </select>
           </Field>
           <Field label="Price *"><Input name="price" required inputMode="decimal" defaultValue={defaultPrice ?? ""} /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue="LKR" /></Field>
+          <Field label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></Field>
           <Field label="Valid until"><Input name="validUntil" type="date" /></Field>
           <Field label="Payment terms"><Input name="paymentTerms" placeholder="50% on order, 50% before shipping" /></Field>
           <Field label="Delivery terms" span><Input name="deliveryTerms" placeholder="Insured courier, 5–7 business days" /></Field>

@@ -30,10 +30,11 @@ const parseNum = (v: string) => {
 };
 
 export function ParcelIntakeForm({
-  suppliers, locations,
+  suppliers, locations, defaultCurrency = "LKR",
 }: {
   suppliers: { id: string; code: string; name: string }[];
   locations: { id: string; code: string; name: string }[];
+  defaultCurrency?: string;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export function ParcelIntakeForm({
             <Input name="totalCost" required inputMode="decimal" value={totalCost}
               onChange={(e) => setTotalCost(e.target.value)} />
           </F>
-          <F label="Currency"><Input name="currency" defaultValue="LKR" /></F>
+          <F label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></F>
           <F label="Storage location">
             <select name="locationId" defaultValue="" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="">— Unassigned —</option>

@@ -10,10 +10,11 @@ import { Plus } from "lucide-react";
 import { createEnquiry } from "@/app/(app)/sales/actions";
 
 export function NewEnquiryButton({
-  customers, gemstones,
+  customers, gemstones, defaultCurrency = "LKR",
 }: {
   customers: { id: string; code: string; displayName: string }[];
   gemstones: { id: string; code: string; gemType: string; variety: string | null }[];
+  defaultCurrency?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -48,7 +49,7 @@ export function NewEnquiryButton({
           <Field label="Max weight (ct)"><Input name="maxWeightCt" inputMode="decimal" /></Field>
           <Field label="Budget min"><Input name="budgetMin" inputMode="decimal" /></Field>
           <Field label="Budget max"><Input name="budgetMax" inputMode="decimal" /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue="LKR" /></Field>
+          <Field label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></Field>
           <Field label="Follow-up date"><Input name="followUpDate" type="date" /></Field>
           <Field label="Notes" span><Textarea name="notes" rows={2} /></Field>
           <div className="col-span-full flex justify-end gap-2 pt-2">
