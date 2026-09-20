@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatCarat, formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import { Gem, Plus } from "lucide-react";
+import { ShareCatalogueButton } from "@/components/share-catalogue-button";
 
 export default async function GemstoneListPage() {
   const session = await requireCapability("gemstone:read");
@@ -26,9 +27,12 @@ export default async function GemstoneListPage() {
           <h1 className="font-serif text-3xl flex items-center gap-3"><Gem className="h-7 w-7 text-sgs-purple-500" /> Finished Gemstones</h1>
           <p className="text-sm text-muted-foreground">Each stone carries its lineage, cost and price history forever.</p>
         </div>
-        {canWrite && (
-          <Button asChild variant="accent"><Link href="/gemstones/new"><Plus className="h-4 w-4" /> Register gemstone</Link></Button>
-        )}
+        <div className="flex items-center gap-2">
+          <ShareCatalogueButton />
+          {canWrite && (
+            <Button asChild variant="accent"><Link href="/gemstones/new"><Plus className="h-4 w-4" /> Register gemstone</Link></Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

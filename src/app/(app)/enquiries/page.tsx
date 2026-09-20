@@ -9,6 +9,8 @@ import { NewEnquiryButton } from "./new-enquiry-button";
 import { QuickQuoteButton } from "./quick-quote-button";
 import { Mail } from "lucide-react";
 import { getCompanySettings } from "@/lib/company-settings";
+import { ShareCatalogueButton } from "@/components/share-catalogue-button";
+import { ShareStoneButton } from "@/components/share-stone-button";
 
 const statusVariant: Record<string, "muted" | "teal" | "warning" | "success" | "danger" | "purple"> = {
   NEW: "teal", CONTACTED: "muted", QUOTED: "purple",
@@ -40,11 +42,14 @@ export default async function EnquiriesPage() {
           <h1 className="font-serif text-3xl flex items-center gap-3"><Mail className="h-7 w-7 text-sgs-teal-500" /> Enquiries</h1>
           <p className="text-sm text-muted-foreground">Every inbound interest, tracked through to the sale.</p>
         </div>
-        {canWrite && <NewEnquiryButton
-          customers={customers.map(c => ({ id: c.id, code: c.code, displayName: c.displayName }))}
-          gemstones={gemstones.map(g => ({ id: g.id, code: g.code, gemType: g.gemType, variety: g.variety }))}
-          defaultCurrency={company.defaultCurrency}
-        />}
+        <div className="flex items-center gap-2">
+          <ShareCatalogueButton />
+          {canWrite && <NewEnquiryButton
+            customers={customers.map(c => ({ id: c.id, code: c.code, displayName: c.displayName }))}
+            gemstones={gemstones.map(g => ({ id: g.id, code: g.code, gemType: g.gemType, variety: g.variety }))}
+            defaultCurrency={company.defaultCurrency}
+          />}
+        </div>
       </div>
 
       <Card>
@@ -59,12 +64,13 @@ export default async function EnquiriesPage() {
                 <TableHead>Budget</TableHead>
                 <TableHead>Follow-up</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Reply</TableHead>
                 {canQuote && <TableHead />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {enquiries.length === 0 && (
-                <TableRow><TableCell colSpan={canQuote ? 8 : 7} className="text-center text-sm text-muted-foreground py-10">No enquiries yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={canQuote ? 9 : 8} className="text-center text-sm text-muted-foreground py-10">No enquiries yet.</TableCell></TableRow>
               )}
               {enquiries.map((e) => (
                 <TableRow key={e.id}>
@@ -83,6 +89,26 @@ export default async function EnquiriesPage() {
                   </TableCell>
                   <TableCell className="text-xs">{formatDate(e.followUpDate)}</TableCell>
                   <TableCell><Badge variant={statusVariant[e.status] ?? "muted"}>{e.status}</Badge></TableCell>
+                  <TableCell>
+                    {e.gemstone ? (
+                      <ShareStoneButton
+                        code={e.gemstone.code}
+                        label={`${e.gemstone.gemType}${e.gemstone.variety ? ` · ${e.gemstone.variety}` : ""}`}
+                        price={e.gemstone.askingPrice != null ? Number(e.gemstone.askingPrice) : null}
+                        currency={e.gemstone.currency}
+                        size="sm"
+                        contactEmail={e.customer.email}
+                        contactPhone={e.customer.phone}
+                      />
+                    ) : (
+                      <ShareCatalogueButton
+                        size="sm"
+                        captionSuffix={`based on your enquiry ${e.code}.`}
+                        contactEmail={e.customer.email}
+                        contactPhone={e.customer.phone}
+                      />
+                    )}
+                  </TableCell>
                   {canQuote && (
                     <TableCell>
                       {e.status !== "WON" && e.status !== "LOST" && (

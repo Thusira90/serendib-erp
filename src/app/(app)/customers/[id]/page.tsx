@@ -10,6 +10,7 @@ import { parsePreferences } from "@/lib/customer-preferences";
 import { ArrowLeft, User } from "lucide-react";
 import { MatchingGemsPanel } from "./matches-panel";
 import { CommentsThread } from "@/components/comments-thread";
+import { ShareCatalogueButton } from "@/components/share-catalogue-button";
 
 const typeLabel: Record<string, string> = {
   COLLECTOR: "Collector", JEWELLER: "Jeweller", JEWELLERY_BRAND: "Jewelry Brand",
@@ -62,9 +63,16 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             </div>
           </div>
         </div>
-        <div className="text-right">
-          <MoneyTile label="Total sales" value={formatCurrency(totalSales)} />
-          <MoneyTile label="Outstanding" value={formatCurrency(outstanding)} accent={outstanding > 0} />
+        <div className="flex flex-col items-end gap-2">
+          <ShareCatalogueButton
+            contactEmail={customer.email}
+            contactPhone={customer.phone}
+            captionSuffix={`I picked this out for ${customer.displayName.split(" ")[0]}.`}
+          />
+          <div className="text-right">
+            <MoneyTile label="Total sales" value={formatCurrency(totalSales)} />
+            <MoneyTile label="Outstanding" value={formatCurrency(outstanding)} accent={outstanding > 0} />
+          </div>
         </div>
       </div>
 

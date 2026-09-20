@@ -22,6 +22,7 @@ import { MoveButton } from "@/components/move-button";
 import { EditGemstoneButton } from "./edit-gemstone-button";
 import { CommentsThread } from "@/components/comments-thread";
 import { AddToCollectionButton } from "@/components/add-to-collection-button";
+import { ShareStoneButton } from "@/components/share-stone-button";
 
 export default async function GemstoneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("gemstone:read");
@@ -93,6 +94,13 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
         <Link href="/gemstones" className="inline-flex items-center gap-1 hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back to finished gemstones</Link>
+        <div className="flex items-center gap-2">
+          <ShareStoneButton
+            code={g.code}
+            label={`${g.gemType}${g.variety ? ` · ${g.variety}` : ""} · ${Number(g.weightCt).toFixed(2)} ct`}
+            price={g.askingPrice != null ? Number(g.askingPrice) : null}
+            currency={g.currency}
+          />
         {canEditGem && (
           <EditGemstoneButton
             gem={{
@@ -114,6 +122,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
             locations={locations}
           />
         )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
