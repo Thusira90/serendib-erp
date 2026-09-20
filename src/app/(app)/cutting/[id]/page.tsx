@@ -12,10 +12,12 @@ import { CUTTING_JOB_STATUSES } from "@/lib/enums";
 import { updateCuttingJobStatus } from "../actions";
 import { CompleteJobDialog } from "./complete-job-dialog";
 import { CommentsThread } from "@/components/comments-thread";
+import { MediaGallery } from "@/components/media-gallery";
 
 export default async function CuttingJobDetail({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("cutting:read");
   const canWrite = can(session.user.role, "cutting:write");
+  const canMedia = can(session.user.role, "media:write");
   const { id } = await params;
   const j = await prisma.cuttingJob.findUnique({
     where: { id },
@@ -23,6 +25,7 @@ export default async function CuttingJobDetail({ params }: { params: Promise<{ i
       roughStone: true,
       cutter: true,
       transformation: { include: { outputs: { include: { gemstone: true } } } },
+      digitalAssets: { orderBy: { createdAt: "desc" } },
     },
   });
   if (!j) return notFound();
@@ -140,6 +143,26 @@ export default async function CuttingJobDetail({ params }: { params: Promise<{ i
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader><CardTitle>Process media</CardTitle></CardHeader>
+        <CardContent>
+          <MediaGallery
+            target={{ kind: "cutting", id: j.id }}
+            assets={j.digitalAssets.map((a) => ({
+              id: a.id, kind: a.kind, stage: a.stage,
+              url: a.url, caption: a.caption, isPrimary: a.isPrimary,
+              contentType: a.contentType, originalName: a.originalName,
+              capturedAt: a.capturedAt, createdAt: a.createdAt,
+            }))}
+            canWrite={canMedia}
+            defaultKind="INSPECTION_PHOTO"
+            defaultStage="CUTTING"
+            title=""
+            helperText="Document the marking, sawing, grinding, and polishing sessions as they happen."
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle>Audit</CardTitle></CardHeader>

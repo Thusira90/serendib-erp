@@ -52,6 +52,43 @@ export const ASSET_KINDS = [
 ] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 
+// Lifecycle stage the media documents. Orthogonal to `kind` (which is
+// media-type-ish). Used to build the chronological "day one to the last
+// day" journey view for a stone.
+export const MEDIA_STAGES = [
+  "ROUGH_INTAKE",
+  "PLANNING",
+  "PRE_CUT",
+  "CUTTING",
+  "POLISHING",
+  "FINAL",
+  "INSPECTION",
+  "CERTIFICATION",
+  "PACKAGING",
+  "OTHER",
+] as const;
+export type MediaStage = (typeof MEDIA_STAGES)[number];
+
+export const MEDIA_STAGE_LABEL: Record<MediaStage, string> = {
+  ROUGH_INTAKE: "Rough intake",
+  PLANNING:     "Planning & marking",
+  PRE_CUT:      "Pre-cut",
+  CUTTING:      "Cutting",
+  POLISHING:    "Polishing",
+  FINAL:        "Finished stone",
+  INSPECTION:   "Inspection",
+  CERTIFICATION:"Certification",
+  PACKAGING:    "Packaging",
+  OTHER:        "Other",
+};
+
+// Default stage suggestion when uploading from a given surface.
+export const MEDIA_STAGE_DEFAULT_FOR = {
+  rough:   "ROUGH_INTAKE" as MediaStage,
+  cutting: "CUTTING"      as MediaStage,
+  gem:     "FINAL"        as MediaStage,
+};
+
 export const INVENTORY_ITEM_KINDS = ["ROUGH","GEMSTONE"] as const;
 export type InventoryItemKind = (typeof INVENTORY_ITEM_KINDS)[number];
 

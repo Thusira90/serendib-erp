@@ -318,6 +318,9 @@ model CuttingJob {
 
   transformation GemstoneTransformation?
 
+  // Process media (photos/videos of the cutting session itself)
+  digitalAssets  DigitalAsset[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -526,17 +529,28 @@ model DigitalAsset {
   gemstone      Gemstone? @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
   roughStoneId  String?
   roughStone    RoughStone? @relation(fields: [roughStoneId], references: [id], onDelete: Cascade)
+  cuttingJobId  String?
+  cuttingJob    CuttingJob? @relation(fields: [cuttingJobId], references: [id], onDelete: Cascade)
   kind  String
+  // Lifecycle stage the media was captured at: ROUGH_INTAKE, PLANNING,
+  // PRE_CUT, CUTTING, POLISHING, FINAL, INSPECTION, PACKAGING, OTHER.
+  // Orthogonal to `kind` (photo/video/document).
+  stage  String?
   url           String
   contentType   String?
   originalName  String?
   caption       String?
   isPrimary     Boolean  @default(false)
+  // When the media was actually TAKEN (may differ from createdAt = upload
+  // time). Falls back to createdAt when not supplied — used for
+  // chronological ordering across the full stone lifecycle timeline.
+  capturedAt    DateTime?
   createdBy     String?
   createdAt     DateTime @default(now())
 
   @@index([gemstoneId])
   @@index([roughStoneId])
+  @@index([cuttingJobId])
 }
 
 // ─── Customers (CRM) ─────────────────────────────────────────────────────────

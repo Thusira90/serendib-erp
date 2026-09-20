@@ -12,7 +12,6 @@ import { GenealogyTree } from "@/components/genealogy-tree";
 import { ArrowLeft, Gem, TrendingUp, Coins, Layers } from "lucide-react";
 import { CertificationTab } from "./tabs/certification-tab";
 import { CgiTab } from "./tabs/cgi-tab";
-import { PhotographyTab } from "./tabs/photography-tab";
 import { CostingTab } from "./tabs/costing-tab";
 import { PricingTab } from "./tabs/pricing-tab";
 import { CommerceSection } from "./tabs/commerce-section";
@@ -23,6 +22,9 @@ import { EditGemstoneButton } from "./edit-gemstone-button";
 import { CommentsThread } from "@/components/comments-thread";
 import { AddToCollectionButton } from "@/components/add-to-collection-button";
 import { ShareStoneButton } from "@/components/share-stone-button";
+import { MediaGallery } from "@/components/media-gallery";
+import { LifecycleTimeline } from "@/components/lifecycle-timeline";
+import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
 
 export default async function GemstoneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("gemstone:read");
@@ -46,7 +48,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   });
   if (!g) return notFound();
 
-  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships] = await Promise.all([
+  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships, lifecycle] = await Promise.all([
     buildGemstoneGenealogy(g.id),
     prisma.auditLog.findMany({ where: { entity: "Gemstone", entityId: g.id }, orderBy: { at: "desc" }, take: 30 }),
     prisma.laboratory.findMany({ orderBy: { name: "asc" } }),
@@ -58,6 +60,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
       select: { id: true, code: true, name: true },
     }),
     prisma.collectionItem.findMany({ where: { gemstoneId: g.id }, select: { collectionId: true } }),
+    buildLifecycleForGemstone(g.id),
   ]);
   const membershipSet = new Set(itemMemberships.map((m) => m.collectionId));
   const collectionsForPicker = activeCollections.map((c) => ({ ...c, already: membershipSet.has(c.id) }));
@@ -173,6 +176,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="specs">Specifications</TabsTrigger>
           <TabsTrigger value="genealogy">Genealogy</TabsTrigger>
+          <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="certification">Certification{hasCertIssued && " ✓"}</TabsTrigger>
           <TabsTrigger value="photography">Photography{hasPhoto && " ✓"}</TabsTrigger>
@@ -260,6 +264,18 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           </Card>
         </TabsContent>
 
+        <TabsContent value="lifecycle">
+          <Card>
+            <CardHeader>
+              <CardTitle>Full journey — day one to final polish</CardTitle>
+              <div className="text-xs text-muted-foreground">
+                Media walked back through this gemstone, the cutting job that created it, and the rough it came from.
+              </div>
+            </CardHeader>
+            <CardContent><LifecycleTimeline items={lifecycle} /></CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="timeline">
           <Card>
             <CardHeader><CardTitle>Timeline</CardTitle></CardHeader>
@@ -308,15 +324,23 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
         </TabsContent>
 
         <TabsContent value="photography">
-          <PhotographyTab
-            gemstoneId={g.id}
-            assets={g.digitalAssets.map((a) => ({
-              id: a.id, kind: a.kind, url: a.url, caption: a.caption,
-              isPrimary: a.isPrimary, contentType: a.contentType, originalName: a.originalName,
-              createdAt: a.createdAt,
-            }))}
-            canWrite={canMedia}
-          />
+          <Card>
+            <CardContent className="pt-6">
+              <MediaGallery
+                target={{ kind: "gem", id: g.id }}
+                assets={g.digitalAssets.map((a) => ({
+                  id: a.id, kind: a.kind, stage: a.stage, url: a.url, caption: a.caption,
+                  isPrimary: a.isPrimary, contentType: a.contentType, originalName: a.originalName,
+                  capturedAt: a.capturedAt, createdAt: a.createdAt,
+                }))}
+                canWrite={canMedia}
+                defaultKind="FINISHED_PHOTO"
+                defaultStage="FINAL"
+                title="Gemstone photography"
+                helperText="Finished stone imagery for the catalogue, certificate scans, and macro shots for verification."
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="cgi">

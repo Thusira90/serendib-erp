@@ -17,11 +17,15 @@ import { QrCard } from "@/components/qr-card";
 import { MoveButton } from "@/components/move-button";
 import { EditRoughButton } from "./edit-rough-button";
 import { CommentsThread } from "@/components/comments-thread";
+import { MediaGallery } from "@/components/media-gallery";
+import { LifecycleTimeline } from "@/components/lifecycle-timeline";
+import { buildLifecycleForRough } from "@/lib/stone-lifecycle";
 
 export default async function RoughDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("rough:read");
   const canPlan = can(session.user.role, "cutting:plan");
   const canCut = can(session.user.role, "cutting:write");
+  const canMedia = can(session.user.role, "media:write");
   const { id } = await params;
   const r = await prisma.roughStone.findUnique({
     where: { id },
@@ -31,10 +35,11 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
       location: true,
       cuttingPlans: { orderBy: { createdAt: "asc" } },
       cuttingJobs: { orderBy: { createdAt: "desc" }, include: { cutter: true } },
+      digitalAssets: { orderBy: { createdAt: "desc" } },
     },
   });
   if (!r) return notFound();
-  const [genealogy, audit, cutters, locations] = await Promise.all([
+  const [genealogy, audit, cutters, locations, lifecycle] = await Promise.all([
     buildRoughGenealogy(r.id),
     prisma.auditLog.findMany({
       where: { entity: "RoughStone", entityId: r.id },
@@ -42,6 +47,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
     }),
     prisma.user.findMany({ where: { role: "CUTTER", active: true }, select: { id: true, name: true } }),
     prisma.inventoryLocation.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
+    buildLifecycleForRough(r.id),
   ]);
   const canStartJob = canCut && !["IN_CUTTING","CONVERTED","SOLD","LOST"].includes(r.status);
   const canMove = can(session.user.role, "location:write");
@@ -95,6 +101,8 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="genealogy">Genealogy</TabsTrigger>
           <TabsTrigger value="cutting">Cutting</TabsTrigger>
+          <TabsTrigger value="media">Media</TabsTrigger>
+          <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
@@ -199,6 +207,42 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="media">
+          <Card>
+            <CardContent className="pt-6">
+              <MediaGallery
+                target={{ kind: "rough", id: r.id }}
+                assets={r.digitalAssets.map((a) => ({
+                  id: a.id, kind: a.kind, stage: a.stage,
+                  url: a.url, caption: a.caption, isPrimary: a.isPrimary,
+                  contentType: a.contentType, originalName: a.originalName,
+                  capturedAt: a.capturedAt, createdAt: a.createdAt,
+                }))}
+                canWrite={canMedia}
+                defaultKind="ROUGH_PHOTO"
+                defaultStage="ROUGH_INTAKE"
+                title="Rough stone media"
+                helperText="Every photo and video of this rough as it arrives, gets valued, and moves toward the cutting bench."
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="lifecycle">
+          <Card>
+            <CardHeader>
+              <CardTitle>Full journey — day one to final polish</CardTitle>
+              <div className="text-xs text-muted-foreground">
+                Every image and video across this rough, its cutting jobs, and the finished gemstones,
+                ordered by when it was taken.
+              </div>
+            </CardHeader>
+            <CardContent>
+              <LifecycleTimeline items={lifecycle} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="notes">

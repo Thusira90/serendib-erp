@@ -7,7 +7,7 @@ import { codePrefix, nextCode } from "@/lib/ids";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
 import { saveUpload } from "@/lib/uploads";
-import type { AssetKind } from "@/lib/enums";
+import type { AssetKind, MediaStage } from "@/lib/enums";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 
@@ -134,11 +134,19 @@ export async function uploadPhoto(fd: FormData) {
   const session = await requireCapability("media:write");
   const gemstoneId = str(fd.get("gemstoneId"));
   const roughStoneId = str(fd.get("roughStoneId"));
+  const cuttingJobId = str(fd.get("cuttingJobId"));
+  if (!gemstoneId && !roughStoneId && !cuttingJobId) {
+    throw new Error("Must attach media to a rough stone, cutting job, or gemstone.");
+  }
   const kind = (str(fd.get("kind")) as AssetKind) ?? "FINISHED_PHOTO";
+  const stage = str(fd.get("stage")) as MediaStage | null;
   const caption = str(fd.get("caption"));
   const isPrimary = str(fd.get("isPrimary")) === "on";
+  const capturedAtRaw = str(fd.get("capturedAt"));
+  const capturedAt = capturedAtRaw ? new Date(capturedAtRaw) : null;
   const file = fd.get("file") as File | null;
-  const saved = await saveUpload(file, gemstoneId ? "photos-gem" : "photos-rough");
+  const subdir = gemstoneId ? "photos-gem" : cuttingJobId ? "photos-cutting" : "photos-rough";
+  const saved = await saveUpload(file, subdir);
   const externalUrl = str(fd.get("url"));
   const url = saved?.url ?? externalUrl;
   if (!url) throw new Error("Provide a file or URL.");
@@ -152,19 +160,41 @@ export async function uploadPhoto(fd: FormData) {
     }
     const asset = await tx.digitalAsset.create({
       data: {
-        gemstoneId, roughStoneId, kind, url, caption, isPrimary,
+        gemstoneId, roughStoneId, cuttingJobId,
+        kind, stage, url, caption, isPrimary,
+        capturedAt: capturedAt && !isNaN(capturedAt.getTime()) ? capturedAt : null,
         contentType: saved?.contentType ?? null,
         originalName: saved?.originalName ?? null,
         createdBy: session.user.name ?? null,
       },
     });
+    const target = gemstoneId ? "gemstone" : cuttingJobId ? "cutting job" : "rough";
     await writeAudit({
       entity: "DigitalAsset", entityId: asset.id, entityCode: asset.id.slice(0, 8),
       action: "CREATE", userId: session.user.id, userName: session.user.name ?? null,
-      newValue: `Uploaded ${kind} for ${gemstoneId ? "gemstone" : "rough"}.`,
-      metadata: { gemstoneId, roughStoneId, kind },
+      newValue: `Uploaded ${kind}${stage ? ` (${stage})` : ""} for ${target}.`,
+      metadata: { gemstoneId, roughStoneId, cuttingJobId, kind, stage },
     }, tx);
   });
   if (gemstoneId) revalidatePath(`/gemstones/${gemstoneId}`);
   if (roughStoneId) revalidatePath(`/rough/${roughStoneId}`);
+  if (cuttingJobId) revalidatePath(`/cutting/${cuttingJobId}`);
+}
+
+export async function deleteDigitalAsset(fd: FormData) {
+  const session = await requireCapability("media:write");
+  const id = str(fd.get("id"));
+  if (!id) throw new Error("id required");
+  const asset = await prisma.digitalAsset.findUniqueOrThrow({ where: { id } });
+  await prisma.$transaction(async (tx) => {
+    await tx.digitalAsset.delete({ where: { id } });
+    await writeAudit({
+      entity: "DigitalAsset", entityId: id, entityCode: id.slice(0, 8),
+      action: "DELETE", userId: session.user.id, userName: session.user.name ?? null,
+      newValue: `Removed asset (${asset.kind}${asset.stage ? ` · ${asset.stage}` : ""}).`,
+    }, tx);
+  });
+  if (asset.gemstoneId)   revalidatePath(`/gemstones/${asset.gemstoneId}`);
+  if (asset.roughStoneId) revalidatePath(`/rough/${asset.roughStoneId}`);
+  if (asset.cuttingJobId) revalidatePath(`/cutting/${asset.cuttingJobId}`);
 }
