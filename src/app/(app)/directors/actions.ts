@@ -13,7 +13,10 @@ import {
   CAPITAL_TXN_META,
   PAYMENT_METHODS,
   SHAREHOLDER_KINDS,
+  type CapitalTxnType,
+  type AccountSubtype,
 } from "@/lib/enums";
+import { postJournal, reverseJournal } from "@/lib/accounting";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const dec = (v: FormDataEntryValue | null) => {
@@ -306,6 +309,10 @@ export async function issueShares(fd: FormData) {
         userId: session.user.id, userName: session.user.name ?? null,
         newValue: `SHARE_CAPITAL · ${shareholder.name} · ${total.toFixed(2)} ${shareClass.currency}`,
       }, tx);
+      await autoPostCapitalJournal({
+        tx, ct, party: shareholder,
+        postedBy: session.user.name ?? null, userId: session.user.id,
+      });
     }
 
     const stCode = await nextCode(codePrefix.shareTxn, year, tx, { pad: 4 });
@@ -591,10 +598,16 @@ export async function recordCapitalTransaction(fd: FormData) {
       newValue: `${parsed.type} · ${party.name} · ${parsed.amount.toFixed(2)} ${parsed.currency}`,
       metadata: { partyCode: party.code },
     }, tx);
+    await autoPostCapitalJournal({
+      tx, ct: created, party,
+      postedBy: session.user.name ?? null, userId: session.user.id,
+    });
   });
   revalidatePath("/capital");
   revalidatePath("/directors");
   revalidatePath("/shareholders");
+  revalidatePath("/journals");
+  revalidatePath("/reports/trial-balance");
   revalidatePath("/");
 }
 
@@ -662,8 +675,89 @@ export async function reverseCapitalTransaction(fd: FormData) {
       userId: session.user.id, userName: session.user.name ?? null,
       newValue: `Reversal of ${original.code}: ${parsed.reason}`,
     }, tx);
+    // Reverse the linked journal (if the original was auto-posted) and
+    // link the reversing CapitalTransaction to the reversing Journal.
+    if (original.journalId) {
+      const revJ = await reverseJournal(original.journalId, parsed.reason, session.user.name ?? null, tx);
+      await tx.capitalTransaction.update({
+        where: { id: reversal.id },
+        data: { journalId: revJ.id },
+      });
+    }
   });
   revalidatePath("/capital");
   revalidatePath("/directors");
   revalidatePath("/shareholders");
+  revalidatePath("/journals");
+  revalidatePath("/reports/trial-balance");
+}
+
+// ─── Auto-post CapitalTransaction → Journal ─────────────────────────────────
+
+/**
+ * Which CoA subtypes to debit and credit for each capital-transaction type.
+ * The company account (bank) is always the counterparty for cash-side
+ * entries. Non-LKR entries are skipped for now — we'll wire FX later.
+ * `null` means "don't auto-post" (users can still enter the journal by hand).
+ */
+const CAPITAL_JOURNAL_MAP: Record<CapitalTxnType, { debit: AccountSubtype; credit: AccountSubtype } | null> = {
+  SHARE_CAPITAL:          { debit: "BANK",          credit: "SHARE_CAPITAL"    },
+  DIRECTOR_LOAN:          { debit: "BANK",          credit: "DIRECTOR_LOAN"    },
+  LOAN_REPAY:             { debit: "DIRECTOR_LOAN", credit: "BANK"             },
+  ADVANCE:                { debit: "BANK",          credit: "DIRECTOR_LOAN"    },
+  ADVANCE_REPAY:          { debit: "DIRECTOR_LOAN", credit: "BANK"             },
+  WITHDRAWAL:             { debit: "DIRECTOR_LOAN", credit: "BANK"             },
+  DIVIDEND:               { debit: "RETAINED_EARNINGS", credit: "BANK"         },
+  EXPENSE_PAID_ON_BEHALF: null, // Needs an expense subtype — user picks manually.
+};
+
+async function autoPostCapitalJournal(args: {
+  tx: Prisma.TransactionClient;
+  ct: {
+    id: string; code: string; type: string; amount: Prisma.Decimal | number;
+    currency: string; transactionDate: Date; reference: string | null;
+    notes?: string | null;
+  };
+  party: { name: string; code: string };
+  postedBy: string | null;
+  userId: string;
+}) {
+  const { tx, ct, party, postedBy, userId } = args;
+  if (ct.currency !== "LKR") return;                     // FX later
+  const mapping = CAPITAL_JOURNAL_MAP[ct.type as CapitalTxnType];
+  if (!mapping) return;
+  // Check that both target accounts exist. If they don't, the CoA hasn't
+  // been seeded — skip auto-posting rather than failing the whole tx.
+  const missing = await Promise.all([mapping.debit, mapping.credit].map(async (s) => {
+    const acct = await tx.chartAccount.findFirst({ where: { subtype: s, isActive: true } });
+    return acct ? null : s;
+  }));
+  if (missing.some((m) => m !== null)) return;
+
+  const amount = Number(ct.amount);
+  const journal = await postJournal({
+    transactionDate: ct.transactionDate,
+    description: `${ct.type} · ${party.name} · ${ct.code}`,
+    reference: ct.reference,
+    currency: ct.currency,
+    sourceModule: "CAPITAL",
+    sourceId: ct.id,
+    sourceCode: ct.code,
+    postedBy,
+    lines: [
+      { subtype: mapping.debit,  debit: amount,  description: `${party.name} · ${party.code}` },
+      { subtype: mapping.credit, credit: amount, description: `${party.name} · ${party.code}` },
+    ],
+  }, tx);
+  await tx.capitalTransaction.update({
+    where: { id: ct.id },
+    data: { journalId: journal.id },
+  });
+  await writeAudit({
+    entity: "Journal", entityId: journal.id, entityCode: journal.code,
+    action: "POST",
+    userId, userName: postedBy,
+    newValue: `Auto-posted from ${ct.code}`,
+    metadata: { sourceModule: "CAPITAL", sourceCode: ct.code },
+  }, tx);
 }

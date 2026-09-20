@@ -1084,9 +1084,126 @@ model CapitalTransaction {
   // hard-link is the audit thread between money-in and shares-out.
   shareTransaction ShareTransaction?
 
+  // Populated after this CapitalTransaction has been auto-posted to the GL.
+  // Foreign-currency entries are not auto-posted yet, so this stays null
+  // for them until an FX policy exists.
+  journalId String?  @unique
+  journal   Journal? @relation(fields: [journalId], references: [id])
+
   @@index([directorId, transactionDate])
   @@index([shareholderId, transactionDate])
   @@index([type])
+}
+
+// ─── Chart of Accounts + Double-entry engine ────────────────────────────────
+// Foundation for the SGS ERP financial architecture (spec §9–15, §22, §24).
+//
+//   * ChartAccount  — nodes in the CoA tree. `type` is one of the five
+//     accounting categories; `subtype` is a system tag that lets the app
+//     look up the "the bank account", "the director loans account", etc.
+//     without hard-coding IDs. `isSystem` = seeded, immovable.
+//   * AccountingPeriod — one row per (year, month). Status OPEN → CLOSED
+//     → LOCKED. Closed periods refuse new POSTED journals; corrections
+//     use reversing entries in the current period.
+//   * Journal — a single balanced transaction. Debits ALWAYS equal
+//     credits (enforced in the action layer, checked with a totalAmount
+//     column here for fast rollups). `status` mirrors CapitalTransaction:
+//     POSTED and REVERSED entries stay in the ledger forever. `sourceModule`
+//     + `sourceId` link the journal back to whichever module posted it
+//     (CAPITAL for CapitalTransaction, MANUAL for hand-entered, EXPENSE /
+//     SALE / PAYMENT for future retrofits) so drill-through works both
+//     directions.
+//   * JournalLine — one row per debit or credit entry.
+
+model ChartAccount {
+  id            String   @id @default(cuid())
+  code          String   @unique              // "1100", "2200", …
+  name          String
+  type          String                        // ASSET | LIABILITY | EQUITY | REVENUE | COST_OF_SALES | EXPENSE
+  subtype       String?                       // BANK | CASH | AR | AP | INVENTORY_ROUGH | INVENTORY_GEMSTONE | DIRECTOR_LOAN | SHARE_CAPITAL | RETAINED_EARNINGS | REVENUE_SALES | COS_GEMSTONE | ...
+  parentId      String?
+  parent        ChartAccount?  @relation("AccountTree", fields: [parentId], references: [id])
+  children      ChartAccount[] @relation("AccountTree")
+  currency      String   @default("LKR")
+  isActive      Boolean  @default(true)
+  isSystem      Boolean  @default(false)      // seeded accounts can't be renamed/deleted
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  journalLines  JournalLine[]
+
+  @@index([type])
+  @@index([subtype])
+  @@index([parentId])
+}
+
+model AccountingPeriod {
+  id            String   @id @default(cuid())
+  year          Int
+  month         Int                            // 1..12
+  status        String   @default("OPEN")      // OPEN | CLOSED | LOCKED
+  closedAt      DateTime?
+  closedBy      String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  journals      Journal[]
+
+  @@unique([year, month])
+  @@index([status])
+}
+
+model Journal {
+  id            String   @id @default(cuid())
+  code          String   @unique              // JE-2026-0001
+  transactionDate DateTime
+  periodId      String
+  period        AccountingPeriod @relation(fields: [periodId], references: [id])
+  description   String
+  reference     String?
+  currency      String   @default("LKR")
+
+  // Provenance — which module posted this entry?
+  sourceModule  String   @default("MANUAL")   // MANUAL | CAPITAL | EXPENSE | SALE | PAYMENT | ...
+  sourceId      String?                       // source record id
+  sourceCode    String?                       // source record code
+
+  status        String   @default("POSTED")   // DRAFT | POSTED | REVERSED
+  postedAt      DateTime?
+  postedBy      String?
+  reversalOfId  String?  @unique
+  reversalOf    Journal? @relation("JournalReversal", fields: [reversalOfId], references: [id])
+  reversedBy    Journal? @relation("JournalReversal")
+
+  totalAmount   Decimal                       // sum of debits (== sum of credits)
+
+  lines               JournalLine[]
+  capitalTransaction  CapitalTransaction?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([transactionDate])
+  @@index([periodId])
+  @@index([sourceModule, sourceId])
+  @@index([status])
+}
+
+model JournalLine {
+  id            String   @id @default(cuid())
+  journalId     String
+  journal       Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       ChartAccount @relation(fields: [accountId], references: [id])
+  debit         Decimal  @default(0)
+  credit        Decimal  @default(0)
+  description   String?
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([journalId])
+  @@index([accountId])
 }
 
 // ─── Cross-entity comments ──────────────────────────────────────────────────

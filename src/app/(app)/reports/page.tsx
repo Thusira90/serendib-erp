@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { requireCapability } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Coins, Package, Scissors, LineChart } from "lucide-react";
+import { BarChart3, Coins, Package, Scissors, LineChart, Scale } from "lucide-react";
 
 const reports = [
+  { href: "/reports/trial-balance", title: "Trial Balance",   description: "Sum of debits and credits per account. The audit-friendly view.", icon: Scale },
   { href: "/reports/pnl",           title: "Profit & Loss", description: "Rolling 12-month revenue less COGS less operating expenses.",   icon: LineChart },
   { href: "/reports/inventory",     title: "Inventory",     description: "Rough + finished inventory, by type, origin, status, and age.", icon: Package },
   { href: "/reports/sales",         title: "Sales",         description: "Revenue by month, by country, by customer, by gem type.",       icon: BarChart3 },

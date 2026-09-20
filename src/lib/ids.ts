@@ -45,6 +45,7 @@ export const codePrefix = {
   shareholder: "SH",
   capitalTxn: "CT",
   shareTxn: "ST",
+  journal: "JE",
 } as const;
 
 /**

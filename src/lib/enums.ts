@@ -207,6 +207,96 @@ export type CapitalTxnStatus = (typeof CAPITAL_TXN_STATUSES)[number];
 export const SHARE_TXN_TYPES = ["SHARE_ISSUE", "SHARE_TRANSFER", "SHARE_CANCEL"] as const;
 export type ShareTxnType = (typeof SHARE_TXN_TYPES)[number];
 
+// ─── Chart of Accounts + Journal enums ──────────────────────────────────────
+
+/**
+ * The five accounting categories used across the CoA and reports.
+ * COST_OF_SALES is split out from EXPENSE so the P&L can build gross
+ * profit correctly (spec §10 puts CoS in the 5000 series, expenses in 6000).
+ */
+export const ACCOUNT_TYPES = [
+  "ASSET",
+  "LIABILITY",
+  "EQUITY",
+  "REVENUE",
+  "COST_OF_SALES",
+  "EXPENSE",
+] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+/** Normal debit/credit side for each type. Assets + expenses debit-positive; the rest credit-positive. */
+export const ACCOUNT_TYPE_NORMAL: Record<AccountType, "debit" | "credit"> = {
+  ASSET:         "debit",
+  LIABILITY:     "credit",
+  EQUITY:        "credit",
+  REVENUE:       "credit",
+  COST_OF_SALES: "debit",
+  EXPENSE:       "debit",
+};
+
+export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
+  ASSET:         "Assets",
+  LIABILITY:     "Liabilities",
+  EQUITY:        "Equity",
+  REVENUE:       "Revenue",
+  COST_OF_SALES: "Cost of sales",
+  EXPENSE:       "Expenses",
+};
+
+/**
+ * System subtype tags. The app looks up accounts by these tags instead of
+ * hard-coded codes so users can renumber the CoA without breaking auto-
+ * posting. Non-system accounts have `subtype = null`.
+ */
+export const ACCOUNT_SUBTYPES = [
+  "CASH",
+  "BANK",
+  "AR",
+  "AP",
+  "INVENTORY_ROUGH",
+  "INVENTORY_GEMSTONE",
+  "INVENTORY_PARCEL",
+  "PREPAYMENTS",
+  "FIXED_ASSETS",
+  "ACC_DEPRECIATION",
+  "DIRECTOR_LOAN",
+  "OTHER_LOANS",
+  "ACCRUED_EXPENSES",
+  "TAXES_PAYABLE",
+  "SHARE_CAPITAL",
+  "SHARE_PREMIUM",
+  "RETAINED_EARNINGS",
+  "CURRENT_YEAR_PL",
+  "REVENUE_SALES",
+  "REVENUE_OTHER",
+  "COS_GEMSTONE",
+  "COS_CUTTING",
+  "COS_CERTIFICATION",
+  "COS_PACKAGING",
+  "COS_DIRECT_SELLING",
+  "EXP_SALARIES",
+  "EXP_RENT",
+  "EXP_UTILITIES",
+  "EXP_MARKETING",
+  "EXP_EXHIBITION",
+  "EXP_TRANSPORT",
+  "EXP_PROFESSIONAL",
+  "EXP_BANK_CHARGES",
+  "EXP_DEPRECIATION",
+] as const;
+export type AccountSubtype = (typeof ACCOUNT_SUBTYPES)[number];
+
+export const PERIOD_STATUSES = ["OPEN", "CLOSED", "LOCKED"] as const;
+export type PeriodStatus = (typeof PERIOD_STATUSES)[number];
+
+export const JOURNAL_STATUSES = ["DRAFT", "POSTED", "REVERSED"] as const;
+export type JournalStatus = (typeof JOURNAL_STATUSES)[number];
+
+export const JOURNAL_SOURCE_MODULES = [
+  "MANUAL", "CAPITAL", "EXPENSE", "SALE", "PAYMENT", "PURCHASE",
+] as const;
+export type JournalSourceModule = (typeof JOURNAL_SOURCE_MODULES)[number];
+
 export const NOTIFICATION_TYPES = [
   "SALE_CREATED","PAYMENT_RECORDED","RESERVATION_CREATED","RESERVATION_RELEASED",
   "RESERVATION_EXPIRING","QUOTATION_ACCEPTED","QUOTATION_EXPIRING","CERTIFICATE_ISSUED",
