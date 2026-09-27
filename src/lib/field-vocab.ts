@@ -105,20 +105,19 @@ export async function getFieldVocabulary(
     const seed = SEED_VOCAB[seedKey ?? field] ?? [];
 
     // Prisma dynamic access: table name → delegate.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const delegate = (prisma as any)[model];
+    const delegate = (prisma as unknown as Record<string, { findMany?: (args: unknown) => Promise<unknown[]> }>)[model];
     if (!delegate?.findMany) { result[key] = dedupe(seed); return; }
 
     try {
-      const rows = await delegate.findMany({
+      const rows = (await delegate.findMany({
         where: { [field]: { not: null } },
         select: { [field]: true },
         distinct: [field],
         take: 500,
-      });
+      })) as Array<Record<string, unknown>>;
       const fromDb = rows
-        .map((r: Record<string, unknown>) => r[field])
-        .filter((v: unknown): v is string => typeof v === "string" && v.trim().length > 0);
+        .map((r) => r[field])
+        .filter((v): v is string => typeof v === "string" && v.trim().length > 0);
       result[key] = dedupe([...fromDb, ...seed]);
     } catch {
       result[key] = dedupe(seed);
