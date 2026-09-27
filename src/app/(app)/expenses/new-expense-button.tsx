@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus } from "lucide-react";
 import { EXPENSE_CATEGORIES } from "@/lib/enums";
 import { createExpense } from "./actions";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const label = (c: string) => c.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
 
@@ -32,8 +33,9 @@ export function NewExpenseButton({ defaultCurrency = "LKR" }: { defaultCurrency?
               {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{label(c)}</option>)}
             </select>
           </Field>
-          <Field label="Amount *"><Input name="amount" required inputMode="decimal" /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></Field>
+          <Field label="Amount *" span>
+            <CurrencyInput amountName="amount" currencyName="currency" required defaultCurrency={defaultCurrency} />
+          </Field>
           <Field label="Date"><Input name="incurredAt" type="date" defaultValue={new Date().toISOString().slice(0,10)} /></Field>
           <Field label="Vendor"><Input name="vendor" placeholder="Supplier / payee" /></Field>
           <Field label="Description *" span><Input name="description" required placeholder="Office rent April 2026" /></Field>

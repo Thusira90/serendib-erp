@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { createEnquiry } from "@/app/(app)/sales/actions";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 export function NewEnquiryButton({
   customers, gemstones, defaultCurrency = "LKR",
@@ -18,6 +19,7 @@ export function NewEnquiryButton({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
+  const [budgetCurrency, setBudgetCurrency] = useState(defaultCurrency);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -47,9 +49,24 @@ export function NewEnquiryButton({
           <Field label="Quantity"><Input name="quantity" type="number" defaultValue={1} min={1} /></Field>
           <Field label="Min weight (ct)"><Input name="minWeightCt" inputMode="decimal" /></Field>
           <Field label="Max weight (ct)"><Input name="maxWeightCt" inputMode="decimal" /></Field>
-          <Field label="Budget min"><Input name="budgetMin" inputMode="decimal" /></Field>
-          <Field label="Budget max"><Input name="budgetMax" inputMode="decimal" /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></Field>
+          <Field label="Budget min" span>
+            <CurrencyInput
+              amountName="budgetMin"
+              currencyName="currency"
+              defaultCurrency={defaultCurrency}
+              currency={budgetCurrency}
+              onCurrencyChange={setBudgetCurrency}
+            />
+          </Field>
+          <Field label="Budget max" span>
+            <CurrencyInput
+              amountName="budgetMax"
+              currencyName="budgetMaxCurrency"
+              defaultCurrency={defaultCurrency}
+              currency={budgetCurrency}
+              onCurrencyChange={setBudgetCurrency}
+            />
+          </Field>
           <Field label="Follow-up date"><Input name="followUpDate" type="date" /></Field>
           <Field label="Notes" span><Textarea name="notes" rows={2} /></Field>
           <div className="col-span-full flex justify-end gap-2 pt-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,8 @@ import { createRoughStone } from "./actions";
 import Link from "next/link";
 import { ComboboxInput } from "@/components/combobox-input";
 import { EntityPicker } from "@/components/entity-picker";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { quickCreateSupplier, quickCreateLocation } from "@/app/(app)/lookups/actions";
 
 type Option = { id: string; name: string; code?: string };
@@ -23,6 +25,8 @@ export function RoughForm({
   vocab: Record<string, string[]>;
 }) {
   const [pending, start] = useTransition();
+  const [currency, setCurrency] = useState(defaultCurrency);
+  const [valuationCurrency, setValuationCurrency] = useState(defaultCurrency);
   const v = (key: string) => vocab[`roughStone.${key}`] ?? vocab[key] ?? [];
 
   return (
@@ -50,22 +54,37 @@ export function RoughForm({
       </Section>
 
       <Section title="Commercial">
-        <Field label="Purchase price *"><Input name="purchasePrice" required inputMode="decimal" placeholder="8900" /></Field>
-        <Field label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></Field>
-        <Field label="Initial valuation"><Input name="initialValuation" inputMode="decimal" /></Field>
+        <Field label="Purchase price *" wide>
+          <CurrencyInput
+            amountName="purchasePrice"
+            currencyName="currency"
+            required
+            placeholder="8900"
+            defaultCurrency={defaultCurrency}
+            currency={currency}
+            onCurrencyChange={setCurrency}
+          />
+        </Field>
+        <Field label="Initial valuation" wide>
+          <CurrencyInput
+            amountName="initialValuation"
+            currencyName="valuationCurrency"
+            defaultCurrency={defaultCurrency}
+            currency={valuationCurrency}
+            onCurrencyChange={setValuationCurrency}
+          />
+        </Field>
         <Field label="Valued by"><Input name="valuationBy" /></Field>
         <Field label="Valuation notes" wide><Textarea name="valuationNotes" rows={2} /></Field>
       </Section>
 
       <Section title="Media (photos & videos)">
         <Field label="Upload images or videos" wide>
-          <Input name="mediaFiles" type="file" accept="image/*,video/*" multiple />
-          <div className="text-[10px] text-muted-foreground mt-1">
-            Everything you upload here is tagged as <span className="font-medium">rough intake</span> and
-            follows the stone through every cutting job and finished gem in its lineage — visible on the
-            Media tab and in the Lifecycle timeline. First image becomes the primary photo; more can be
-            added later.
-          </div>
+          <MediaUploadField
+            name="mediaFiles"
+            buttonLabel="Upload photos or videos"
+            helper={<>Everything you upload here is tagged as <span className="font-medium">rough intake</span> and follows the stone through every cutting job and finished gem in its lineage — visible on the Media tab and in the Lifecycle timeline. First image becomes the primary photo; more can be added later.</>}
+          />
         </Field>
       </Section>
 

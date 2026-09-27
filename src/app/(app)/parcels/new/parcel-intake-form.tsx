@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { createParcelWithRoughs } from "../actions";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 type Row = {
   gemType: string;
@@ -74,11 +75,16 @@ export function ParcelIntakeForm({
           </F>
           <F label="Purchase date *"><Input name="purchaseDate" type="date" required defaultValue={new Date().toISOString().slice(0,10)} /></F>
           <F label="Origin"><Input name="origin" placeholder="Ratnapura, Sri Lanka" /></F>
-          <F label="Total cost *">
-            <Input name="totalCost" required inputMode="decimal" value={totalCost}
-              onChange={(e) => setTotalCost(e.target.value)} />
+          <F label="Total cost *" span>
+            <CurrencyInput
+              amountName="totalCost"
+              currencyName="currency"
+              required
+              defaultCurrency={defaultCurrency}
+              value={totalCost}
+              onAmountChange={setTotalCost}
+            />
           </F>
-          <F label="Currency"><Input name="currency" defaultValue={defaultCurrency} /></F>
           <F label="Storage location">
             <select name="locationId" defaultValue="" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="">— Unassigned —</option>

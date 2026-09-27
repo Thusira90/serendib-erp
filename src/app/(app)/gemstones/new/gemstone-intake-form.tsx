@@ -11,6 +11,7 @@ import { GEMSTONE_STATUSES } from "@/lib/enums";
 import { createFinishedGemstone } from "../create-actions";
 import { ComboboxInput } from "@/components/combobox-input";
 import { EntityPicker } from "@/components/entity-picker";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { quickCreateSupplier, quickCreateLocation } from "@/app/(app)/lookups/actions";
 
 const roleLabel = (s: string) => s.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
@@ -24,6 +25,7 @@ export function GemstoneIntakeForm({
   vocab: Record<string, string[]>;
 }) {
   const v = (key: string) => vocab[`gemstone.${key}`] ?? vocab[key] ?? [];
+  const [priceCurrency, setPriceCurrency] = useState(defaultCurrency);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -81,10 +83,34 @@ export function GemstoneIntakeForm({
 
       <Section title="Commercial">
         <F label="Acquisition cost *" wide>
-          <CurrencyInput amountName="acquisitionCost" currencyName="currency" required defaultCurrency={defaultCurrency} placeholder="8500" />
+          <CurrencyInput
+            amountName="acquisitionCost"
+            currencyName="currency"
+            required
+            placeholder="8500"
+            defaultCurrency={defaultCurrency}
+            currency={priceCurrency}
+            onCurrencyChange={setPriceCurrency}
+          />
         </F>
-        <F label="Asking price"><Input name="askingPrice" inputMode="decimal" /></F>
-        <F label="Minimum acceptable"><Input name="minimumPrice" inputMode="decimal" /></F>
+        <F label="Asking price" wide>
+          <CurrencyInput
+            amountName="askingPrice"
+            currencyName="askingPriceCurrency"
+            defaultCurrency={defaultCurrency}
+            currency={priceCurrency}
+            onCurrencyChange={setPriceCurrency}
+          />
+        </F>
+        <F label="Minimum acceptable" wide>
+          <CurrencyInput
+            amountName="minimumPrice"
+            currencyName="minimumPriceCurrency"
+            defaultCurrency={defaultCurrency}
+            currency={priceCurrency}
+            onCurrencyChange={setPriceCurrency}
+          />
+        </F>
       </Section>
 
       <Section title="Sourcing">
@@ -126,12 +152,11 @@ export function GemstoneIntakeForm({
           />
         </F>
         <F label="Photos & videos (optional)" wide>
-          <Input name="mediaFiles" type="file" accept="image/*,video/*" multiple />
-          <div className="text-[10px] text-muted-foreground mt-1">
-            Upload one or more images and videos of the finished stone. First image becomes the primary
-            photo; all attach to the Photography tab and the stone&apos;s Lifecycle timeline. More can be
-            added on the detail page.
-          </div>
+          <MediaUploadField
+            name="mediaFiles"
+            buttonLabel="Upload photos or videos"
+            helper={<>Upload one or more images and videos of the finished stone. First image becomes the primary photo; all attach to the Photography tab and the stone&apos;s Lifecycle timeline. More can be added on the detail page.</>}
+          />
         </F>
       </Section>
 

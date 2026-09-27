@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Award, FileText, Image as ImageIcon, PlusCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { createCertificate, createLaboratory, updateCertificateStatus } from "../../certification-actions";
 
 type Lab = { id: string; code: string; name: string; country: string | null };
@@ -174,8 +175,9 @@ function NewCertificateDialog({ gemstoneId, labs }: { gemstoneId: string; labs: 
           <Field label="Treatment determination"><Input name="treatmentDetermination" placeholder="No indications of heat" /></Field>
           <Field label="Weight (ct)"><Input name="weightCt" inputMode="decimal" /></Field>
           <Field label="Color grade"><Input name="colorGrade" placeholder="vivid blue" /></Field>
-          <Field label="Lab fees"><Input name="laboratoryFees" inputMode="decimal" /></Field>
-          <Field label="Currency"><Input name="currency" defaultValue="LKR" /></Field>
+          <Field label="Lab fees" span>
+            <CurrencyInput amountName="laboratoryFees" currencyName="currency" defaultCurrency="LKR" />
+          </Field>
           <Field label="Comments" span><Textarea name="comments" rows={2} /></Field>
           <Field label="Certificate PDF (optional)"><Input name="documentFile" type="file" accept="application/pdf,image/*" /></Field>
           <Field label="Certificate image (optional)"><Input name="imageFile" type="file" accept="image/*" /></Field>
