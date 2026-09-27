@@ -35,7 +35,7 @@ export default async function NewGemstonePage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="font-serif text-3xl">Register finished gemstone</h1>
+        <h1 className="font-serif text-3xl">Register cut & polished stone</h1>
         <p className="text-sm text-muted-foreground">
           Use this for already-cut stones acquired from a dealer, auction, or private sale.
           A new permanent Gem ID (<span className="font-mono">SGS-G-YYYY-######</span>) is minted

@@ -8,6 +8,7 @@ import { requireCapability } from "@/lib/rbac";
 import { codePrefix, nextCode } from "@/lib/ids";
 import { auditDiff, writeAudit } from "@/lib/audit";
 import { ROUGH_STATUSES } from "@/lib/enums";
+import { saveUpload } from "@/lib/uploads";
 
 const decimalString = z.union([z.string().min(1), z.number()]).transform((v) => {
   const n = typeof v === "number" ? v : parseFloat(v);
@@ -62,6 +63,16 @@ export async function createRoughStone(fd: FormData) {
   const parsed = createSchema.parse(fdToObj(fd));
   const year = new Date(parsed.purchaseDate).getUTCFullYear();
 
+  // Media uploaded at intake. Photos + videos both go through the same
+  // pipeline; they land as DigitalAsset rows tagged stage=ROUGH_INTAKE so
+  // they show up under both the Media tab AND the Lifecycle timeline on
+  // this rough, plus every downstream gemstone that comes from it.
+  const mediaFiles = fd.getAll("mediaFiles")
+    .filter((v): v is File => v instanceof File && v.size > 0);
+  const savedMedia = await Promise.all(
+    mediaFiles.map((f) => saveUpload(f, "photos-rough").catch(() => null)),
+  );
+
   const rough = await prisma.$transaction(async (tx) => {
     const code = await nextCode(codePrefix.rough, year, tx);
     const created = await tx.roughStone.create({
@@ -96,13 +107,37 @@ export async function createRoughStone(fd: FormData) {
         status: "PURCHASED",
       },
     });
+    // Attach any intake media to the newly-minted rough, in upload order.
+    // First image becomes the primary ROUGH_PHOTO; the rest are extra
+    // documentation. Videos are treated as VIDEO kind. Failed uploads are
+    // just skipped — a bad file shouldn't lose the whole stone.
+    let firstImage = true;
+    for (const m of savedMedia) {
+      if (!m) continue;
+      const isVideo = m.contentType.startsWith("video/");
+      await tx.digitalAsset.create({
+        data: {
+          roughStoneId: created.id,
+          kind: isVideo ? "VIDEO" : "ROUGH_PHOTO",
+          stage: "ROUGH_INTAKE",
+          url: m.url,
+          contentType: m.contentType,
+          originalName: m.originalName,
+          isPrimary: !isVideo && firstImage,
+          createdBy: session.user.name ?? null,
+        },
+      });
+      if (!isVideo) firstImage = false;
+    }
+
     await writeAudit({
       userId: session.user.id, userName: session.user.name ?? undefined,
       entity: "RoughStone", entityId: created.id, entityCode: created.code,
-      action: "CREATE", newValue: `Rough registered: ${created.gemType} ${Number(created.weightCt).toFixed(2)}ct`,
+      action: "CREATE",
+      newValue: `Rough registered: ${created.gemType} ${Number(created.weightCt).toFixed(2)}ct${savedMedia.filter(Boolean).length ? ` · ${savedMedia.filter(Boolean).length} media file${savedMedia.filter(Boolean).length === 1 ? "" : "s"}` : ""}`,
     }, tx);
     return created;
-  });
+  }, { timeout: 30_000 });
 
   revalidatePath("/rough");
   redirect(`/rough/${rough.id}`);

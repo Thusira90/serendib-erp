@@ -96,7 +96,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-        <Link href="/gemstones" className="inline-flex items-center gap-1 hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back to finished gemstones</Link>
+        <Link href="/gemstones" className="inline-flex items-center gap-1 hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back to cut and polished stones</Link>
         <div className="flex items-center gap-2">
           <ShareStoneButton
             code={g.code}

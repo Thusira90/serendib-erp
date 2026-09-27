@@ -57,6 +57,18 @@ export function RoughForm({
         <Field label="Valuation notes" wide><Textarea name="valuationNotes" rows={2} /></Field>
       </Section>
 
+      <Section title="Media (photos & videos)">
+        <Field label="Upload images or videos" wide>
+          <Input name="mediaFiles" type="file" accept="image/*,video/*" multiple />
+          <div className="text-[10px] text-muted-foreground mt-1">
+            Everything you upload here is tagged as <span className="font-medium">rough intake</span> and
+            follows the stone through every cutting job and finished gem in its lineage — visible on the
+            Media tab and in the Lifecycle timeline. First image becomes the primary photo; more can be
+            added later.
+          </div>
+        </Field>
+      </Section>
+
       <Section title="Sourcing & location">
         <Field label="Supplier">
           <EntityPicker

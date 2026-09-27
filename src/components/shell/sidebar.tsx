@@ -24,7 +24,7 @@ const nav: NavItem[] = [
   { href: "/",              label: "Dashboard",         icon: LayoutDashboard, needs: "dashboard:read" },
   { href: "/inbox",         label: "Inbox",             icon: Inbox,           needs: "dashboard:read" },
   { href: "/rough",         label: "Rough Stones",      icon: Diamond,          needs: "rough:read", group: "Inventory" },
-  { href: "/gemstones",     label: "Finished Gemstones",icon: Gem,              needs: "gemstone:read", group: "Inventory" },
+  { href: "/gemstones",     label: "Cut and Polished Stones",icon: Gem,        needs: "gemstone:read", group: "Inventory" },
   { href: "/genealogy",     label: "Genealogy",         icon: GitBranch,        needs: "genealogy:read", group: "Inventory" },
   { href: "/locations",     label: "Locations",         icon: Warehouse,        needs: "location:read", group: "Inventory" },
   { href: "/cutting",       label: "Cutting Jobs",      icon: Scissors,         needs: "cutting:read", group: "Operations" },

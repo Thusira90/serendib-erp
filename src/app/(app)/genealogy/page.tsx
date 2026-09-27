@@ -122,7 +122,7 @@ function Legend() {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[11px] text-muted-foreground">
       <div className="inline-flex items-center gap-1.5"><Diamond className="h-3 w-3 text-sgs-teal-500" /> Rough stone</div>
-      <div className="inline-flex items-center gap-1.5"><Gem className="h-3 w-3 text-sgs-purple-500" /> Finished gemstone</div>
+      <div className="inline-flex items-center gap-1.5"><Gem className="h-3 w-3 text-sgs-purple-500" /> Cut & polished stone</div>
       <div className="inline-flex items-center gap-1.5">
         <span className="inline-block w-4 h-0 border-t border-border" /> Yield event
       </div>

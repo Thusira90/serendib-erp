@@ -125,9 +125,13 @@ export function GemstoneIntakeForm({
             createPlaceholder="Location name, e.g. Vault A"
           />
         </F>
-        <F label="Primary photo (optional)" wide>
-          <Input name="primaryPhoto" type="file" accept="image/*" />
-          <div className="text-[10px] text-muted-foreground mt-1">Set as the stone's primary finished photo. More photos and CGI can be added on the detail page.</div>
+        <F label="Photos & videos (optional)" wide>
+          <Input name="mediaFiles" type="file" accept="image/*,video/*" multiple />
+          <div className="text-[10px] text-muted-foreground mt-1">
+            Upload one or more images and videos of the finished stone. First image becomes the primary
+            photo; all attach to the Photography tab and the stone&apos;s Lifecycle timeline. More can be
+            added on the detail page.
+          </div>
         </F>
       </Section>
 

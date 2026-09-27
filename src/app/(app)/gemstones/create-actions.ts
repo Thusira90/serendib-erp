@@ -120,8 +120,17 @@ export async function createFinishedGemstone(fd: FormData) {
     status: str(fd.get("status")) ?? "AVAILABLE",
   });
 
-  const photoFile = fd.get("primaryPhoto") as File | null;
-  const photo = await saveUpload(photoFile, "photos-gem");
+  // Intake media: any number of images and/or videos. First image becomes
+  // the primary FINISHED_PHOTO; the rest are supporting shots. Videos go
+  // in as kind=VIDEO. All are tagged stage=FINAL so they surface on the
+  // Photography tab and the Lifecycle timeline.
+  const mediaFiles = fd.getAll("mediaFiles")
+    .filter((v): v is File => v instanceof File && v.size > 0);
+  const legacySingle = fd.get("primaryPhoto") as File | null;
+  if (legacySingle && legacySingle.size > 0) mediaFiles.unshift(legacySingle);
+  const savedMedia = await Promise.all(
+    mediaFiles.map((f) => saveUpload(f, "photos-gem").catch(() => null)),
+  );
 
   const year = (parsed.acquisitionDate ?? new Date()).getUTCFullYear();
 
@@ -190,19 +199,24 @@ export async function createFinishedGemstone(fd: FormData) {
       });
     }
 
-    if (photo) {
+    let firstImage = true;
+    for (const m of savedMedia) {
+      if (!m) continue;
+      const isVideo = m.contentType.startsWith("video/");
       await tx.digitalAsset.create({
         data: {
           gemstoneId: created.id,
-          kind: "FINISHED_PHOTO",
-          url: photo.url,
-          contentType: photo.contentType,
-          originalName: photo.originalName,
-          caption: "Intake photo",
-          isPrimary: true,
+          kind: isVideo ? "VIDEO" : "FINISHED_PHOTO",
+          stage: "FINAL",
+          url: m.url,
+          contentType: m.contentType,
+          originalName: m.originalName,
+          caption: firstImage && !isVideo ? "Intake photo" : null,
+          isPrimary: !isVideo && firstImage,
           createdBy: session.user.name ?? null,
         },
       });
+      if (!isVideo) firstImage = false;
     }
 
     await writeAudit({

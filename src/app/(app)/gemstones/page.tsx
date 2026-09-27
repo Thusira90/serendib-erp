@@ -24,7 +24,7 @@ export default async function GemstoneListPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-3xl flex items-center gap-3"><Gem className="h-7 w-7 text-sgs-purple-500" /> Finished Gemstones</h1>
+          <h1 className="font-serif text-3xl flex items-center gap-3"><Gem className="h-7 w-7 text-sgs-purple-500" /> Cut and Polished Stones</h1>
           <p className="text-sm text-muted-foreground">Each stone carries its lineage, cost and price history forever.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -80,7 +80,7 @@ export default async function GemstoneListPage() {
           );
         })}
         {gems.length === 0 && (
-          <div className="col-span-full text-center text-sm text-muted-foreground py-12">No finished gemstones yet. Complete a cutting job to see one here.</div>
+          <div className="col-span-full text-center text-sm text-muted-foreground py-12">No cut and polished stones yet. Complete a cutting job to see one here.</div>
         )}
       </div>
     </div>

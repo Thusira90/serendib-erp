@@ -111,7 +111,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiTile label="Rough stones"        value={String(roughCount)} icon={<Diamond />} href="/rough" />
-        <KpiTile label="Finished gemstones"  value={String(gemCount)}   icon={<Gem />} href="/gemstones" />
+        <KpiTile label="Cut & polished stones"  value={String(gemCount)}   icon={<Gem />} href="/gemstones" />
         <KpiTile label="Available to sell"   value={String(availableGems)} icon={<TrendingUp />} href="/gemstones" />
         <KpiTile label="In cutting"          value={String(inCutting)}     icon={<Scissors />} href="/cutting" />
       </div>
