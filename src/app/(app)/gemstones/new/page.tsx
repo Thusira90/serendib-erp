@@ -2,14 +2,34 @@ import { requireCapability } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCompanySettings } from "@/lib/company-settings";
+import { getFieldVocabulary } from "@/lib/field-vocab";
 import { GemstoneIntakeForm } from "./gemstone-intake-form";
 
 export default async function NewGemstonePage() {
   await requireCapability("gemstone:write");
-  const [suppliers, locations, company] = await Promise.all([
+  const [suppliers, locations, company, vocab] = await Promise.all([
     prisma.supplier.findMany({ orderBy: { name: "asc" }, select: { id: true, code: true, name: true } }),
     prisma.inventoryLocation.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
     getCompanySettings(),
+    getFieldVocabulary([
+      { model: "gemstone", field: "gemType" },
+      { model: "gemstone", field: "variety" },
+      { model: "gemstone", field: "species" },
+      { model: "gemstone", field: "origin" },
+      { model: "gemstone", field: "treatment" },
+      { model: "gemstone", field: "shape" },
+      { model: "gemstone", field: "cut" },
+      { model: "gemstone", field: "facetingStyle" },
+      { model: "gemstone", field: "colorHue" },
+      { model: "gemstone", field: "colorTone" },
+      { model: "gemstone", field: "colorSaturation" },
+      { model: "gemstone", field: "clarity" },
+      { model: "gemstone", field: "transparency" },
+      { model: "gemstone", field: "luster" },
+      { model: "gemstone", field: "fluorescence" },
+      { model: "gemstone", field: "symmetry" },
+      { model: "gemstone", field: "polish" },
+    ]),
   ]);
 
   return (
@@ -31,6 +51,7 @@ export default async function NewGemstonePage() {
             suppliers={suppliers}
             locations={locations}
             defaultCurrency={company.defaultCurrency}
+            vocab={vocab}
           />
         </CardContent>
       </Card>

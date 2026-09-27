@@ -7,27 +7,32 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createRoughStone } from "./actions";
 import Link from "next/link";
+import { ComboboxInput } from "@/components/combobox-input";
+import { EntityPicker } from "@/components/entity-picker";
+import { quickCreateSupplier, quickCreateLocation } from "@/app/(app)/lookups/actions";
 
 type Option = { id: string; name: string; code?: string };
 
 export function RoughForm({
-  suppliers, parcels, locations, defaultCurrency = "LKR",
+  suppliers, parcels, locations, defaultCurrency = "LKR", vocab,
 }: {
   suppliers: Option[];
   parcels: (Option & { supplier?: { name: string } })[];
   locations: (Option & { code: string })[];
   defaultCurrency?: string;
+  vocab: Record<string, string[]>;
 }) {
   const [pending, start] = useTransition();
+  const v = (key: string) => vocab[`roughStone.${key}`] ?? vocab[key] ?? [];
 
   return (
     <form action={(fd) => start(() => createRoughStone(fd))} className="space-y-8">
       <Section title="Identification">
-        <Field label="Gemstone type *"><Input name="gemType" required placeholder="Sapphire" /></Field>
-        <Field label="Variety"><Input name="variety" placeholder="Blue Sapphire" /></Field>
-        <Field label="Species"><Input name="species" placeholder="Corundum" /></Field>
-        <Field label="Origin"><Input name="origin" placeholder="Sri Lanka" /></Field>
-        <Field label="Mine / source"><Input name="mineSource" placeholder="Ratnapura" /></Field>
+        <Field label="Gemstone type *"><ComboboxInput name="gemType" required placeholder="Sapphire" options={v("gemType")} /></Field>
+        <Field label="Variety"><ComboboxInput name="variety" placeholder="Blue Sapphire" options={v("variety")} /></Field>
+        <Field label="Species"><ComboboxInput name="species" placeholder="Corundum" options={v("species")} /></Field>
+        <Field label="Origin"><ComboboxInput name="origin" placeholder="Sri Lanka" options={v("origin")} /></Field>
+        <Field label="Mine / source"><ComboboxInput name="mineSource" placeholder="Ratnapura" options={v("mineSource")} /></Field>
         <Field label="Purchase date *"><Input name="purchaseDate" type="date" required defaultValue={new Date().toISOString().slice(0,10)} /></Field>
       </Section>
 
@@ -36,10 +41,10 @@ export function RoughForm({
         <Field label="Length (mm)"><Input name="lengthMm" inputMode="decimal" /></Field>
         <Field label="Width (mm)"><Input name="widthMm" inputMode="decimal" /></Field>
         <Field label="Height (mm)"><Input name="heightMm" inputMode="decimal" /></Field>
-        <Field label="Shape"><Input name="shape" /></Field>
-        <Field label="Color"><Input name="color" /></Field>
-        <Field label="Transparency"><Input name="transparency" /></Field>
-        <Field label="Clarity"><Input name="clarity" /></Field>
+        <Field label="Shape"><ComboboxInput name="shape" placeholder="Cushion" options={v("shape")} /></Field>
+        <Field label="Color"><ComboboxInput name="color" placeholder="Royal Blue" options={v("color")} /></Field>
+        <Field label="Transparency"><ComboboxInput name="transparency" options={v("transparency")} /></Field>
+        <Field label="Clarity"><ComboboxInput name="clarity" options={v("clarity")} /></Field>
         <Field label="Inclusions"><Input name="inclusions" /></Field>
         <Field label="Observations" wide><Textarea name="observations" rows={3} /></Field>
       </Section>
@@ -54,22 +59,37 @@ export function RoughForm({
 
       <Section title="Sourcing & location">
         <Field label="Supplier">
-          <select name="supplierId" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-            <option value="">— None —</option>
-            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <EntityPicker
+            name="supplierId"
+            emptyLabel="— None —"
+            options={suppliers.map((s) => ({ id: s.id, label: s.name, hint: s.code }))}
+            onQuickCreate={async (nm) => {
+              const r = await quickCreateSupplier(nm);
+              return { id: r.id, label: r.name, hint: r.code };
+            }}
+            createLabel="Add supplier"
+            createPlaceholder="Supplier name"
+          />
         </Field>
         <Field label="Parcel">
-          <select name="parcelId" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-            <option value="">— None —</option>
-            {parcels.map((p) => <option key={p.id} value={p.id}>{p.code} {p.supplier?.name ? `· ${p.supplier.name}` : ""}</option>)}
-          </select>
+          <EntityPicker
+            name="parcelId"
+            emptyLabel="— None —"
+            options={parcels.map((p) => ({ id: p.id, label: p.code ?? p.name, hint: p.supplier?.name ?? undefined }))}
+          />
         </Field>
         <Field label="Location">
-          <select name="locationId" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-            <option value="">— Unassigned —</option>
-            {locations.map((l) => <option key={l.id} value={l.id}>{l.code} · {l.name}</option>)}
-          </select>
+          <EntityPicker
+            name="locationId"
+            emptyLabel="— Unassigned —"
+            options={locations.map((l) => ({ id: l.id, label: l.name, hint: l.code }))}
+            onQuickCreate={async (nm) => {
+              const r = await quickCreateLocation(nm);
+              return { id: r.id, label: r.name, hint: r.code };
+            }}
+            createLabel="Add location"
+            createPlaceholder="Location name, e.g. Vault A"
+          />
         </Field>
       </Section>
 
