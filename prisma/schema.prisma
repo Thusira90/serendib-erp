@@ -136,6 +136,11 @@ model RoughStone {
 
   // Media
   digitalAssets DigitalAsset[]
+
+  // Bills / expenses filed against this rough (transport, valuation,
+  // storage, etc.) — allocated cost lines that follow the rough into
+  // any finished gems it becomes.
+  costAllocations CostAllocation[]
 }
 
 // ─── Finished gemstones ──────────────────────────────────────────────────────
@@ -369,14 +374,31 @@ model InventoryMovement {
 
 model CostAllocation {
   id           String   @id @default(cuid())
-  gemstoneId   String
-  gemstone     Gemstone @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+  // A cost allocation attaches to a single stone — either a rough (bills
+  // paid on the rough before it's cut, e.g. transport, valuation, storage)
+  // or a finished gem (cutting labour, certification, media, etc.).
+  // Exactly one of gemstoneId / roughStoneId is set; the FK cascades so
+  // deleting the stone cleans up its cost history.
+  gemstoneId   String?
+  gemstone     Gemstone? @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+  roughStoneId String?
+  roughStone   RoughStone? @relation(fields: [roughStoneId], references: [id], onDelete: Cascade)
+
+  // Optional link to the Expense this allocation came from — set when the
+  // user files a bill via "Add bill" on the stone. Lets us jump from a
+  // stone's cost line to the bill (with receipt) in one click.
+  expenseId    String?  @unique
+  expense      Expense? @relation(fields: [expenseId], references: [id])
+
   type  String
   description  String?
   amount       Decimal
   currency     String   @default("LKR")
   incurredAt   DateTime @default(now())
   createdAt    DateTime @default(now())
+
+  @@index([roughStoneId])
+  @@index([gemstoneId])
 }
 
 // ─── Price history (never overwritten) ───────────────────────────────────────
@@ -911,6 +933,11 @@ model Expense {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // Back-reference to the cost allocation this expense produced when it
+  // was filed as a stone bill (via "Add bill" on a stone detail page).
+  // Null for general expenses that aren't allocated to any single stone.
+  costAllocation CostAllocation?
 
   @@index([category])
   @@index([incurredAt])

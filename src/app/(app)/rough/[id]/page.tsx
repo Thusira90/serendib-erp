@@ -20,6 +20,7 @@ import { CommentsThread } from "@/components/comments-thread";
 import { MediaGallery } from "@/components/media-gallery";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForRough } from "@/lib/stone-lifecycle";
+import { StoneBillsSection } from "@/components/stone-bills-section";
 
 export default async function RoughDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("rough:read");
@@ -101,6 +102,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="genealogy">Genealogy</TabsTrigger>
           <TabsTrigger value="cutting">Cutting</TabsTrigger>
+          <TabsTrigger value="bills">Bills</TabsTrigger>
           <TabsTrigger value="media">Media</TabsTrigger>
           <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -207,6 +209,16 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="bills">
+          <StoneBillsSection
+            kind="rough"
+            stoneId={r.id}
+            stoneCode={r.code}
+            canWrite={can(session.user.role, "expense:write")}
+            defaultCurrency={r.currency}
+          />
         </TabsContent>
 
         <TabsContent value="media">

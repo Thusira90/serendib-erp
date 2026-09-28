@@ -25,6 +25,7 @@ import { ShareStoneButton } from "@/components/share-stone-button";
 import { MediaGallery } from "@/components/media-gallery";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
+import { StoneBillsSection } from "@/components/stone-bills-section";
 
 export default async function GemstoneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("gemstone:read");
@@ -182,6 +183,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           <TabsTrigger value="photography">Photography{hasPhoto && " ✓"}</TabsTrigger>
           <TabsTrigger value="cgi">CGI{hasCgiMaster && " ✓"}</TabsTrigger>
           <TabsTrigger value="costing">Costing</TabsTrigger>
+          <TabsTrigger value="bills">Bills</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
           <TabsTrigger value="commerce">Commerce</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
@@ -372,6 +374,16 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
             totalCost={Number(g.totalCost)}
             currency={g.currency}
             canWrite={canCost}
+          />
+        </TabsContent>
+
+        <TabsContent value="bills">
+          <StoneBillsSection
+            kind="gemstone"
+            stoneId={g.id}
+            stoneCode={g.code}
+            canWrite={can(session.user.role, "expense:write")}
+            defaultCurrency={g.currency}
           />
         </TabsContent>
 
