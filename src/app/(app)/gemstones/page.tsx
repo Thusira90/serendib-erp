@@ -8,6 +8,8 @@ import { formatCarat, formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import { Gem, Plus } from "lucide-react";
 import { ShareCatalogueButton } from "@/components/share-catalogue-button";
+import { QrPrintButton } from "@/components/qr-print-button";
+import { PrintLabelChip } from "@/components/print-label-chip";
 
 export default async function GemstoneListPage() {
   const session = await requireCapability("gemstone:read");
@@ -28,6 +30,9 @@ export default async function GemstoneListPage() {
           <p className="text-sm text-muted-foreground">Each stone carries its lineage, cost and price history forever.</p>
         </div>
         <div className="flex items-center gap-2">
+          {gems.length > 0 && (
+            <QrPrintButton codes={gems.map((g) => g.code)} kind="gemstone" layout="sheet" label={`Print all ${gems.length} labels`} />
+          )}
           <ShareCatalogueButton />
           {canWrite && (
             <Button asChild variant="accent"><Link href="/gemstones/new"><Plus className="h-4 w-4" /> Register gemstone</Link></Button>
@@ -50,9 +55,12 @@ export default async function GemstoneListPage() {
                   </div>
                 </div>
                 <CardContent className="p-4 space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-1">
                     <span className="font-mono text-xs text-sgs-teal-700">{g.code}</span>
-                    {g.origin && <Badge variant="teal">{g.origin}</Badge>}
+                    <div className="flex items-center gap-1">
+                      {g.origin && <Badge variant="teal">{g.origin}</Badge>}
+                      <PrintLabelChip code={g.code} kind="gemstone" />
+                    </div>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Asking</span>

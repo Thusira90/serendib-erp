@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import { Plus, Diamond } from "lucide-react";
+import { QrPrintButton } from "@/components/qr-print-button";
 
 export default async function RoughListPage() {
   const session = await requireCapability("rough:read");
@@ -24,9 +25,14 @@ export default async function RoughListPage() {
           <h1 className="font-serif text-3xl flex items-center gap-3"><Diamond className="h-7 w-7 text-sgs-teal-500" /> Rough Stones</h1>
           <p className="text-sm text-muted-foreground">Every rough acquisition, permanent record.</p>
         </div>
-        {canWrite && (
-          <Button asChild variant="accent"><Link href="/rough/new"><Plus className="h-4 w-4" /> New rough stone</Link></Button>
-        )}
+        <div className="flex items-center gap-2">
+          {rough.length > 0 && (
+            <QrPrintButton codes={rough.map((r) => r.code)} kind="rough" layout="sheet" label={`Print all ${rough.length} labels`} />
+          )}
+          {canWrite && (
+            <Button asChild variant="accent"><Link href="/rough/new"><Plus className="h-4 w-4" /> New rough stone</Link></Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -50,6 +56,7 @@ export default async function RoughListPage() {
                 <TableHead>Location</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Yielded</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -71,11 +78,14 @@ export default async function RoughListPage() {
                   <TableCell className="text-right">
                     {r._count.transformationsAsInput > 0 ? <Badge variant="purple">{r._count.transformationsAsInput}</Badge> : <span className="text-muted-foreground text-sm">—</span>}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <QrPrintButton code={r.code} kind="rough" label="Label" />
+                  </TableCell>
                 </TableRow>
               ))}
               {rough.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">
+                  <TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-10">
                     No rough stones yet.{canWrite && <> <Link href="/rough/new" className="text-sgs-teal-700 hover:underline">Register the first one →</Link></>}
                   </TableCell>
                 </TableRow>

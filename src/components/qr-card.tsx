@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
-import Link from "next/link";
 import { QrPrintButton } from "./qr-print-button";
+import { CopyLinkButton } from "./copy-link-button";
 
 /**
  * QR card for the internal record view.
@@ -33,12 +33,11 @@ export async function QrCard({
         <div className="grid place-items-center">
           <div dangerouslySetInnerHTML={{ __html: svg }} />
         </div>
-        {kind === "gemstone" && (
-          <div className="text-[10px] text-muted-foreground text-center">
-            Public — scan opens{" "}
-            <Link href={url} className="text-sgs-teal-700 hover:underline">/verify/{code}</Link>
-          </div>
-        )}
+        <CopyLinkButton
+          path={url}
+          public={kind === "gemstone"}
+          label={kind === "gemstone" ? "Public verify link" : "Internal record link"}
+        />
       </CardContent>
     </Card>
   );
