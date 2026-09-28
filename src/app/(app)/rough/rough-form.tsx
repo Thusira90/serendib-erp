@@ -49,6 +49,7 @@ export function RoughForm({
         <Field label="Color"><ComboboxInput name="color" placeholder="Royal Blue" options={v("color")} /></Field>
         <Field label="Transparency"><ComboboxInput name="transparency" options={v("transparency")} /></Field>
         <Field label="Clarity"><ComboboxInput name="clarity" options={v("clarity")} /></Field>
+        <Field label="Treatment"><ComboboxInput name="treatment" placeholder="Unheated" options={v("treatment")} /></Field>
         <Field label="Inclusions"><Input name="inclusions" /></Field>
         <Field label="Observations" wide><Textarea name="observations" rows={3} /></Field>
       </Section>

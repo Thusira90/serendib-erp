@@ -108,6 +108,10 @@ model RoughStone {
   surface        String?
   fractures      String?
   observations   String?
+  // Free-text treatment note — e.g. "Unheated", "Heated (traditional)",
+  // "Beryllium diffusion". Shown on the box label so cutters/sales can
+  // sort untreated stock without opening every box.
+  treatment      String?
 
   purchasePrice  Decimal
   currency       String   @default("LKR")

@@ -22,7 +22,14 @@ export async function renderQrSvg(
     errorCorrectionLevel: "M",
     color: { dark, light },
   });
-  return svg;
+  // Strip fixed width/height and add preserveAspectRatio so the QR fits
+  // whatever CSS container it lands in (e.g. a 32×32 mm sticker slot).
+  // The viewBox emitted by qrcode is preserved, which keeps the modules
+  // crisp at any scale.
+  return svg
+    .replace(/\swidth="[^"]*"/, "")
+    .replace(/\sheight="[^"]*"/, "")
+    .replace(/<svg\s/, '<svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" ');
 }
 
 export function publicVerifyUrl(code: string, base?: string | null) {

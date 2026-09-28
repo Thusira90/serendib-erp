@@ -22,6 +22,7 @@ export default async function NewRoughPage() {
       { model: "roughStone", field: "color" },
       { model: "roughStone", field: "transparency" },
       { model: "roughStone", field: "clarity" },
+      { model: "roughStone", field: "treatment" },
     ]),
   ]);
   const parcelOptions = parcels.map((p) => ({ id: p.id, code: p.code, name: p.code, supplier: p.supplier ? { name: p.supplier.name } : undefined }));

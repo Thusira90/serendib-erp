@@ -67,8 +67,8 @@ export const SEED_VOCAB: Record<string, string[]> = {
   "symmetry": ["Excellent","Very Good","Good","Fair","Poor"],
   "polish":   ["Excellent","Very Good","Good","Fair","Poor"],
   "treatment": [
-    "None","Heat","Heat-only","Beryllium","Diffusion","Fracture-filled",
-    "Oil","Clarity Enhanced","Irradiated","Untreated",
+    "Unheated","No Heat","Heated","Heated (traditional)","Beryllium",
+    "Diffusion","Fracture-filled","Oil","Clarity Enhanced","Irradiated",
   ],
   "surface": ["Smooth","Rough","Etched","Frosted","Fractured","Chipped"],
   "fractures": ["None","Minor","Moderate","Extensive","Healed","Open"],
