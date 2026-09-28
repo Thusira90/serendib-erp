@@ -212,6 +212,15 @@ export type Gem = Awaited<ReturnType<typeof prisma.gemstone.findMany>>[number] &
   certificates: { laboratory: { name: string }; certificateNumber: string | null }[];
 };
 
+export type Rough = Awaited<ReturnType<typeof prisma.roughStone.findMany>>[number] & {
+  digitalAssets: { url: string; contentType: string | null; kind: string; isPrimary: boolean }[];
+};
+
+/** True when the share link points at rough stones (single or many). */
+export function isRoughScope(scope: string): boolean {
+  return scope === "ROUGH" || scope === "ROUGHS";
+}
+
 /**
  * Full-fat single-stone profile — mirrors the internal detail page.
  * Used both for scope=GEMSTONE links AND when a viewer clicks a card
@@ -365,8 +374,10 @@ function KV({ label, value, span = false }: { label: string; value: React.ReactN
 
 export function titleForScope(scope: string, count: number, fallbackBrand: string): string {
   if (scope === "GEMSTONE") return "A gemstone from our vault";
+  if (scope === "ROUGH") return "A rough stone from our vault";
   if (scope === "COLLECTION") return "A curated collection for you";
   if (scope === "GEMSTONES") return `${count} stone${count === 1 ? "" : "s"} we picked for you`;
+  if (scope === "ROUGHS") return `${count} rough stone${count === 1 ? "" : "s"} we picked for you`;
   return `${fallbackBrand} — available inventory`;
 }
 
@@ -374,6 +385,8 @@ export function safePayloadParse(s: string | null): {
   gemstoneCode?: string;
   gemstoneCodes?: string[];
   collectionShareCode?: string;
+  roughCode?: string;
+  roughCodes?: string[];
 } {
   if (!s) return {};
   try { return JSON.parse(s); } catch { return {}; }
@@ -393,4 +406,136 @@ export function gemsWhereForLink(link: NonNullable<ShareLinkRecord>) {
       ? { collectionItems: { some: { collection: { shareCode: payload.collectionShareCode } } } }
       : {}),
   };
+}
+
+/** Same as gemsWhereForLink but for the rough scopes. */
+export function roughsWhereForLink(link: NonNullable<ShareLinkRecord>) {
+  const payload = safePayloadParse(link.payload);
+  return {
+    ...(link.scope === "ROUGH" && payload.roughCode ? { code: payload.roughCode } : {}),
+    ...(link.scope === "ROUGHS" && payload.roughCodes?.length ? { code: { in: payload.roughCodes } } : {}),
+  };
+}
+
+/* ------------------------------ Rough views ------------------------------ */
+
+/**
+ * Full-fat single-rough profile — mirrors the internal detail page.
+ * Rough shares deliberately omit purchase price (internal cost) and
+ * show initialValuation instead when available, otherwise "Price on
+ * request".
+ */
+export function SingleRoughStone({ rough }: { rough: Rough }) {
+  const hero = rough.digitalAssets.find((a) => a.isPrimary)?.url ?? rough.digitalAssets[0]?.url;
+  const dims = [rough.lengthMm, rough.widthMm, rough.heightMm]
+    .filter((v) => v != null)
+    .map((v) => `${Number(v).toFixed(2)} mm`)
+    .join(" × ");
+  const valuation = rough.initialValuation != null
+    ? formatCurrency(Number(rough.initialValuation), rough.currency)
+    : null;
+
+  return (
+    <div className="rounded-2xl overflow-hidden bg-white border shadow-luxe">
+      <div className="aspect-[16/10] bg-sgs-gradient relative">
+        {hero && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={hero} alt={rough.code} className="absolute inset-0 h-full w-full object-cover" />
+        )}
+      </div>
+      <div className="p-8 space-y-6">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.25em] text-sgs-purple-500">
+            Rough · {rough.gemType}{rough.variety ? ` · ${rough.variety}` : ""}
+          </div>
+          <h2 className="font-serif text-3xl mt-1">{formatCarat(Number(rough.weightCt))}</h2>
+          <div className="text-sm text-muted-foreground mt-1">
+            {rough.origin ?? "Origin undisclosed"}
+            {rough.mineSource ? ` · ${rough.mineSource}` : ""}
+            {rough.treatment ? ` · ${rough.treatment}` : ""}
+          </div>
+        </div>
+
+        <SpecSection title="Identity">
+          <KV label="Species" value={rough.species ?? "—"} />
+          <KV label="Origin" value={rough.origin ?? "—"} />
+          <KV label="Mine / source" value={rough.mineSource ?? "—"} />
+          <KV label="Treatment" value={rough.treatment ?? "—"} />
+        </SpecSection>
+
+        <SpecSection title="Physical characteristics">
+          <KV label="Weight" value={formatCarat(Number(rough.weightCt))} />
+          <KV label="Dimensions" value={dims || "—"} />
+          <KV label="Shape" value={rough.shape ?? "—"} />
+          <KV label="Colour" value={rough.color ?? "—"} />
+          <KV label="Transparency" value={rough.transparency ?? "—"} />
+          <KV label="Clarity" value={rough.clarity ?? "—"} />
+          {rough.surface && <KV label="Surface" value={rough.surface} />}
+          {rough.fractures && <KV label="Fractures" value={rough.fractures} />}
+          {rough.inclusions && <KV label="Inclusions" value={rough.inclusions} span />}
+        </SpecSection>
+
+        {rough.observations && (
+          <SpecSection title="Notes">
+            <KV label="Observations" value={rough.observations} span />
+          </SpecSection>
+        )}
+
+        <div className="pt-4 border-t flex items-baseline justify-between">
+          <span className="text-xs text-muted-foreground uppercase tracking-wider">
+            {valuation ? "Indicative valuation" : "Price"}
+          </span>
+          <span className="font-serif text-2xl num">
+            {valuation ?? <span className="italic text-muted-foreground text-lg">On request</span>}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Grid of rough cards; each links to /s/<code>/r/<roughCode>. */
+export function RoughGrid({ roughs, shareCode }: { roughs: Rough[]; shareCode: string }) {
+  if (roughs.length === 0) {
+    return (
+      <div className="rounded-xl border bg-white p-10 text-center text-sm text-muted-foreground">
+        No rough stones in this selection.
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {roughs.map((r) => {
+        const heroImg = r.digitalAssets.find((a) => a.isPrimary)?.url ?? r.digitalAssets[0]?.url;
+        return (
+          <Link
+            key={r.id}
+            href={`/s/${shareCode}/r/${encodeURIComponent(r.code)}`}
+            className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
+          >
+            <div className="aspect-square bg-sgs-gradient relative">
+              {heroImg ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={heroImg} alt={r.code} className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-white/80">
+                  <Gem className="h-8 w-8" />
+                </div>
+              )}
+            </div>
+            <div className="p-4 space-y-1.5">
+              <div className="text-[10px] uppercase tracking-widest text-sgs-purple-500">
+                Rough · {r.gemType}{r.variety ? ` · ${r.variety}` : ""}
+              </div>
+              <div className="font-serif text-lg">{formatCarat(Number(r.weightCt))}</div>
+              <div className="text-xs text-muted-foreground">
+                {r.origin ?? "—"}{r.treatment ? ` · ${r.treatment}` : ""}
+              </div>
+              <div className="text-[10px] text-sgs-teal-700 group-hover:underline">View full profile →</div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
 }

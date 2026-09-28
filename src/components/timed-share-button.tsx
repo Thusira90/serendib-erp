@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Clock3, Copy, Check, MessageCircle, Mail, Link2, Users } from "lucide-react";
 import { createShareLink } from "@/app/(app)/share-links/actions";
 
-type Scope = "CATALOGUE" | "GEMSTONE" | "GEMSTONES" | "COLLECTION";
+type Scope = "CATALOGUE" | "GEMSTONE" | "GEMSTONES" | "COLLECTION" | "ROUGH" | "ROUGHS";
 
 const TTL_PRESETS: Array<{ label: string; minutes: number }> = [
   { label: "10 min", minutes: 10 },
@@ -34,6 +34,8 @@ export function TimedShareButton({
   gemstoneCode,
   gemstoneCodes,
   collectionShareCode,
+  roughCode,
+  roughCodes,
   label,
   sharerDefaults,
   size = "sm",
@@ -42,6 +44,8 @@ export function TimedShareButton({
   gemstoneCode?: string;
   gemstoneCodes?: string[];
   collectionShareCode?: string;
+  roughCode?: string;
+  roughCodes?: string[];
   label?: string;
   sharerDefaults?: { name?: string; phone?: string; email?: string };
   size?: "sm" | "default";
@@ -58,8 +62,10 @@ export function TimedShareButton({
 
   const buttonLabel = label ?? (
     scope === "GEMSTONE" ? "Share stone with expiry"
+    : scope === "ROUGH" ? "Share rough with expiry"
     : scope === "COLLECTION" ? "Share collection with expiry"
     : scope === "GEMSTONES" ? "Share selection with expiry"
+    : scope === "ROUGHS" ? "Share selection with expiry"
     : "Share catalogue with expiry"
   );
 
@@ -67,6 +73,8 @@ export function TimedShareButton({
     if (scope === "GEMSTONE" && gemstoneCode) return JSON.stringify({ gemstoneCode });
     if (scope === "GEMSTONES" && gemstoneCodes?.length) return JSON.stringify({ gemstoneCodes });
     if (scope === "COLLECTION" && collectionShareCode) return JSON.stringify({ collectionShareCode });
+    if (scope === "ROUGH" && roughCode) return JSON.stringify({ roughCode });
+    if (scope === "ROUGHS" && roughCodes?.length) return JSON.stringify({ roughCodes });
     return null;
   }
 
@@ -136,6 +144,8 @@ export function TimedShareButton({
                 {scope === "GEMSTONES" && `${gemstoneCodes?.length ?? 0} selected stones`}
                 {scope === "COLLECTION" && "a curated collection"}
                 {scope === "CATALOGUE" && "your full public catalogue"}
+                {scope === "ROUGH" && `rough ${roughCode}`}
+                {scope === "ROUGHS" && `${roughCodes?.length ?? 0} selected rough stones`}
               </span>.
             </div>
 

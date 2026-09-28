@@ -21,6 +21,7 @@ import { MediaGallery } from "@/components/media-gallery";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForRough } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
+import { TimedShareButton } from "@/components/timed-share-button";
 
 export default async function RoughDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("rough:read");
@@ -59,6 +60,13 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
         <Link href="/rough" className="inline-flex items-center gap-1 hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back to rough stones</Link>
+        <div className="flex items-center gap-2">
+        <TimedShareButton
+          scope="ROUGH"
+          roughCode={r.code}
+          label="Timed link"
+          sharerDefaults={{ name: session.user.name ?? "", email: session.user.email ?? undefined }}
+        />
         {canEdit && (
           <EditRoughButton
             rough={{
@@ -75,6 +83,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
             locations={locations}
           />
         )}
+        </div>
       </div>
 
       <header className="flex items-start justify-between gap-6">

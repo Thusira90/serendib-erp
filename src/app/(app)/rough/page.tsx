@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { requireCapability, can } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
-import { StatusBadge } from "@/components/status-badge";
+import { formatCarat, formatCurrency } from "@/lib/utils";
 import { Plus, Diamond } from "lucide-react";
 import { QrPrintButton } from "@/components/qr-print-button";
+import { TimedShareButton } from "@/components/timed-share-button";
+import { SelectableRoughTable, type RoughRow } from "@/components/selectable-rough-table";
 
 export default async function RoughListPage() {
   const session = await requireCapability("rough:read");
@@ -17,6 +16,18 @@ export default async function RoughListPage() {
     include: { supplier: true, location: true, parcel: true, _count: { select: { transformationsAsInput: true } } },
   });
   const canWrite = can(session.user.role, "rough:write");
+
+  const rows: RoughRow[] = rough.map((r) => ({
+    id: r.id, code: r.code,
+    gemType: r.gemType, variety: r.variety,
+    origin: r.origin,
+    weightCt: Number(r.weightCt),
+    purchasePrice: Number(r.purchasePrice), currency: r.currency,
+    supplierName: r.supplier?.name ?? null,
+    locationName: r.location?.name ?? null,
+    status: r.status,
+    yielded: r._count.transformationsAsInput,
+  }));
 
   return (
     <div className="space-y-6">
@@ -27,7 +38,15 @@ export default async function RoughListPage() {
         </div>
         <div className="flex items-center gap-2">
           {rough.length > 0 && (
-            <QrPrintButton codes={rough.map((r) => r.code)} kind="rough" layout="sheet" label={`Print all ${rough.length} labels`} />
+            <>
+              <TimedShareButton
+                scope="ROUGHS"
+                roughCodes={rough.map((r) => r.code)}
+                label="Timed link (all)"
+                sharerDefaults={{ name: session.user.name ?? "", email: session.user.email ?? undefined }}
+              />
+              <QrPrintButton codes={rough.map((r) => r.code)} kind="rough" layout="sheet" label={`Print all ${rough.length} labels`} />
+            </>
           )}
           {canWrite && (
             <Button asChild variant="accent"><Link href="/rough/new"><Plus className="h-4 w-4" /> New rough stone</Link></Button>
@@ -42,58 +61,21 @@ export default async function RoughListPage() {
         <StatCard label="Available" value={String(rough.filter(r => r.status === "AVAILABLE").length)} />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Rough ID</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Origin</TableHead>
-                <TableHead className="text-right">Weight</TableHead>
-                <TableHead className="text-right">Cost</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Yielded</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rough.map((r) => (
-                <TableRow key={r.id} className="cursor-pointer">
-                  <TableCell>
-                    <Link href={`/rough/${r.id}`} className="font-mono text-xs text-sgs-teal-700 hover:underline">{r.code}</Link>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">{r.gemType}</div>
-                    {r.variety && <div className="text-xs text-muted-foreground">{r.variety}</div>}
-                  </TableCell>
-                  <TableCell className="text-sm">{r.origin ?? "—"}</TableCell>
-                  <TableCell className="text-right num">{formatCarat(Number(r.weightCt))}</TableCell>
-                  <TableCell className="text-right num">{formatCurrency(Number(r.purchasePrice), r.currency)}</TableCell>
-                  <TableCell className="text-sm">{r.supplier?.name ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{r.location?.name ?? "—"}</TableCell>
-                  <TableCell><StatusBadge status={r.status} kind="rough" /></TableCell>
-                  <TableCell className="text-right">
-                    {r._count.transformationsAsInput > 0 ? <Badge variant="purple">{r._count.transformationsAsInput}</Badge> : <span className="text-muted-foreground text-sm">—</span>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <QrPrintButton code={r.code} kind="rough" label="Label" />
-                  </TableCell>
-                </TableRow>
-              ))}
-              {rough.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-10">
-                    No rough stones yet.{canWrite && <> <Link href="/rough/new" className="text-sgs-teal-700 hover:underline">Register the first one →</Link></>}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {rough.length === 0 ? (
+        <div className="text-center text-sm text-muted-foreground py-12 border rounded-lg">
+          No rough stones yet.{canWrite && <> <Link href="/rough/new" className="text-sgs-teal-700 hover:underline">Register the first one →</Link></>}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <SelectableRoughTable
+              rows={rows}
+              sharerName={session.user.name ?? ""}
+              sharerEmail={session.user.email ?? ""}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
