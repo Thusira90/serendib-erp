@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { requireCapability, can } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCarat, formatCurrency } from "@/lib/utils";
-import { StatusBadge } from "@/components/status-badge";
 import { Gem, Plus } from "lucide-react";
 import { ShareCatalogueButton } from "@/components/share-catalogue-button";
 import { QrPrintButton } from "@/components/qr-print-button";
-import { PrintLabelChip } from "@/components/print-label-chip";
 import { TimedShareButton } from "@/components/timed-share-button";
+import { SelectableGemGrid, type GemCard } from "@/components/selectable-gem-grid";
 
 export default async function GemstoneListPage() {
   const session = await requireCapability("gemstone:read");
@@ -21,6 +17,21 @@ export default async function GemstoneListPage() {
       location: true,
       transformationsAsOutput: { include: { transformation: { include: { inputs: { include: { roughStone: true } } } } } },
     },
+  });
+
+  const cards: GemCard[] = gems.map((g) => {
+    const parents = g.transformationsAsOutput.flatMap((o) => o.transformation.inputs.map((i) => i.roughStone.code));
+    return {
+      id: g.id, code: g.code,
+      gemType: g.gemType, variety: g.variety,
+      weightCt: Number(g.weightCt),
+      status: g.status,
+      origin: g.origin,
+      currency: g.currency,
+      askingPrice: g.askingPrice != null ? Number(g.askingPrice) : null,
+      totalCost: Number(g.totalCost),
+      heroBadge: parents[0] ?? null,
+    };
   });
 
   return (
@@ -46,57 +57,17 @@ export default async function GemstoneListPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {gems.map((g) => {
-          const parents = g.transformationsAsOutput.flatMap((o) => o.transformation.inputs.map((i) => i.roughStone.code));
-          const margin = g.askingPrice != null ? Number(g.askingPrice) - Number(g.totalCost) : null;
-          return (
-            <Link key={g.id} href={`/gemstones/${g.id}`}>
-              <Card className="hover:shadow-luxe-lg transition-shadow overflow-hidden">
-                <div className="h-28 bg-sgs-gradient relative">
-                  <div className="absolute top-3 right-3"><StatusBadge status={g.status} kind="gemstone" /></div>
-                  <div className="absolute bottom-3 left-4 text-white">
-                    <div className="text-[10px] uppercase tracking-widest opacity-80">{g.gemType}{g.variety ? ` · ${g.variety}` : ""}</div>
-                    <div className="font-serif text-2xl leading-tight">{formatCarat(Number(g.weightCt))}</div>
-                  </div>
-                </div>
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-mono text-xs text-sgs-teal-700">{g.code}</span>
-                    <div className="flex items-center gap-1">
-                      {g.origin && <Badge variant="teal">{g.origin}</Badge>}
-                      <PrintLabelChip code={g.code} kind="gemstone" />
-                    </div>
-                  </div>
-                  {parents.length > 0 && (
-                    <div className="text-[10px] text-muted-foreground">
-                      From rough <span className="font-mono text-sgs-teal-700">{parents[0]}</span>
-                      {parents.length > 1 && <> +{parents.length - 1}</>}
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Asking</span>
-                    <span className="num font-medium">{g.askingPrice ? formatCurrency(Number(g.askingPrice), g.currency) : "—"}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">True cost</span>
-                    <span className="num">{formatCurrency(Number(g.totalCost), g.currency)}</span>
-                  </div>
-                  {margin != null && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Est. margin</span>
-                      <span className={`num font-medium ${margin >= 0 ? "text-emerald-700" : "text-red-700"}`}>{formatCurrency(margin, g.currency)}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
-        {gems.length === 0 && (
-          <div className="col-span-full text-center text-sm text-muted-foreground py-12">No cut and polished stones yet. Complete a cutting job to see one here.</div>
-        )}
-      </div>
+      {gems.length === 0 ? (
+        <div className="text-center text-sm text-muted-foreground py-12 border rounded-lg">
+          No cut and polished stones yet. Complete a cutting job to see one here.
+        </div>
+      ) : (
+        <SelectableGemGrid
+          gems={cards}
+          sharerName={session.user.name ?? ""}
+          sharerEmail={session.user.email ?? ""}
+        />
+      )}
     </div>
   );
 }
