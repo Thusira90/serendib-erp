@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import { getCompanySettings } from "@/lib/company-settings";
-import { Gem, ShieldCheck, Clock3, MessageCircle, Mail, User as UserIcon, Building2 } from "lucide-react";
+import { Gem, ShieldCheck, Clock3, MessageCircle, Mail, User as UserIcon } from "lucide-react";
 import { SgsLogo } from "@/components/brand/logo";
 
 // Time-boxed customer-facing view. Never prerendered — expiry checks and
@@ -64,9 +64,12 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
   const gems = await prisma.gemstone.findMany(gemsQuery);
 
   // Choose which contact identity to show on the public page.
+  // The recipient sees IDENTICAL treatment either way — same label,
+  // same icon, same layout — so a broker-shared link is indistinguishable
+  // from a direct one. Broker mode just swaps whose contact card is
+  // shown; nothing else.
   const contact = link.brokerMode
     ? {
-        kind: "broker" as const,
         name: link.brokerName ?? "Broker",
         company: link.brokerCompany,
         phone: link.brokerPhone,
@@ -74,7 +77,6 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
         photoUrl: null as string | null,
       }
     : {
-        kind: "direct" as const,
         name: link.createdByName,
         company: null as string | null,
         phone: link.createdByPhone,
@@ -84,10 +86,35 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
 
   const minutesLeft = Math.max(0, Math.round((link.expiresAt.getTime() - now.getTime()) / 60_000));
   const isSingle = gems.length === 1 && link.scope === "GEMSTONE";
-  const heroTitle = titleForScope(link.scope, gems.length, (company.tradingName ?? company.legalName));
+
+  // In broker mode we scrub every trace of Serendib from the recipient's
+  // page — the whole point of a broker is that the buyer never learns who
+  // the underlying seller is. The "brand" the recipient sees is the
+  // broker's company (or their name if no company). Direct mode still
+  // fronts Serendib as normal. Broker mode also uses a neutral slate
+  // palette instead of Serendib teal/purple, so nothing about the
+  // aesthetic hints at the underlying vendor.
+  const brand = link.brokerMode
+    ? {
+        label: link.brokerCompany ?? link.brokerName ?? "Private inventory",
+        titleFallback: "Available inventory",
+        showSgsLogo: false,
+        accent: "text-slate-700",
+        accentIcon: "text-slate-500",
+        pageBg: "bg-slate-50",
+      }
+    : {
+        label: company.tradingName ?? company.legalName,
+        titleFallback: company.tradingName ?? company.legalName,
+        showSgsLogo: true,
+        accent: "text-sgs-purple-500",
+        accentIcon: "text-sgs-purple-500",
+        pageBg: "bg-secondary/20",
+      };
+  const heroTitle = titleForScope(link.scope, gems.length, brand.titleFallback);
 
   return (
-    <div className="min-h-screen bg-secondary/20">
+    <div className={`min-h-screen ${brand.pageBg}`}>
       {/* Ambient watermark — subtle diagonal repeating text to discourage
           screenshotting the imagery for reuse. Uses the company name and
           the viewer contact so the same asset is unique per link. */}
@@ -104,7 +131,7 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
       >
         {Array.from({ length: 40 }).map((_, i) => (
           <span key={i} className="p-6 whitespace-nowrap">
-            {(company.tradingName ?? company.legalName)} · Confidential · for {contact.name} only · do not redistribute
+            {brand.label} · Confidential · for {contact.name} only · do not redistribute
           </span>
         ))}
       </div>
@@ -115,8 +142,12 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
       >
         {/* Header */}
         <header className="text-center mb-8">
-          <div className="flex justify-center mb-4"><SgsLogo /></div>
-          <div className="text-[11px] uppercase tracking-[0.3em] text-sgs-purple-500 flex items-center justify-center gap-2">
+          {brand.showSgsLogo ? (
+            <div className="flex justify-center mb-4"><SgsLogo /></div>
+          ) : (
+            <div className="font-serif text-xl mb-4">{brand.label}</div>
+          )}
+          <div className={`text-[11px] uppercase tracking-[0.3em] ${brand.accent} flex items-center justify-center gap-2`}>
             <ShieldCheck className="h-3.5 w-3.5" />
             Prepared for you
           </div>
@@ -135,18 +166,19 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
         {/* Body */}
         {isSingle && gems[0] ? <SingleStone gem={gems[0]} /> : <StoneGrid gems={gems} />}
 
-        {/* Sharer footer */}
+        {/* Sharer footer — identical layout whether direct or broker.
+            No visual clue betrays broker mode to the recipient. */}
         <section className="mt-12 rounded-xl border bg-white p-6">
           <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
-            {contact.kind === "broker" ? "Shared through" : "Prepared by"}
+            Prepared by
           </div>
           <div className="flex items-start gap-4">
-            <div className="h-14 w-14 rounded-full bg-sgs-gradient text-white flex items-center justify-center overflow-hidden shrink-0">
+            <div className={`h-14 w-14 rounded-full text-white flex items-center justify-center overflow-hidden shrink-0 ${link.brokerMode ? "bg-slate-600" : "bg-sgs-gradient"}`}>
               {contact.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={contact.photoUrl} alt={contact.name} className="h-full w-full object-cover" />
               ) : (
-                (contact.kind === "broker" ? <Building2 className="h-6 w-6" /> : <UserIcon className="h-6 w-6" />)
+                <UserIcon className="h-6 w-6" />
               )}
             </div>
             <div className="flex-1 min-w-0">
@@ -178,17 +210,17 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
         {/* Copyright / do-not-share notice */}
         <section className="mt-6 rounded-xl border bg-white/60 p-5 text-xs text-muted-foreground leading-relaxed">
           <div className="flex items-start gap-2">
-            <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5 text-sgs-purple-500" />
+            <ShieldCheck className={`h-4 w-4 shrink-0 mt-0.5 ${brand.accentIcon}`} />
             <div>
               <div className="font-medium text-foreground">Confidential — for your viewing only.</div>
               <p className="mt-1">
                 This page was prepared privately for the intended recipient. Images, prices and stone details
-                are the copyrighted property of {(company.tradingName ?? company.legalName)} and may not be downloaded, screenshotted,
-                republished, forwarded or shared with any third party without written permission. The link
-                is time-limited and access is logged. By opening this page you agree to these terms.
+                are proprietary and may not be downloaded, screenshotted, republished, forwarded or shared
+                with any third party without written permission. The link is time-limited and access is
+                logged. By opening this page you agree to these terms.
               </p>
               <div className="mt-2 text-[10px] font-mono opacity-70">
-                © {new Date().getFullYear()} {(company.tradingName ?? company.legalName)}. Link {code} · viewed {link.viewCount + 1}
+                © {new Date().getFullYear()} {brand.label}. Link {code} · viewed {link.viewCount + 1}
                 {link.viewCount + 1 === 1 ? " time" : " times"}.
               </div>
             </div>
@@ -196,7 +228,7 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
         </section>
 
         <div className="text-center mt-6 text-[10px] text-muted-foreground uppercase tracking-[0.25em]">
-          {(company.tradingName ?? company.legalName)}
+          {brand.label}
         </div>
       </main>
 
@@ -234,6 +266,11 @@ function SingleStone({ gem }: { gem: Gem }) {
   const cgi = gem.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
   const hero = cgi?.renderUrl ?? gem.digitalAssets[0]?.url;
   const cert = gem.certificates[0];
+  const dims = [gem.lengthMm, gem.widthMm, gem.depthMm]
+    .filter((v) => v != null)
+    .map((v) => `${Number(v).toFixed(2)} mm`)
+    .join(" × ");
+
   return (
     <div className="rounded-2xl overflow-hidden bg-white border shadow-luxe">
       <div className="aspect-[16/10] bg-sgs-gradient relative">
@@ -242,7 +279,7 @@ function SingleStone({ gem }: { gem: Gem }) {
           <img src={hero} alt={gem.code} className="absolute inset-0 h-full w-full object-cover" />
         )}
       </div>
-      <div className="p-8 space-y-5">
+      <div className="p-8 space-y-6">
         <div>
           <div className="text-[10px] uppercase tracking-[0.25em] text-sgs-purple-500">{gem.gemType}{gem.variety ? ` · ${gem.variety}` : ""}</div>
           <h2 className="font-serif text-3xl mt-1">{formatCarat(Number(gem.weightCt))}</h2>
@@ -251,19 +288,56 @@ function SingleStone({ gem }: { gem: Gem }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          {gem.shape && <KV label="Shape" value={gem.shape} />}
-          {gem.cut && <KV label="Cut" value={gem.cut} />}
-          {gem.colorDescription && <KV label="Colour" value={gem.colorDescription} span />}
-          {gem.clarity && <KV label="Clarity" value={gem.clarity} />}
-          {[gem.lengthMm, gem.widthMm, gem.depthMm].some(Boolean) && (
-            <KV
-              label="Dimensions"
-              value={[gem.lengthMm, gem.widthMm, gem.depthMm].filter(Boolean).map((v) => `${Number(v).toFixed(1)}mm`).join(" × ")}
-            />
-          )}
-          {cert && <KV label="Certification" value={`${cert.laboratory.name}${cert.certificateNumber ? ` · #${cert.certificateNumber}` : ""}`} span />}
+        {/* Full-fat spec sheet — every populated field surfaces, so the
+            profile matches the internal detail page and the /verify page.
+            Empty fields render "—" so the layout stays uniform. */}
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Identity</div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <KV label="Species" value={gem.species ?? "—"} />
+            <KV label="Origin" value={gem.origin ?? "—"} />
+            <KV label="Treatment" value={gem.treatment ?? "—"} />
+            <KV label="Treatment status" value={gem.treatmentStatus ?? "—"} />
+          </div>
         </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Cut & measurements</div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <KV label="Weight" value={formatCarat(Number(gem.weightCt))} />
+            <KV label="Dimensions" value={dims || "—"} />
+            <KV label="Shape" value={gem.shape ?? "—"} />
+            <KV label="Cut" value={gem.cut ?? "—"} />
+            {gem.facetingStyle && <KV label="Faceting style" value={gem.facetingStyle} span />}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Colour & clarity</div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            {gem.colorDescription && <KV label="Colour" value={gem.colorDescription} span />}
+            <KV label="Hue" value={gem.colorHue ?? "—"} />
+            <KV label="Tone" value={gem.colorTone ?? "—"} />
+            <KV label="Saturation" value={gem.colorSaturation ?? "—"} />
+            <KV label="Clarity" value={gem.clarity ?? "—"} />
+            <KV label="Transparency" value={gem.transparency ?? "—"} />
+            <KV label="Luster" value={gem.luster ?? "—"} />
+            <KV label="Fluorescence" value={gem.fluorescence ?? "—"} />
+            <KV label="Symmetry" value={gem.symmetry ?? "—"} />
+            <KV label="Polish" value={gem.polish ?? "—"} />
+            {gem.inclusions && <KV label="Inclusions" value={gem.inclusions} span />}
+          </div>
+        </div>
+
+        {cert && (
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Certification</div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              <KV label="Laboratory" value={cert.laboratory.name} />
+              {cert.certificateNumber && <KV label="Certificate no." value={cert.certificateNumber} />}
+            </div>
+          </div>
+        )}
 
         {gem.askingPrice != null && (
           <div className="pt-4 border-t flex items-baseline justify-between">
