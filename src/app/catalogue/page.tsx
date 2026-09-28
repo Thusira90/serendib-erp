@@ -5,6 +5,11 @@ import { Gem } from "lucide-react";
 
 export const metadata = { title: "Catalogue — Serendib Gemstones" };
 
+// Rendered on every request — the catalogue reads live inventory from the
+// database. Marking it dynamic keeps `next build` out of the DB, so CI can
+// build without a live database.
+export const dynamic = "force-dynamic";
+
 type Filters = {
   type?: string; origin?: string; treatment?: string;
   min?: string; max?: string;

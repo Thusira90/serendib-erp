@@ -7,6 +7,7 @@ import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata = { title: "Gemstone — Serendib Gemstones" };
+export const dynamic = "force-dynamic";
 
 export default async function CatalogueDetail({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;

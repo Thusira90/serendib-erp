@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Award, Gem, Star, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Public verification page. UNAUTHENTICATED.
  * Deliberately narrow: name, weight, origin, treatment, cert, and approved media.
