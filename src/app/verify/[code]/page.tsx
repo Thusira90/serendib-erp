@@ -23,6 +23,13 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
   const gem = await prisma.gemstone.findUnique({
     where: { code },
     include: {
+      transformationsAsOutput: {
+        include: {
+          transformation: {
+            include: { inputs: { include: { roughStone: { select: { code: true, purchaseDate: true } } } } },
+          },
+        },
+      },
       certificates: {
         where: { status: "ISSUED" },
         orderBy: { issueDate: "desc" },
@@ -90,6 +97,19 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
               {formatCarat(Number(gem.weightCt))} · {gem.origin ?? "Origin undisclosed"}
               {gem.treatment ? ` · ${gem.treatment}` : ""}
             </div>
+            {(() => {
+              const parentRough = gem.transformationsAsOutput[0]?.transformation.inputs[0]?.roughStone;
+              if (!parentRough) return null;
+              return (
+                <div className="text-sm text-muted-foreground mt-2 italic">
+                  Cut and polished by Serendib from our own rough{" "}
+                  <span className="font-mono not-italic text-sgs-teal-700">{parentRough.code}</span>
+                  {parentRough.purchaseDate && (
+                    <> · acquired {formatDate(parentRough.purchaseDate)}</>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               <KV label="Type" value={gem.gemType} />

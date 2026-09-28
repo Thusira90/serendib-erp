@@ -62,6 +62,12 @@ export default async function GemstoneListPage() {
                       <PrintLabelChip code={g.code} kind="gemstone" />
                     </div>
                   </div>
+                  {parents.length > 0 && (
+                    <div className="text-[10px] text-muted-foreground">
+                      From rough <span className="font-mono text-sgs-teal-700">{parents[0]}</span>
+                      {parents.length > 1 && <> +{parents.length - 1}</>}
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Asking</span>
                     <span className="num font-medium">{g.askingPrice ? formatCurrency(Number(g.askingPrice), g.currency) : "—"}</span>
@@ -74,12 +80,6 @@ export default async function GemstoneListPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Est. margin</span>
                       <span className={`num font-medium ${margin >= 0 ? "text-emerald-700" : "text-red-700"}`}>{formatCurrency(margin, g.currency)}</span>
-                    </div>
-                  )}
-                  {parents.length > 0 && (
-                    <div className="text-[10px] text-muted-foreground pt-2 border-t">
-                      From {parents.slice(0, 2).map((p) => <span key={p} className="font-mono">{p}</span>).reduce<React.ReactNode[]>((acc, el, i) => acc.length ? [...acc, ", ", el] : [el], [])}
-                      {parents.length > 2 && ` +${parents.length - 2}`}
                     </div>
                   )}
                 </CardContent>

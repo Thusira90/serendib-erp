@@ -11,7 +11,13 @@ export default async function CuttingPage() {
   await requireCapability("cutting:read");
   const jobs = await prisma.cuttingJob.findMany({
     orderBy: { createdAt: "desc" },
-    include: { roughStone: true, cutter: true, transformation: true },
+    include: {
+      roughStone: true,
+      cutter: true,
+      transformation: {
+        include: { outputs: { include: { gemstone: { select: { id: true, code: true } } } } },
+      },
+    },
   });
   return (
     <div className="space-y-6">
@@ -32,6 +38,7 @@ export default async function CuttingPage() {
                 <TableHead>Completed</TableHead>
                 <TableHead className="text-right">Total cost</TableHead>
                 <TableHead className="text-right">Yield</TableHead>
+                <TableHead>Yielded gems</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -53,12 +60,22 @@ export default async function CuttingPage() {
                     <TableCell className="text-xs">{formatDate(j.completedAt)}</TableCell>
                     <TableCell className="text-right num">{formatCurrency(cost, j.currency)}</TableCell>
                     <TableCell className="text-right num">{j.actualYieldPct ? `${Number(j.actualYieldPct).toFixed(1)}%` : "—"}</TableCell>
+                    <TableCell className="text-xs">
+                      {j.transformation?.outputs.length
+                        ? j.transformation.outputs.map((o, i) => (
+                            <span key={o.id}>
+                              {i > 0 && ", "}
+                              <Link href={`/gemstones/${o.gemstone.id}`} className="font-mono text-sgs-teal-700 hover:underline">{o.gemstone.code}</Link>
+                            </span>
+                          ))
+                        : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell><StatusBadge status={j.status} kind="cuttingJob" /></TableCell>
                   </TableRow>
                 );
               })}
               {jobs.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">No cutting jobs yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-10">No cutting jobs yet.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

@@ -26,6 +26,8 @@ import { MediaGallery } from "@/components/media-gallery";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
+import { ProvenanceChain } from "@/components/provenance-chain";
+import { getGemstoneProvenance } from "@/lib/provenance";
 
 export default async function GemstoneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("gemstone:read");
@@ -49,7 +51,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   });
   if (!g) return notFound();
 
-  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships, lifecycle] = await Promise.all([
+  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships, lifecycle, provenance] = await Promise.all([
     buildGemstoneGenealogy(g.id),
     prisma.auditLog.findMany({ where: { entity: "Gemstone", entityId: g.id }, orderBy: { at: "desc" }, take: 30 }),
     prisma.laboratory.findMany({ orderBy: { name: "asc" } }),
@@ -62,6 +64,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
     }),
     prisma.collectionItem.findMany({ where: { gemstoneId: g.id }, select: { collectionId: true } }),
     buildLifecycleForGemstone(g.id),
+    getGemstoneProvenance(g.id),
   ]);
   const membershipSet = new Set(itemMemberships.map((m) => m.collectionId));
   const collectionsForPicker = activeCollections.map((c) => ({ ...c, already: membershipSet.has(c.id) }));
@@ -147,6 +150,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
         </div>
 
         <div className="space-y-4">
+          <ProvenanceChain gemCode={g.code} gemId={g.id} provenance={provenance} />
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="font-serif text-4xl">{g.gemType}{g.variety ? ` · ${g.variety}` : ""}</h1>
