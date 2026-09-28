@@ -45,13 +45,25 @@ export default async function QrPrintPage({
     let weight = "";
     let origin: string | null = null;
     let treatment: string | null = null;
+    // For cut stones we also print the parent rough serial so a box label
+    // shows the whole chain — box picker sees "SGS-G-… from SGS-R-…" at
+    // a glance, no need to open the app.
+    let fromRough: string | null = null;
     if (kind === "gemstone") {
-      const g = await prisma.gemstone.findUnique({ where: { code } });
+      const g = await prisma.gemstone.findUnique({
+        where: { code },
+        include: {
+          transformationsAsOutput: {
+            select: { transformation: { select: { inputs: { select: { roughStone: { select: { code: true } } } } } } },
+          },
+        },
+      });
       if (!g) return null;
       name = `${g.gemType}${g.variety ? ` · ${g.variety}` : ""}`;
       weight = formatCarat(Number(g.weightCt));
       origin = g.origin;
       treatment = g.treatment;
+      fromRough = g.transformationsAsOutput[0]?.transformation.inputs[0]?.roughStone.code ?? null;
     } else {
       const r = await prisma.roughStone.findUnique({ where: { code } });
       if (!r) return null;
@@ -64,7 +76,7 @@ export default async function QrPrintPage({
     // A single QR is generated per label; CSS in the layout scales it into
     // whichever slot (sticker or sheet cell) it lands in.
     const svg = await renderQrSvg(url, { size: 240, margin: 1 });
-    return { code, name, weight, origin, treatment, svg };
+    return { code, name, weight, origin, treatment, fromRough, svg };
   }));
   const valid = items.filter((i): i is NonNullable<typeof i> => i !== null);
   if (valid.length === 0) return notFound();
@@ -106,10 +118,11 @@ type LabelInfo = {
   weight: string;
   origin: string | null;
   treatment: string | null;
+  fromRough: string | null;
   svg: string;
 };
 
-function Sticker({ code, name, weight, origin, treatment, svg }: LabelInfo) {
+function Sticker({ code, name, weight, origin, treatment, fromRough, svg }: LabelInfo) {
   // Fixed 26mm QR slot on the left; the right column is the full remaining
   // width so text never overlaps the code. The [&_svg] rule forces the QR
   // SVG to fill its box regardless of its intrinsic width.
@@ -132,12 +145,17 @@ function Sticker({ code, name, weight, origin, treatment, svg }: LabelInfo) {
         {treatment && (
           <div className="text-[6pt] font-medium text-sgs-purple-500 truncate">{treatment}</div>
         )}
+        {fromRough && (
+          <div className="text-[5.5pt] text-muted-foreground truncate">
+            from <span className="font-mono">{fromRough}</span>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function SheetCell({ code, name, weight, origin, treatment, svg }: LabelInfo) {
+function SheetCell({ code, name, weight, origin, treatment, fromRough, svg }: LabelInfo) {
   return (
     <div className="bg-white border border-black/10 rounded p-2 flex items-center gap-2 break-inside-avoid print:rounded-none">
       <div
@@ -151,6 +169,11 @@ function SheetCell({ code, name, weight, origin, treatment, svg }: LabelInfo) {
         <div className="text-[7pt] truncate">{weight}{origin ? ` · ${origin}` : ""}</div>
         {treatment && (
           <div className="text-[6pt] font-medium text-sgs-purple-500 truncate">{treatment}</div>
+        )}
+        {fromRough && (
+          <div className="text-[6pt] text-muted-foreground truncate">
+            from <span className="font-mono">{fromRough}</span>
+          </div>
         )}
       </div>
     </div>

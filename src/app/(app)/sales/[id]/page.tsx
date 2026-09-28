@@ -26,7 +26,17 @@ export default async function SaleDetail({ params }: { params: Promise<{ id: str
     where: { id },
     include: {
       customer: true,
-      gemstone: true,
+      gemstone: {
+        include: {
+          transformationsAsOutput: {
+            select: {
+              transformation: {
+                select: { inputs: { select: { roughStone: { select: { code: true, purchaseDate: true } } } } },
+              },
+            },
+          },
+        },
+      },
       payments: { orderBy: { receivedAt: "asc" } },
       shipment: true,
     },
@@ -94,6 +104,16 @@ export default async function SaleDetail({ params }: { params: Promise<{ id: str
           <div className="font-mono text-xs">{s.gemstone.code}</div>
           <div>{s.gemstone.gemType}{s.gemstone.variety ? ` · ${s.gemstone.variety}` : ""}</div>
           <div className="text-muted-foreground">{formatCarat(Number(s.gemstone.weightCt))}{s.gemstone.origin ? ` · ${s.gemstone.origin}` : ""}</div>
+          {(() => {
+            const parentRough = s.gemstone.transformationsAsOutput[0]?.transformation.inputs[0]?.roughStone;
+            if (!parentRough) return null;
+            return (
+              <div className="text-[10px] text-muted-foreground italic mt-1">
+                Cut & polished from our own rough <span className="font-mono not-italic">{parentRough.code}</span>
+                {parentRough.purchaseDate && <> · acquired {formatDate(parentRough.purchaseDate)}</>}
+              </div>
+            );
+          })()}
         </section>
 
         <section className="border rounded-md divide-y mb-6">
