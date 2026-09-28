@@ -10,10 +10,16 @@ declare module "next-auth" {
     user: {
       id: string;
       role: Role;
+      // Per-user capability overlays. Empty arrays when unset. Combined
+      // with role's matrix inside rbac.can() to produce the effective set.
+      grants: string[];
+      denies: string[];
     } & DefaultSession["user"];
   }
   interface User {
     role: Role;
+    grants?: string[];
+    denies?: string[];
   }
 }
 
@@ -22,6 +28,14 @@ const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
+
+function parseArr(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+  } catch { return []; }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
@@ -46,6 +60,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role as Role,
+          grants: parseArr(user.capabilityGrants),
+          denies: parseArr(user.capabilityDenies),
         };
       },
     }),
@@ -55,6 +71,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.grants = user.grants ?? [];
+        token.denies = user.denies ?? [];
       }
       return token;
     },
@@ -62,6 +80,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
+        session.user.grants = (token.grants as string[]) ?? [];
+        session.user.denies = (token.denies as string[]) ?? [];
       }
       return session;
     },

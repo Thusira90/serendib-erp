@@ -9,6 +9,7 @@ import { signOutAction } from "@/app/(app)/actions";
 import type { Role } from "@/lib/enums";
 
 const roleLabels: Record<Role, string> = {
+  SUPER_ADMIN: "Super Admin",
   ADMINISTRATOR: "Administrator",
   MANAGEMENT: "Management",
   GEM_BUYER: "Gem Buyer",

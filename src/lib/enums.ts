@@ -5,6 +5,11 @@
  */
 
 export const ROLES = [
+  // SUPER_ADMIN is the owner tier — only role that can create/manage
+  // other users and edit per-user permissions. Everything else is a
+  // normal role that a super-admin assigns, and can further constrain
+  // via per-user grants/denies.
+  "SUPER_ADMIN",
   "ADMINISTRATOR", "MANAGEMENT", "GEM_BUYER", "GEMOLOGIST",
   "CUTTER", "CGI_MEDIA", "SALES", "FINANCE", "WAREHOUSE",
 ] as const;

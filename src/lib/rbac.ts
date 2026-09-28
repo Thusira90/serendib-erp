@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { Role } from "@/lib/enums";
 
 export const roleLabels: Record<Role, string> = {
+  SUPER_ADMIN: "Super Admin",
   ADMINISTRATOR: "Administrator",
   MANAGEMENT: "Management",
   GEM_BUYER: "Gem Buyer",
@@ -71,25 +72,32 @@ export type Capability =
   | "accounting:write"
   | "period:manage";
 
+const ADMIN_BASE: Capability[] = [
+  "rough:read","rough:write","gemstone:read","gemstone:write",
+  "cutting:read","cutting:write","cutting:plan","genealogy:read",
+  "location:read","location:write","audit:read","dashboard:read",
+  "supplier:read","supplier:write","financials:read",
+  "certificate:read","certificate:write","cgi:read","cgi:write",
+  "media:read","media:write","cost:write","price:write",
+  "customer:read","customer:write","enquiry:read","enquiry:write",
+  "quotation:read","quotation:write","reservation:read","reservation:write",
+  "sale:read","sale:write","payment:read","payment:write",
+  "shipment:read","shipment:write","report:read",
+  "expense:read","expense:write","settings:read","settings:write",
+  "collection:read","collection:write",
+  "director:read","director:write",
+  "shareholder:read","shareholder:write",
+  "capital:read","capital:write",
+  "accounting:read","accounting:write","period:manage",
+];
+
 const matrix: Record<Role, Set<Capability>> = {
-  ADMINISTRATOR: new Set<Capability>([
-    "rough:read","rough:write","gemstone:read","gemstone:write",
-    "cutting:read","cutting:write","cutting:plan","genealogy:read",
-    "location:read","location:write","audit:read","dashboard:read",
-    "supplier:read","supplier:write","financials:read","user:manage",
-    "certificate:read","certificate:write","cgi:read","cgi:write",
-    "media:read","media:write","cost:write","price:write",
-    "customer:read","customer:write","enquiry:read","enquiry:write",
-    "quotation:read","quotation:write","reservation:read","reservation:write",
-    "sale:read","sale:write","payment:read","payment:write",
-    "shipment:read","shipment:write","report:read",
-    "expense:read","expense:write","settings:read","settings:write",
-    "collection:read","collection:write",
-    "director:read","director:write",
-    "shareholder:read","shareholder:write",
-    "capital:read","capital:write",
-    "accounting:read","accounting:write","period:manage",
-  ]),
+  // The owner tier: everything an Administrator can do PLUS user:manage.
+  // Only role allowed to create users and edit per-user permissions.
+  SUPER_ADMIN: new Set<Capability>([...ADMIN_BASE, "user:manage"]),
+  // Administrator: full app access but cannot manage other users. That
+  // authority stays with SUPER_ADMIN so the owner keeps control.
+  ADMINISTRATOR: new Set<Capability>(ADMIN_BASE),
   MANAGEMENT: new Set<Capability>([
     "rough:read","gemstone:read","cutting:read","genealogy:read",
     "location:read","audit:read","dashboard:read","supplier:read","financials:read",
@@ -139,10 +147,69 @@ const matrix: Record<Role, Set<Capability>> = {
   ]),
 };
 
-export function can(role: Role | undefined | null, cap: Capability): boolean {
-  if (!role) return false;
-  return matrix[role].has(cap);
+/** Anything with a role — plus optional per-user grant/deny overlays. */
+export type Principal = {
+  role?: Role | null;
+  grants?: string[] | null;
+  denies?: string[] | null;
+};
+
+function isRole(x: unknown): x is Role {
+  return typeof x === "string";
 }
+
+/**
+ * Capability check. Accepts either a bare role string (existing callers) OR
+ * a full principal `{ role, grants, denies }` so per-user overrides work.
+ *
+ * Effective set = matrix[role] ∪ grants − denies.
+ * A `deny` always beats a `grant` — safest failure mode.
+ */
+export function can(who: Role | Principal | undefined | null, cap: Capability): boolean {
+  if (!who) return false;
+  const role = isRole(who) ? who : who.role;
+  const grants = isRole(who) ? undefined : who.grants;
+  const denies = isRole(who) ? undefined : who.denies;
+
+  if (denies && denies.includes(cap)) return false;
+  if (role && matrix[role]?.has(cap)) return true;
+  if (grants && grants.includes(cap)) return true;
+  return false;
+}
+
+/** Human-readable groups for the per-user permissions UI. Order matters. */
+export const PERMISSION_GROUPS: Array<{ label: string; caps: Capability[] }> = [
+  { label: "Inventory",  caps: ["rough:read","rough:write","gemstone:read","gemstone:write","location:read","location:write","genealogy:read","supplier:read","supplier:write"] },
+  { label: "Operations", caps: ["cutting:read","cutting:write","cutting:plan","certificate:read","certificate:write","cgi:read","cgi:write","media:read","media:write"] },
+  { label: "Sales & CRM", caps: ["customer:read","customer:write","enquiry:read","enquiry:write","quotation:read","quotation:write","reservation:read","reservation:write","sale:read","sale:write","payment:read","payment:write","shipment:read","shipment:write","collection:read","collection:write"] },
+  { label: "Finance & Accounting", caps: ["financials:read","expense:read","expense:write","cost:write","price:write","accounting:read","accounting:write","period:manage","director:read","director:write","shareholder:read","shareholder:write","capital:read","capital:write"] },
+  { label: "Reports & Insights", caps: ["dashboard:read","report:read","audit:read"] },
+  { label: "System", caps: ["settings:read","settings:write","user:manage"] },
+];
+
+/** Pre-canned permission templates — one-click "make this user X" presets. */
+export const PERMISSION_PRESETS: Array<{ label: string; description: string; caps: Capability[] }> = [
+  {
+    label: "Inventory viewer",
+    description: "Read-only across all stones, locations, genealogy. Nothing else.",
+    caps: ["rough:read","gemstone:read","location:read","genealogy:read","supplier:read","dashboard:read"],
+  },
+  {
+    label: "Data entry",
+    description: "Add and edit inventory + intake media, but no pricing, sales, or finance.",
+    caps: ["rough:read","rough:write","gemstone:read","gemstone:write","location:read","location:write","genealogy:read","supplier:read","supplier:write","media:read","media:write","dashboard:read"],
+  },
+  {
+    label: "Sales team",
+    description: "CRM, quotations, reservations, sales — see stones, no cost or finance.",
+    caps: ["gemstone:read","genealogy:read","dashboard:read","media:read","customer:read","customer:write","enquiry:read","enquiry:write","quotation:read","quotation:write","reservation:read","reservation:write","sale:read","sale:write","payment:read","shipment:read","collection:read","collection:write"],
+  },
+  {
+    label: "Read only (all)",
+    description: "See everything, edit nothing. Good for auditors or observers.",
+    caps: (["rough:read","gemstone:read","cutting:read","genealogy:read","location:read","dashboard:read","supplier:read","financials:read","certificate:read","cgi:read","media:read","customer:read","enquiry:read","quotation:read","reservation:read","sale:read","payment:read","shipment:read","report:read","expense:read","settings:read","collection:read","director:read","shareholder:read","capital:read","accounting:read","audit:read"] as Capability[]),
+  },
+];
 
 export async function requireAuth() {
   const session = await auth();
@@ -152,7 +219,7 @@ export async function requireAuth() {
 
 export async function requireCapability(cap: Capability) {
   const session = await requireAuth();
-  if (!can(session.user.role, cap)) {
+  if (!can(session.user, cap)) {
     throw new Error(`Forbidden: missing capability ${cap}`);
   }
   return session;

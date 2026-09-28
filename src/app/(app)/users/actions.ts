@@ -101,3 +101,48 @@ export async function resetPassword(fd: FormData) {
   });
   revalidatePath("/users");
 }
+
+/**
+ * Save per-user capability overrides. `grants` extends the role's default
+ * set, `denies` fences access off — a deny always beats a grant.
+ * SUPER_ADMIN's `user:manage` cannot be denied (owner safety guard).
+ */
+const permissionsSchema = z.object({
+  id: z.string().min(1),
+  grants: z.array(z.string()).default([]),
+  denies: z.array(z.string()).default([]),
+});
+
+export async function updateUserPermissions(fd: FormData) {
+  const session = await requireCapability("user:manage");
+  const raw = {
+    id: str(fd.get("id")),
+    // Both come in as a single string of comma-separated capabilities from
+    // the client (checkbox grid serialised).
+    grants: (str(fd.get("grants")) ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    denies: (str(fd.get("denies")) ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  };
+  const parsed = permissionsSchema.parse(raw);
+
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: parsed.id } });
+
+  // Never allow user:manage to be denied — the owner tier must stay able
+  // to manage users, or the whole system could be locked out.
+  const denies = parsed.denies.filter((c) => c !== "user:manage");
+
+  await prisma.user.update({
+    where: { id: parsed.id },
+    data: {
+      capabilityGrants: parsed.grants.length ? JSON.stringify(parsed.grants) : null,
+      capabilityDenies: denies.length ? JSON.stringify(denies) : null,
+    },
+  });
+  await writeAudit({
+    entity: "User", entityId: before.id, entityCode: before.email,
+    action: "PERMISSIONS_UPDATED",
+    userId: session.user.id, userName: session.user.name ?? null,
+    newValue: `+${parsed.grants.length} grants · −${denies.length} denies`,
+    metadata: { grants: parsed.grants, denies },
+  });
+  revalidatePath("/users");
+}

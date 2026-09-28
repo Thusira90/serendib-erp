@@ -7,6 +7,12 @@ import { Users } from "lucide-react";
 import { roleLabels } from "@/lib/rbac";
 import type { Role } from "@/lib/enums";
 import { ChangeRoleInline, NewUserButton, ResetPasswordButton, ToggleActiveButton } from "./user-actions";
+import { PermissionsButton } from "./permissions-button";
+
+function parseArr(raw: string | null): string[] {
+  if (!raw) return [];
+  try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; }
+}
 
 export default async function UsersPage() {
   const session = await requireCapability("user:manage");
@@ -47,6 +53,14 @@ export default async function UsersPage() {
                     <TableCell>{u.active ? <Badge variant="success">Active</Badge> : <Badge variant="muted">Disabled</Badge>}</TableCell>
                     <TableCell className="text-xs">
                       <div className="flex items-center gap-1 flex-wrap">
+                        <PermissionsButton
+                          userId={u.id}
+                          userName={u.name}
+                          role={u.role as Role}
+                          initialGrants={parseArr(u.capabilityGrants)}
+                          initialDenies={parseArr(u.capabilityDenies)}
+                          disabled={u.role === "SUPER_ADMIN"}
+                        />
                         <ResetPasswordButton userId={u.id} />
                         <ToggleActiveButton userId={u.id} active={u.active} disabled={isSelf} />
                       </div>

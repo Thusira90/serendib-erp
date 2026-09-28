@@ -29,6 +29,16 @@ model User {
   passwordHash  String
   role  String  @default("SALES")
   active        Boolean  @default(true)
+
+  // Per-user capability overrides layered on top of the role's default set.
+  // Both are JSON arrays of capability strings (see src/lib/rbac.ts).
+  //   effective = matrix[role] ∪ capabilityGrants − capabilityDenies
+  // Grants let a super-admin extend one person's access beyond their role
+  // (e.g. give a Sales user report:read); denies let them fence someone in
+  // ("this admin should only see inventory, not sales").
+  capabilityGrants String?
+  capabilityDenies String?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
