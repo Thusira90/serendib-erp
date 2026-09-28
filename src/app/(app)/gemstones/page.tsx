@@ -10,6 +10,7 @@ import { Gem, Plus } from "lucide-react";
 import { ShareCatalogueButton } from "@/components/share-catalogue-button";
 import { QrPrintButton } from "@/components/qr-print-button";
 import { PrintLabelChip } from "@/components/print-label-chip";
+import { TimedShareButton } from "@/components/timed-share-button";
 
 export default async function GemstoneListPage() {
   const session = await requireCapability("gemstone:read");
@@ -30,6 +31,11 @@ export default async function GemstoneListPage() {
           <p className="text-sm text-muted-foreground">Each stone carries its lineage, cost and price history forever.</p>
         </div>
         <div className="flex items-center gap-2">
+          <TimedShareButton
+            scope="CATALOGUE"
+            label="Timed link"
+            sharerDefaults={{ name: session.user.name ?? "", email: session.user.email ?? undefined }}
+          />
           {gems.length > 0 && (
             <QrPrintButton codes={gems.map((g) => g.code)} kind="gemstone" layout="sheet" label={`Print all ${gems.length} labels`} />
           )}

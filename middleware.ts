@@ -11,6 +11,7 @@ export default auth((req) => {
     pathname === "/catalogue" ||
     pathname.startsWith("/catalogue/") ||
     pathname.startsWith("/share/") ||
+    pathname.startsWith("/s/") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico";
   if (!isAuthed && !isPublic) {

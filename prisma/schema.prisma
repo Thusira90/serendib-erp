@@ -954,6 +954,46 @@ model Expense {
   @@index([relatedEntity, relatedId])
 }
 
+// ─── Time-limited share links (customer-facing, view-only) ──────────────────
+// A ShareLink is a short opaque URL a salesperson generates to send a
+// prospect. It carries a scope (whole catalogue / a curated set of gem
+// codes / a single gemstone / a Collection), an expiry, the sharer's
+// contact details (or a broker's, in broker mode), and a copyright
+// notice. The public /s/<code> route resolves the link, renders an
+// elegant minimalistic view, and refuses if expired or revoked.
+model ShareLink {
+  id                String   @id @default(cuid())
+  code              String   @unique                    // short unguessable slug
+  scope             String                              // CATALOGUE | GEMSTONE | GEMSTONES | COLLECTION
+  payload           String?                             // JSON — { gemstoneCode?, gemstoneCodes?[], collectionShareCode? }
+  expiresAt         DateTime
+  message           String?
+
+  // Sharer details (displayed in the public footer unless brokerMode is on)
+  createdById       String
+  createdByName     String
+  createdByPhone    String?                             // WhatsApp
+  createdByEmail    String?
+  createdByPhotoUrl String?
+
+  // Broker mode — swaps the sharer identity for a third-party broker.
+  brokerMode        Boolean  @default(false)
+  brokerName        String?
+  brokerCompany     String?
+  brokerPhone       String?
+  brokerEmail       String?
+
+  viewCount         Int      @default(0)
+  firstViewedAt     DateTime?
+  lastViewedAt      DateTime?
+  revokedAt         DateTime?
+
+  createdAt         DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([createdById])
+}
+
 // ─── Company settings (singleton — id = "singleton") ────────────────────────
 
 model CompanySettings {
