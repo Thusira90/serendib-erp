@@ -1,17 +1,25 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getCompanySettings } from "@/lib/company-settings";
+import { ArrowLeft } from "lucide-react";
 import {
   resolveBrand, resolveContact, Watermark, BrandHeader, ContactFooter, CopyrightNotice,
-  SingleStone, StoneGrid, titleForScope, gemsWhereForLink,
-} from "./shared";
-import { ExpiredView } from "./expired";
+  SingleStone, gemsWhereForLink,
+} from "../shared";
+import { ExpiredView } from "../expired";
 
+// Deep-dive view for a single stone within a share link. Same expiry
+// checks + view tracking as the parent /s/<code> route.
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Serendib Gemstones" };
 
-export default async function TimedSharePage({ params }: { params: Promise<{ code: string }> }) {
-  const { code } = await params;
+export default async function TimedShareGemPage({
+  params,
+}: {
+  params: Promise<{ code: string; gemCode: string }>;
+}) {
+  const { code, gemCode } = await params;
   const link = await prisma.shareLink.findUnique({ where: { code } });
   if (!link) return notFound();
 
@@ -20,7 +28,28 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
     return <ExpiredView expiresAt={link.expiresAt} revokedAt={link.revokedAt} brokerMode={link.brokerMode} brandLabel={link.brokerCompany ?? link.brokerName ?? null} />;
   }
 
-  // Fire-and-forget view counter.
+  // Validate the requested gem is actually part of this link's scope,
+  // otherwise a leaked URL could be used to enumerate the whole
+  // catalogue by trying different codes.
+  const gem = await prisma.gemstone.findFirst({
+    where: {
+      AND: [
+        { code: gemCode },
+        gemsWhereForLink(link),
+      ],
+    },
+    include: {
+      digitalAssets: {
+        where: { isPrimary: true, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
+        take: 1,
+      },
+      cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
+      certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
+    },
+  });
+  if (!gem) return notFound();
+
+  // Track another view.
   prisma.shareLink.update({
     where: { id: link.id },
     data: {
@@ -31,35 +60,26 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
   }).catch(() => {});
 
   const company = await getCompanySettings();
-  const gems = await prisma.gemstone.findMany({
-    where: gemsWhereForLink(link),
-    include: {
-      digitalAssets: {
-        where: { isPrimary: true, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
-        take: 1,
-      },
-      cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
-      certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
-
   const brand = resolveBrand(link, company);
   const contact = resolveContact(link);
-  const isSingle = gems.length === 1 && link.scope === "GEMSTONE";
-  const heroTitle = titleForScope(link.scope, gems.length, brand.titleFallback);
+  const showBackLink = link.scope !== "GEMSTONE"; // for a single-stone link there's nowhere to go back to
 
   return (
     <div className={`min-h-screen ${brand.pageBg}`}>
       <Watermark label={brand.label} forName={contact.name} />
 
-      <main className="relative z-10 max-w-5xl mx-auto p-6 sm:p-10">
-        <BrandHeader brand={brand} link={link} showTitle title={heroTitle} />
+      <main className="relative z-10 max-w-4xl mx-auto p-6 sm:p-10">
+        <BrandHeader brand={brand} link={link} showTitle={false} title="" />
 
-        {isSingle && gems[0]
-          ? <SingleStone gem={gems[0]} />
-          : <StoneGrid gems={gems} shareCode={link.code} />}
+        {showBackLink && (
+          <div className="mb-4">
+            <Link href={`/s/${link.code}`} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+              <ArrowLeft className="h-3 w-3" /> Back to the selection
+            </Link>
+          </div>
+        )}
+
+        <SingleStone gem={gem} />
 
         <ContactFooter contact={contact} isBroker={link.brokerMode} />
         <CopyrightNotice brand={brand} link={link} viewCount={link.viewCount + 1} />
