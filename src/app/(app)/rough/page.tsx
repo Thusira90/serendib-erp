@@ -27,6 +27,12 @@ export default async function RoughListPage() {
     locationName: r.location?.name ?? null,
     status: r.status,
     yielded: r._count.transformationsAsInput,
+    provenanceGaps: [
+      !r.supplierId && !r.parcelId ? "supplier or parcel" : null,
+      !r.origin ? "origin" : null,
+      !r.mineSource ? "mine/source" : null,
+      !r.locationId ? "location" : null,
+    ].filter(Boolean) as string[],
   }));
 
   return (
@@ -54,11 +60,16 @@ export default async function RoughListPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard label="Total pieces" value={String(rough.length)} />
         <StatCard label="Total weight" value={formatCarat(rough.reduce((s, r) => s + Number(r.weightCt), 0))} />
         <StatCard label="Acquisition value" value={formatCurrency(rough.reduce((s, r) => s + Number(r.purchasePrice), 0))} />
         <StatCard label="Available" value={String(rough.filter(r => r.status === "AVAILABLE").length)} />
+        <StatCard
+          label="Provenance incomplete"
+          value={String(rows.filter((r) => r.provenanceGaps.length > 0).length)}
+          warn={rows.some((r) => r.provenanceGaps.length > 0)}
+        />
       </div>
 
       {rough.length === 0 ? (
@@ -80,12 +91,12 @@ export default async function RoughListPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-        <div className="font-serif text-2xl num mt-1">{value}</div>
+        <div className={`text-[10px] uppercase tracking-wider ${warn ? "text-amber-700" : "text-muted-foreground"}`}>{label}</div>
+        <div className={`font-serif text-2xl num mt-1 ${warn ? "text-amber-700" : ""}`}>{value}</div>
       </CardContent>
     </Card>
   );

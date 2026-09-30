@@ -112,8 +112,10 @@ export function SelectableGemGrid({
                       <PrintLabelChip code={g.code} kind="gemstone" />
                     </div>
                   </div>
-                  {g.heroBadge && (
+                  {g.heroBadge ? (
                     <div className="text-[10px] text-muted-foreground">From rough <span className="font-mono text-sgs-teal-700">{g.heroBadge}</span></div>
+                  ) : (
+                    <div className="text-[10px] text-muted-foreground italic">Direct acquisition</div>
                   )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Asking</span>

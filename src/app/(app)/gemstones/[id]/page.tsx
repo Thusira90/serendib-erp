@@ -157,7 +157,13 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
         </div>
 
         <div className="space-y-4">
-          <ProvenanceChain gemCode={g.code} gemId={g.id} provenance={provenance} />
+          {provenance.roughCode ? (
+            <ProvenanceChain gemCode={g.code} gemId={g.id} provenance={provenance} />
+          ) : (
+            <div className="inline-flex items-center gap-1.5 h-6 px-2 rounded-full border bg-secondary/60 text-[11px] text-muted-foreground">
+              <Gem className="h-3 w-3" /> Direct acquisition · no parent rough
+            </div>
+          )}
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="font-serif text-4xl">{g.gemType}{g.variety ? ` · ${g.variety}` : ""}</h1>

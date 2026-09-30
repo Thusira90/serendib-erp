@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
-import { Scissors } from "lucide-react";
+import { Scissors, Diamond, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default async function CuttingPage() {
   await requireCapability("cutting:read");
@@ -21,9 +22,14 @@ export default async function CuttingPage() {
   });
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif text-3xl flex items-center gap-3"><Scissors className="h-7 w-7 text-sgs-purple-500" /> Cutting jobs</h1>
-        <p className="text-sm text-muted-foreground">Every lapidary operation is a permanent record with its own yield.</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-3xl flex items-center gap-3"><Scissors className="h-7 w-7 text-sgs-purple-500" /> Cutting jobs</h1>
+          <p className="text-sm text-muted-foreground">Every lapidary operation is a permanent record with its own yield.</p>
+        </div>
+        <Button asChild variant="accent">
+          <Link href="/rough"><Diamond className="h-4 w-4" /> Start a cutting job from a rough</Link>
+        </Button>
       </div>
       <Card>
         <CardContent className="p-0">
@@ -75,7 +81,25 @@ export default async function CuttingPage() {
                 );
               })}
               {jobs.length === 0 && (
-                <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-10">No cutting jobs yet.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-12">
+                    <div className="mx-auto max-w-md space-y-3">
+                      <Scissors className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                      <div className="font-serif text-lg">No cutting jobs yet</div>
+                      <div className="text-sm text-muted-foreground">
+                        A cutting job always starts from a rough stone. Open the rough you want to cut
+                        and use <span className="font-medium">Start cutting</span> on its Cutting tab —
+                        yields, output stones and cost allocation are created together and the rough&apos;s
+                        genealogy updates automatically.
+                      </div>
+                      <div>
+                        <Button asChild variant="outline" size="sm">
+                          <Link href="/rough">Choose a rough stone <ArrowRight className="h-3 w-3" /></Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>

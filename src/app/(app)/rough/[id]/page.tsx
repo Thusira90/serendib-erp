@@ -88,10 +88,24 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
 
       <header className="flex items-start justify-between gap-6">
         <div>
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 text-xs flex-wrap">
             <Badge variant="teal"><Diamond className="h-3 w-3 mr-1" /> Rough</Badge>
             <span className="font-mono">{r.code}</span>
             <StatusBadge status={r.status} kind="rough" />
+            {(() => {
+              const missing = [
+                !r.supplierId && !r.parcelId ? "supplier or parcel" : null,
+                !r.origin ? "origin" : null,
+                !r.mineSource ? "mine/source" : null,
+                !r.locationId ? "location" : null,
+              ].filter(Boolean) as string[];
+              if (missing.length === 0) return null;
+              return (
+                <Badge variant="warning" title={`Missing: ${missing.join(", ")}`}>
+                  Provenance incomplete · {missing.length} field{missing.length === 1 ? "" : "s"}
+                </Badge>
+              );
+            })()}
           </div>
           <h1 className="font-serif text-4xl mt-2">{r.gemType}{r.variety ? ` · ${r.variety}` : ""}</h1>
           <div className="text-sm text-muted-foreground mt-1">

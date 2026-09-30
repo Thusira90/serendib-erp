@@ -23,6 +23,8 @@ export type RoughRow = {
   locationName: string | null;
   status: string;
   yielded: number;
+  /** Non-empty when critical provenance fields are missing on the record. */
+  provenanceGaps: string[];
 };
 
 /**
@@ -98,13 +100,22 @@ export function SelectableRoughTable({
                   </button>
                 </TableCell>
                 <TableCell>
-                  <Link href={`/rough/${r.id}`} className="font-mono text-xs text-sgs-teal-700 hover:underline">{r.code}</Link>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Link href={`/rough/${r.id}`} className="font-mono text-xs text-sgs-teal-700 hover:underline">{r.code}</Link>
+                    {r.provenanceGaps.length > 0 && (
+                      <span
+                        title={`Missing: ${r.provenanceGaps.join(", ")}`}
+                        className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500"
+                        aria-label="Provenance incomplete"
+                      />
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="text-sm">{r.gemType}</div>
                   {r.variety && <div className="text-xs text-muted-foreground">{r.variety}</div>}
                 </TableCell>
-                <TableCell className="text-sm">{r.origin ?? "—"}</TableCell>
+                <TableCell className={`text-sm ${!r.origin ? "text-amber-700" : ""}`}>{r.origin ?? "—"}</TableCell>
                 <TableCell className="text-right num">{formatCarat(r.weightCt)}</TableCell>
                 <TableCell className="text-right num">{formatCurrency(r.purchasePrice, r.currency)}</TableCell>
                 <TableCell className="text-sm">{r.supplierName ?? "—"}</TableCell>
