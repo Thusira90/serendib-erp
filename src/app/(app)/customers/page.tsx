@@ -5,9 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Users2 } from "lucide-react";
+import { Plus, Users2, Users as UsersRound } from "lucide-react";
 import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { importCustomersFromCsv } from "./import-actions";
+import { EmptyState } from "@/components/empty-state";
 
 const kindLabel: Record<string, string> = { INDIVIDUAL: "Individual", COMPANY: "Company" };
 const typeLabel: Record<string, string> = {
@@ -69,8 +70,13 @@ export default async function CustomersPage() {
             </TableHeader>
             <TableBody>
               {customers.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">
-                  No customers yet.{canWrite && <> <Link href="/customers/new" className="text-sgs-teal-700 hover:underline">Add the first one →</Link></>}
+                <TableRow><TableCell colSpan={9}>
+                  <EmptyState
+                    icon={UsersRound}
+                    title="No customers yet"
+                    description={<>Customers are the first step in the sales workflow — every enquiry, quotation, reservation and sale attaches to one. Add your first customer to start recording enquiries against them.</>}
+                    primary={canWrite ? { label: "Add first customer", href: "/customers/new" } : undefined}
+                  />
                 </TableCell></TableRow>
               )}
               {customers.map((c) => (

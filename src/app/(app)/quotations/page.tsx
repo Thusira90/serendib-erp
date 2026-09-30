@@ -6,8 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getCompanySettings } from "@/lib/company-settings";
-import { NewQuotationButton } from "./new-quotation-button";
+import { EmptyState } from "@/components/empty-state";
 import { FileText } from "lucide-react";
+import { NewQuotationButton } from "./new-quotation-button";
 
 const statusVariant: Record<string, "muted" | "teal" | "warning" | "success" | "danger" | "purple"> = {
   DRAFT: "muted", SENT: "teal", ACCEPTED: "success", DECLINED: "danger", EXPIRED: "warning",
@@ -52,7 +53,14 @@ export default async function QuotationsPage() {
             </TableHeader>
             <TableBody>
               {quotations.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-10">No quotations yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7}>
+                  <EmptyState
+                    icon={FileText}
+                    title="No quotations yet"
+                    description={<>A quotation is a priced offer to a customer for a specific stone. It usually follows an enquiry — open an enquiry, then use <span className="font-medium">Quick quote</span> from there to turn it into a quotation.</>}
+                    secondary={{ label: "Go to enquiries", href: "/enquiries" }}
+                  />
+                </TableCell></TableRow>
               )}
               {quotations.map((q) => (
                 <TableRow key={q.id}>

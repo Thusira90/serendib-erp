@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Plane } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 
 const statusVariant: Record<string, "muted" | "teal" | "warning" | "success" | "danger" | "purple"> = {
   PREPARING: "muted", PACKED: "teal", SHIPPED: "purple",
@@ -42,7 +43,14 @@ export default async function ShipmentsPage() {
             </TableHeader>
             <TableBody>
               {shipments.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">No shipments yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9}>
+                  <EmptyState
+                    icon={Plane}
+                    title="No shipments yet"
+                    description={<>Shipments track a sold stone from the vault to the customer&apos;s door. Open a sale that hasn&apos;t been shipped and use <span className="font-medium">Prepare shipment</span> to create one.</>}
+                    secondary={{ label: "Go to sales", href: "/sales" }}
+                  />
+                </TableCell></TableRow>
               )}
               {shipments.map((s) => (
                 <TableRow key={s.id}>

@@ -6,8 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { releaseReservation } from "@/app/(app)/sales/actions";
+import { EmptyState } from "@/components/empty-state";
 import { Lock } from "lucide-react";
+import { releaseReservation } from "@/app/(app)/sales/actions";
 import { sweepExpiredReservations } from "@/lib/sweeper";
 
 const statusVariant: Record<string, "muted" | "warning" | "success" | "danger"> = {
@@ -46,7 +47,14 @@ export default async function ReservationsPage() {
             </TableHeader>
             <TableBody>
               {reservations.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">No reservations yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9}>
+                  <EmptyState
+                    icon={Lock}
+                    title="No reservations yet"
+                    description={<>A reservation holds a stone for a specific customer with an expiry date. It usually follows an accepted quotation — open a stone or a quotation and use <span className="font-medium">Reserve</span> from there.</>}
+                    secondary={{ label: "Go to quotations", href: "/quotations" }}
+                  />
+                </TableCell></TableRow>
               )}
               {reservations.map((r) => (
                 <TableRow key={r.id}>

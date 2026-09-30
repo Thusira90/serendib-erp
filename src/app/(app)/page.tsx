@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { subMonths, startOfMonth, endOfMonth, format, differenceInCalendarDays } from "date-fns";
+import { subMonths, startOfMonth, endOfMonth, format, differenceInCalendarDays, formatDistanceToNow } from "date-fns";
 import {
   Diamond, Gem, Scissors, TrendingUp, Coins, AlertTriangle,
   Lock, FileText, Mail, Plane, Crown,
@@ -97,16 +97,45 @@ export default async function DashboardPage() {
           <h1 className="font-serif text-3xl">Executive Dashboard</h1>
           <p className="text-sm text-muted-foreground">A live pulse of the workshop and the vault.</p>
         </div>
-        <Link href="/reports" className="text-xs border rounded-md px-3 py-1.5 hover:bg-secondary">
-          View all reports →
-        </Link>
+        <div className="flex items-center gap-3">
+          <div className="text-[10px] text-muted-foreground text-right">
+            <div className="uppercase tracking-wider">Refreshed</div>
+            <div className="font-mono">{format(now, "HH:mm")} · {formatDistanceToNow(now, { addSuffix: true })}</div>
+          </div>
+          <Link href="/reports" className="text-xs border rounded-md px-3 py-1.5 hover:bg-secondary">
+            View all reports →
+          </Link>
+        </div>
       </div>
 
+      {/* When no sales or payments have been recorded yet, tiles show
+          "No transactions yet" instead of "LKR 0.00" so the empty ledger
+          isn't misread as a complete zero-revenue business picture. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiTile label="Revenue this month"   value={formatCurrency(revenueMonth)} icon={<Coins />} accent="purple" />
-        <KpiTile label="Revenue YTD"          value={formatCurrency(revenueYtd)}   icon={<TrendingUp />} accent="teal" />
-        <KpiTile label="Gross profit YTD"     value={formatCurrency(grossProfitYtd)} icon={<Coins />} accent={grossProfitYtd >= 0 ? "purple" : "danger"} />
-        <KpiTile label="Outstanding"          value={formatCurrency(outstandingYtd)} icon={<AlertTriangle />} />
+        <KpiTile
+          label="Revenue this month"
+          value={salesThisMonth.length === 0 ? "—" : formatCurrency(revenueMonth)}
+          subtitle={salesThisMonth.length === 0 ? "No sales this month yet" : undefined}
+          icon={<Coins />} accent="purple"
+        />
+        <KpiTile
+          label="Revenue YTD"
+          value={salesThisYear.length === 0 ? "—" : formatCurrency(revenueYtd)}
+          subtitle={salesThisYear.length === 0 ? "No sales recorded" : undefined}
+          icon={<TrendingUp />} accent="teal"
+        />
+        <KpiTile
+          label="Gross profit YTD"
+          value={salesThisYear.length === 0 ? "—" : formatCurrency(grossProfitYtd)}
+          subtitle={salesThisYear.length === 0 ? "Awaiting first sale" : undefined}
+          icon={<Coins />} accent={grossProfitYtd >= 0 ? "purple" : "danger"}
+        />
+        <KpiTile
+          label="Outstanding"
+          value={salesThisYear.length === 0 ? "—" : formatCurrency(outstandingYtd)}
+          subtitle={salesThisYear.length === 0 ? "Nothing invoiced yet" : undefined}
+          icon={<AlertTriangle />}
+        />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -299,9 +328,9 @@ function CadenceTile({
 }
 
 function KpiTile({
-  label, value, icon, accent = "default", href,
+  label, value, subtitle, icon, accent = "default", href,
 }: {
-  label: string; value: string; icon: React.ReactNode;
+  label: string; value: string; subtitle?: string; icon: React.ReactNode;
   accent?: "default" | "teal" | "purple" | "danger";
   href?: string;
 }) {
@@ -314,9 +343,10 @@ function KpiTile({
     <Card className="hover:shadow-luxe-lg transition-shadow">
       <CardContent className="p-5 flex items-center gap-4">
         <div className={`h-11 w-11 rounded-lg grid place-items-center text-white ${cls}`}>{icon}</div>
-        <div>
+        <div className="min-w-0">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-          <div className="font-serif text-2xl num mt-0.5">{value}</div>
+          <div className={`font-serif text-2xl num mt-0.5 ${value === "—" ? "text-muted-foreground/60" : ""}`}>{value}</div>
+          {subtitle && <div className="text-[10px] text-muted-foreground italic mt-0.5">{subtitle}</div>}
         </div>
       </CardContent>
     </Card>

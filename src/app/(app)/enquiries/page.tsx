@@ -11,6 +11,7 @@ import { Mail } from "lucide-react";
 import { getCompanySettings } from "@/lib/company-settings";
 import { ShareCatalogueButton } from "@/components/share-catalogue-button";
 import { ShareStoneButton } from "@/components/share-stone-button";
+import { EmptyState } from "@/components/empty-state";
 
 const statusVariant: Record<string, "muted" | "teal" | "warning" | "success" | "danger" | "purple"> = {
   NEW: "teal", CONTACTED: "muted", QUOTED: "purple",
@@ -70,7 +71,14 @@ export default async function EnquiriesPage() {
             </TableHeader>
             <TableBody>
               {enquiries.length === 0 && (
-                <TableRow><TableCell colSpan={canQuote ? 9 : 8} className="text-center text-sm text-muted-foreground py-10">No enquiries yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={canQuote ? 9 : 8}>
+                  <EmptyState
+                    icon={Mail}
+                    title="No enquiries yet"
+                    description={<>An enquiry captures a customer&apos;s interest — a request, budget, and a specific stone or general requirement. It&apos;s the front of the sales funnel: enquiry → quotation → reservation → sale.</>}
+                    primary={canWrite && customers.length > 0 ? undefined : { label: "Add a customer first", href: "/customers" }}
+                  />
+                </TableCell></TableRow>
               )}
               {enquiries.map((e) => (
                 <TableRow key={e.id}>

@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Receipt } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 
 const statusVariant: Record<string, "muted" | "teal" | "warning" | "success" | "danger" | "purple"> = {
   DRAFT: "muted", CONFIRMED: "teal", INVOICED: "teal",
@@ -58,7 +59,14 @@ export default async function SalesPage() {
             </TableHeader>
             <TableBody>
               {sales.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">No sales yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9}>
+                  <EmptyState
+                    icon={Receipt}
+                    title="No sales yet"
+                    description={<>A sale is the final step in the funnel: an agreed price, a payment record, and (usually) a shipment. Confirm a reservation into a sale, or record a direct sale from a stone&apos;s detail page.</>}
+                    secondary={{ label: "Go to reservations", href: "/reservations" }}
+                  />
+                </TableCell></TableRow>
               )}
               {sales.map((s) => {
                 const paid = s.payments.reduce((a, p) => a + Number(p.amount), 0);
