@@ -24,7 +24,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   );
 
   const parsed = parseQuery(q);
-  const like = { contains: q };
+  // Postgres `contains` is case-sensitive by default; mode:"insensitive"
+  // lets "sapphire" match "Sapphire", "SGS-g-000001" match "SGS-G-000001",
+  // etc. Without it the search bar looks broken for anything but exact case.
+  const like = { contains: q, mode: "insensitive" as const };
   const semanticWhere = toGemstoneWhere(parsed);
   const semanticActive = parsed.understood;
 
