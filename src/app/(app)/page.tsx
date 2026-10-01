@@ -13,9 +13,11 @@ import { dashboardAlerts } from "@/lib/reports";
 import { sweepExpiredReservations } from "@/lib/sweeper";
 import { ColumnChart } from "@/components/charts/column-chart";
 import { compactCurrency } from "@/components/charts/bar-chart";
+import { DeleteActivityButton } from "@/components/delete-activity-button";
 
 export default async function DashboardPage() {
-  await requireCapability("dashboard:read");
+  const session = await requireCapability("dashboard:read");
+  const isSuperAdmin = session.user.role === "SUPER_ADMIN";
   await sweepExpiredReservations();
   const now = new Date();
   const monthStart = startOfMonth(now);
@@ -235,18 +237,21 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Latest activity</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Recent Activity</CardTitle></CardHeader>
           <CardContent className="divide-y">
             {lastAudit.length === 0 && <div className="text-sm text-muted-foreground py-4">No activity yet.</div>}
             {lastAudit.map((a) => (
-              <div key={a.id} className="py-2 flex items-center justify-between text-sm">
-                <div className="flex items-center gap-3">
+              <div key={a.id} className="py-2 flex items-center justify-between text-sm gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <Badge variant="muted">{a.entity}</Badge>
                   <span className="text-muted-foreground">{a.action}</span>
                   {a.entityCode && <span className="font-mono text-xs">{a.entityCode}</span>}
-                  {a.field && <span className="text-muted-foreground">· {a.field}: {a.oldValue ?? "∅"} → {a.newValue ?? "∅"}</span>}
+                  {a.field && <span className="text-muted-foreground truncate">· {a.field}: {a.oldValue ?? "∅"} → {a.newValue ?? "∅"}</span>}
                 </div>
-                <div className="text-xs text-muted-foreground">{formatDate(a.at)} · {a.userName ?? "system"}</div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-xs text-muted-foreground">{formatDate(a.at)} · {a.userName ?? "system"}</div>
+                  {isSuperAdmin && <DeleteActivityButton id={a.id} />}
+                </div>
               </div>
             ))}
           </CardContent>
