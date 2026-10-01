@@ -4,7 +4,7 @@ import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import type { getCompanySettings } from "@/lib/company-settings";
 import { ShieldCheck, Clock3, MessageCircle, Mail, User as UserIcon, Gem } from "lucide-react";
 import { SgsLogo } from "@/components/brand/logo";
-import { CgiBadge, CgiBreakdownCard } from "@/components/cgi-badge";
+import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
 
 /**
  * Shared parts of the /s/<code> customer-facing view. Both the index
@@ -255,11 +255,15 @@ export function SingleStone({ gem }: { gem: Gem }) {
         </div>
 
         {gem.cgiScore != null && (
-          <CgiBreakdownCard
-            score={gem.cgiScore}
-            band={gem.cgiBand}
-            breakdown={safeBreakdown(gem.cgiBreakdown)}
-          />
+          <>
+            <CgiBreakdownCard
+              score={gem.cgiScore}
+              band={gem.cgiBand}
+              breakdown={safeBreakdown(gem.cgiBreakdown)}
+              title="Ceylon Gem Identity"
+            />
+            <CgiMethodologyCard />
+          </>
         )}
 
         <SpecSection title="Identity">

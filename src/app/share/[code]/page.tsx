@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { EnquireButton } from "./enquire-button";
 import { Gem, Award, ShieldCheck, Sparkles } from "lucide-react";
 import { trackCollectionView } from "@/app/(app)/collections/actions";
+import { CgiBadge, CgiMethodologyCard } from "@/components/cgi-badge";
 
 // Public share pages must always reflect the latest state, not a build-time
 // snapshot: the collection contents, prices, and availability can change any
@@ -139,6 +140,8 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
                     {gem.clarity && <><span>Clarity</span><span className="text-foreground">{gem.clarity}</span></>}
                   </div>
 
+                  <div><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="sm" /></div>
+
                   <div className="flex flex-wrap gap-2 text-[11px]">
                     {cert && (
                       <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-sgs-teal-800 bg-sgs-teal-50 border-sgs-teal-200">
@@ -194,6 +197,12 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
             );
           })}
         </div>
+      )}
+
+      {collection.items.some((i) => i.gemstone.cgiScore != null) && (
+        <section className="pt-4">
+          <CgiMethodologyCard />
+        </section>
       )}
     </div>
   );

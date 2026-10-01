@@ -7,6 +7,7 @@ import { getCompanySettings } from "@/lib/company-settings";
 import { Badge } from "@/components/ui/badge";
 import { Award, Gem, Star, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
               {formatCarat(Number(gem.weightCt))} · {gem.origin ?? "Origin undisclosed"}
               {gem.treatment ? ` · ${gem.treatment}` : ""}
             </div>
+            <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="lg" /></div>
             {(() => {
               const parentRough = gem.transformationsAsOutput[0]?.transformation.inputs[0]?.roughStone;
               if (!parentRough) return null;
@@ -124,6 +126,18 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
             </div>
           </div>
         </div>
+
+        {gem.cgiScore != null && (
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CgiBreakdownCard
+              score={gem.cgiScore}
+              band={gem.cgiBand}
+              breakdown={safeBreakdown(gem.cgiBreakdown)}
+              title="This stone's Ceylon Gem Identity"
+            />
+            <CgiMethodologyCard />
+          </section>
+        )}
 
         {cert && (
           <section className="rounded-xl border bg-white p-6 shadow-luxe">
@@ -187,4 +201,12 @@ function KV({ label, value, span = false }: { label: string; value: React.ReactN
       <div className="mt-0.5">{value}</div>
     </div>
   );
+}
+
+function safeBreakdown(json: string | null): Record<string, number> | null {
+  if (!json) return null;
+  try {
+    const o = JSON.parse(json);
+    return typeof o === "object" && o ? (o as Record<string, number>) : null;
+  } catch { return null; }
 }

@@ -109,3 +109,64 @@ export function CgiBreakdownCard({
     </div>
   );
 }
+
+/**
+ * Explainer card — how the CGI score works. Used on public pages so
+ * buyers understand what the number means. Pairs with CgiBreakdownCard
+ * (which shows THIS stone's sub-scores) to give the full picture.
+ */
+export function CgiMethodologyCard() {
+  const pillars: Array<[string, number, string]> = [
+    ["Origin confidence",      20, "How solidly the origin is proven. Tier-A lab (SSEF, Gübelin, GRS, GIA, AGL, Lotus) = full points. GIC Colombo = next. Other labs or declared-only = less. No data = zero."],
+    ["Treatment status",       20, "No-heat with a lab report wins. Declared no-heat next. Traditional heat is accepted but scored lower. Diffusion / fracture-fill carry a heavy penalty."],
+    ["Quality (4Cs)",          40, "Colour (20), clarity (10), cut (7), carat tier (3). Colour dominates — Ceylon sapphires live or die by it."],
+    ["Certification strength", 10, "The highest lab tier that has issued a report for this stone."],
+    ["Provenance traceability",10, "Reward stones with the full chain documented: parent rough, bill history, and photos at every stage from intake through final polish."],
+  ];
+  const bands: Array<[string, string, string]> = [
+    ["Elite",      "90–100", "bg-amber-100 text-amber-900 ring-amber-300"],
+    ["Premium",    "75–89",  "bg-emerald-100 text-emerald-900 ring-emerald-300"],
+    ["Trade",      "60–74",  "bg-sky-100 text-sky-900 ring-sky-300"],
+    ["Commercial", "40–59",  "bg-slate-100 text-slate-800 ring-slate-300"],
+    ["Entry",      "0–39",   "bg-zinc-100 text-zinc-700 ring-zinc-300"],
+  ];
+  return (
+    <div className="rounded-lg border bg-background p-5">
+      <div className="text-[10px] uppercase tracking-widest text-sgs-purple-500">How CGI works</div>
+      <h3 className="font-serif text-xl mt-1">Ceylon Gem Identity — the scoring behind the number</h3>
+      <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+        Every finished stone in our vault is scored out of 100 across five pillars. The score is deterministic — same inputs, same number — and recomputes automatically whenever a grade, treatment, origin band or certificate changes. There is no subjective slider.
+      </p>
+
+      <div className="mt-4 space-y-3">
+        {pillars.map(([name, weight, blurb]) => (
+          <div key={name} className="grid grid-cols-[auto_1fr] gap-x-4 items-start">
+            <div className="w-16 shrink-0">
+              <div className="text-xs font-semibold">{name.split(" ")[0]}</div>
+              <div className="text-[11px] text-muted-foreground">{weight} pts</div>
+            </div>
+            <div className="text-sm text-muted-foreground leading-snug">
+              <span className="text-foreground font-medium">{name}.</span> {blurb}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 pt-4 border-t">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Bands</div>
+        <div className="flex flex-wrap gap-2">
+          {bands.map(([label, range, cls]) => (
+            <span key={label} className={`inline-flex items-center gap-2 rounded-full ring-1 px-3 py-1 text-xs font-medium ${cls}`}>
+              <span>{label}</span>
+              <span className="opacity-70 num">{range}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-4 border-t text-[11px] text-muted-foreground leading-relaxed">
+        CGI is Serendib&apos;s own quality roll-up — a plain-English way to compare stones at a glance. It does not replace an independent laboratory report, which remains the authority on origin and treatment.
+      </div>
+    </div>
+  );
+}
