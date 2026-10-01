@@ -19,6 +19,7 @@ import { MatchingCustomersPanel } from "./tabs/matches-tab";
 import { QrCard } from "@/components/qr-card";
 import { MoveButton } from "@/components/move-button";
 import { EditGemstoneButton } from "./edit-gemstone-button";
+import { CgiBadge, CgiBreakdownCard } from "@/components/cgi-badge";
 import { CommentsThread } from "@/components/comments-thread";
 import { AddToCollectionButton } from "@/components/add-to-collection-button";
 import { ShareStoneButton } from "@/components/share-stone-button";
@@ -132,6 +133,12 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
               inclusions: g.inclusions,
               status: g.status,
               locationId: g.locationId,
+              cgiOriginBand:    g.cgiOriginBand,
+              cgiTreatmentBand: g.cgiTreatmentBand,
+              cgiColorBand:     g.cgiColorBand,
+              cgiClarityBand:   g.cgiClarityBand,
+              cgiCutBand:       g.cgiCutBand,
+              cgiQualityNotes:  g.cgiQualityNotes,
             }}
             locations={locations}
           />
@@ -172,6 +179,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
                 {g.treatment ? ` · ${g.treatment}` : ""}
                 {g.location ? ` · ${g.location.name}` : ""}
               </div>
+              <div className="mt-2"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>
             </div>
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Asking</div>
@@ -241,6 +249,11 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
                 </div>
               </CardContent>
             </Card>
+            <CgiBreakdownCard
+              score={g.cgiScore}
+              band={g.cgiBand}
+              breakdown={g.cgiBreakdown ? safeParseBreakdown(g.cgiBreakdown) : null}
+            />
             <QrCard code={g.code} kind="gemstone" label={`${g.gemType}${g.variety ? ` · ${g.variety}` : ""}`} />
             {can(session.user.role, "collection:write") && (
               <AddToCollectionButton
@@ -507,4 +520,11 @@ function ReadinessRow({ label, ready, partial = false }: { label: string; ready:
         : <Badge variant="muted">Pending</Badge>}
     </div>
   );
+}
+
+function safeParseBreakdown(json: string): Record<string, number> | null {
+  try {
+    const o = JSON.parse(json);
+    return typeof o === "object" && o ? (o as Record<string, number>) : null;
+  } catch { return null; }
 }

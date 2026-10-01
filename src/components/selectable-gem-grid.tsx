@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { PrintLabelChip } from "@/components/print-label-chip";
 import { TimedShareButton } from "@/components/timed-share-button";
 import { QrPrintButton } from "@/components/qr-print-button";
+import { CgiBadge } from "@/components/cgi-badge";
 import { X, CheckSquare, Square } from "lucide-react";
 
 /**
@@ -33,6 +34,8 @@ export type GemCard = {
   askingPrice: number | null;
   totalCost: number;
   heroBadge: string | null;
+  cgiScore: number | null;
+  cgiBand: string | null;
 };
 
 export function SelectableGemGrid({
@@ -117,6 +120,7 @@ export function SelectableGemGrid({
                   ) : (
                     <div className="text-[10px] text-muted-foreground italic">Direct acquisition</div>
                   )}
+                  <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Asking</span>
                     <span className="num font-medium">{g.askingPrice ? formatCurrency(g.askingPrice, g.currency) : "—"}</span>

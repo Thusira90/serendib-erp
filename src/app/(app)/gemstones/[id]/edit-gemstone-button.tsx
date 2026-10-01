@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Pencil } from "lucide-react";
 import { GEMSTONE_STATUSES } from "@/lib/enums";
 import { updateGemstone } from "../edit-actions";
+import {
+  CGI_ORIGIN_BANDS, CGI_TREATMENT_BANDS, CGI_COLOR_BANDS, CGI_CLARITY_BANDS, CGI_CUT_BANDS,
+} from "@/lib/cgi";
 
 const label = (s: string) => s.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
 
@@ -25,6 +28,12 @@ type GemExisting = {
   inclusions: string | null;
   status: string;
   locationId: string | null;
+  cgiOriginBand: string | null;
+  cgiTreatmentBand: string | null;
+  cgiColorBand: string | null;
+  cgiClarityBand: string | null;
+  cgiCutBand: string | null;
+  cgiQualityNotes: string | null;
 };
 
 export function EditGemstoneButton({
@@ -92,6 +101,30 @@ export function EditGemstoneButton({
           <F label="Colour description" cols={3}><Input name="colorDescription" defaultValue={gem.colorDescription ?? ""} /></F>
           <F label="Inclusions" cols={3}><Textarea name="inclusions" rows={2} defaultValue={gem.inclusions ?? ""} /></F>
 
+          <div className="col-span-3 mt-2 pt-3 border-t">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Ceylon Gem Identity (CGI)</div>
+            <div className="grid grid-cols-3 gap-3">
+              <F label="Origin confidence" cols={1}>
+                <BandSelect name="cgiOriginBand" options={CGI_ORIGIN_BANDS} value={gem.cgiOriginBand} />
+              </F>
+              <F label="Treatment status" cols={1}>
+                <BandSelect name="cgiTreatmentBand" options={CGI_TREATMENT_BANDS} value={gem.cgiTreatmentBand} />
+              </F>
+              <F label="Colour grade" cols={1}>
+                <BandSelect name="cgiColorBand" options={CGI_COLOR_BANDS} value={gem.cgiColorBand} />
+              </F>
+              <F label="Clarity grade" cols={1}>
+                <BandSelect name="cgiClarityBand" options={CGI_CLARITY_BANDS} value={gem.cgiClarityBand} />
+              </F>
+              <F label="Cut grade" cols={1}>
+                <BandSelect name="cgiCutBand" options={CGI_CUT_BANDS} value={gem.cgiCutBand} />
+              </F>
+              <F label="Grader notes" cols={3}>
+                <Textarea name="cgiQualityNotes" rows={2} defaultValue={gem.cgiQualityNotes ?? ""} placeholder="Free-form notes (optional)" />
+              </F>
+            </div>
+          </div>
+
           {error && <div className="col-span-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>}
 
           <div className="col-span-3 flex justify-end gap-2 pt-2 border-t">
@@ -113,5 +146,26 @@ function F({ label, children, cols = 1 }: { label: string; children: React.React
       <Label className="text-[10px]">{label}</Label>
       {children}
     </div>
+  );
+}
+
+function BandSelect({
+  name, options, value,
+}: {
+  name: string;
+  options: ReadonlyArray<{ value: string; label: string; hint?: string }>;
+  value: string | null;
+}) {
+  return (
+    <select
+      name={name}
+      defaultValue={value ?? ""}
+      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+    >
+      <option value="">— Not graded —</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value} title={o.hint ?? ""}>{o.label}</option>
+      ))}
+    </select>
   );
 }

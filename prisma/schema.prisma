@@ -199,6 +199,20 @@ model Gemstone {
   minimumPrice   Decimal?
   pricePerCt     Decimal?
 
+  // Ceylon Gem Identity — a 0–100 roll-up of origin confidence, treatment,
+  // quality bands, cert strength and provenance traceability. Recomputed
+  // via computeCgi() whenever any input field changes. See src/lib/cgi.ts.
+  cgiScore          Int?
+  cgiBand           String?       // ELITE | PREMIUM | TRADE | COMMERCIAL | ENTRY
+  cgiOriginBand     String?       // CgiOriginBand
+  cgiTreatmentBand  String?       // CgiTreatmentBand
+  cgiColorBand      String?       // CgiColorBand
+  cgiClarityBand    String?       // CgiClarityBand
+  cgiCutBand        String?       // CgiCutBand
+  cgiQualityNotes   String?       // optional free-form grader notes
+  cgiBreakdown      String?       // JSON — pillar sub-scores for the "why" tooltip
+  cgiComputedAt     DateTime?
+
   status  String  @default("IN_PROGRESS")
 
   createdAt      DateTime   @default(now())

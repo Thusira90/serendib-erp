@@ -4,6 +4,7 @@ import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import type { getCompanySettings } from "@/lib/company-settings";
 import { ShieldCheck, Clock3, MessageCircle, Mail, User as UserIcon, Gem } from "lucide-react";
 import { SgsLogo } from "@/components/brand/logo";
+import { CgiBadge, CgiBreakdownCard } from "@/components/cgi-badge";
 
 /**
  * Shared parts of the /s/<code> customer-facing view. Both the index
@@ -250,7 +251,16 @@ export function SingleStone({ gem }: { gem: Gem }) {
           <div className="text-sm text-muted-foreground mt-1">
             {gem.origin ?? "Origin undisclosed"}{gem.treatment ? ` · ${gem.treatment}` : ""}
           </div>
+          <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="md" /></div>
         </div>
+
+        {gem.cgiScore != null && (
+          <CgiBreakdownCard
+            score={gem.cgiScore}
+            band={gem.cgiBand}
+            breakdown={safeBreakdown(gem.cgiBreakdown)}
+          />
+        )}
 
         <SpecSection title="Identity">
           <KV label="Species" value={gem.species ?? "—"} />
@@ -340,6 +350,7 @@ export function StoneGrid({ gems, shareCode }: { gems: Gem[]; shareCode: string 
               <div className="text-xs text-muted-foreground">
                 {g.origin ?? "—"}{g.treatment ? ` · ${g.treatment}` : ""}
               </div>
+              <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>
               {g.askingPrice != null && (
                 <div className="pt-2 border-t text-sm num font-medium">
                   {formatCurrency(Number(g.askingPrice), g.currency)}
@@ -379,6 +390,14 @@ export function titleForScope(scope: string, count: number, fallbackBrand: strin
   if (scope === "GEMSTONES") return `${count} stone${count === 1 ? "" : "s"} we picked for you`;
   if (scope === "ROUGHS") return `${count} rough stone${count === 1 ? "" : "s"} we picked for you`;
   return `${fallbackBrand} — available inventory`;
+}
+
+function safeBreakdown(json: string | null): Record<string, number> | null {
+  if (!json) return null;
+  try {
+    const o = JSON.parse(json);
+    return typeof o === "object" && o ? (o as Record<string, number>) : null;
+  } catch { return null; }
 }
 
 export function safePayloadParse(s: string | null): {

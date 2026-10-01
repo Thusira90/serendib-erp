@@ -9,6 +9,7 @@ import { writeAudit, auditDiff } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
 import { saveUpload } from "@/lib/uploads";
 import type { CertificateStatus, CertificateType } from "@/lib/enums";
+import { recomputeCgiForGemstone } from "@/lib/cgi-service";
 
 const parseDate = (v: FormDataEntryValue | null) => {
   if (!v || typeof v !== "string" || v === "") return null;
@@ -98,6 +99,8 @@ export async function createCertificate(fd: FormData) {
     }, tx);
     return created;
   });
+  // Cert tier is a direct CGI input — recompute now that it exists.
+  await recomputeCgiForGemstone(gemstoneId);
   revalidatePath(`/gemstones/${gemstoneId}`);
   revalidatePath("/certificates");
   return cert.id;

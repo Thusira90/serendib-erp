@@ -31,6 +31,8 @@ export default async function GemstoneListPage() {
       askingPrice: g.askingPrice != null ? Number(g.askingPrice) : null,
       totalCost: Number(g.totalCost),
       heroBadge: parents[0] ?? null,
+      cgiScore: g.cgiScore,
+      cgiBand: g.cgiBand,
     };
   });
 

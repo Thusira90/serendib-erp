@@ -6,6 +6,16 @@ import { prisma } from "@/lib/db";
 import { requireCapability } from "@/lib/rbac";
 import { auditDiff } from "@/lib/audit";
 import { GEMSTONE_STATUSES } from "@/lib/enums";
+import { recomputeCgiForGemstone } from "@/lib/cgi-service";
+import {
+  CGI_ORIGIN_BANDS, CGI_TREATMENT_BANDS, CGI_COLOR_BANDS, CGI_CLARITY_BANDS, CGI_CUT_BANDS,
+} from "@/lib/cgi";
+
+const CGI_ORIGIN    = CGI_ORIGIN_BANDS.map((b) => b.value)    as [string, ...string[]];
+const CGI_TREATMENT = CGI_TREATMENT_BANDS.map((b) => b.value) as [string, ...string[]];
+const CGI_COLOR     = CGI_COLOR_BANDS.map((b) => b.value)     as [string, ...string[]];
+const CGI_CLARITY   = CGI_CLARITY_BANDS.map((b) => b.value)   as [string, ...string[]];
+const CGI_CUT       = CGI_CUT_BANDS.map((b) => b.value)       as [string, ...string[]];
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const dec = (v: FormDataEntryValue | null) => {
@@ -38,6 +48,12 @@ const schema = z.object({
   inclusions: z.string().nullable(),
   status: z.enum(GEMSTONE_STATUSES),
   locationId: z.string().nullable(),
+  cgiOriginBand:    z.enum(CGI_ORIGIN).nullable(),
+  cgiTreatmentBand: z.enum(CGI_TREATMENT).nullable(),
+  cgiColorBand:     z.enum(CGI_COLOR).nullable(),
+  cgiClarityBand:   z.enum(CGI_CLARITY).nullable(),
+  cgiCutBand:       z.enum(CGI_CUT).nullable(),
+  cgiQualityNotes:  z.string().nullable(),
 });
 
 /**
@@ -71,6 +87,12 @@ export async function updateGemstone(fd: FormData) {
     inclusions: str(fd.get("inclusions")),
     status: str(fd.get("status")),
     locationId: str(fd.get("locationId")),
+    cgiOriginBand:    str(fd.get("cgiOriginBand"))    as never,
+    cgiTreatmentBand: str(fd.get("cgiTreatmentBand")) as never,
+    cgiColorBand:     str(fd.get("cgiColorBand"))     as never,
+    cgiClarityBand:   str(fd.get("cgiClarityBand"))   as never,
+    cgiCutBand:       str(fd.get("cgiCutBand"))       as never,
+    cgiQualityNotes:  str(fd.get("cgiQualityNotes")),
   });
 
   const before = await prisma.gemstone.findUniqueOrThrow({ where: { id: parsed.id } });
@@ -110,6 +132,12 @@ export async function updateGemstone(fd: FormData) {
         locationId: parsed.locationId,
         costPerCt: nextCostPerCt,
         pricePerCt: nextPricePerCt ?? undefined,
+        cgiOriginBand:    parsed.cgiOriginBand,
+        cgiTreatmentBand: parsed.cgiTreatmentBand,
+        cgiColorBand:     parsed.cgiColorBand,
+        cgiClarityBand:   parsed.cgiClarityBand,
+        cgiCutBand:       parsed.cgiCutBand,
+        cgiQualityNotes:  parsed.cgiQualityNotes,
       },
     });
     await auditDiff(
@@ -121,9 +149,13 @@ export async function updateGemstone(fd: FormData) {
         "weightCt","lengthMm","widthMm","depthMm","shape","cut","facetingStyle",
         "colorDescription","clarity","luster","fluorescence","symmetry","polish",
         "inclusions","status","locationId",
+        "cgiOriginBand","cgiTreatmentBand","cgiColorBand","cgiClarityBand","cgiCutBand","cgiQualityNotes",
       ] as never[],
       tx,
     );
+    // Score depends on the saved bands + weight + certs/media/lineage;
+    // recompute within the same transaction so the UI never shows stale.
+    await recomputeCgiForGemstone(parsed.id, tx);
   });
 
   revalidatePath(`/gemstones/${parsed.id}`);
