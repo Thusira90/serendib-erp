@@ -15,6 +15,13 @@ import { ColumnChart } from "@/components/charts/column-chart";
 import { compactCurrency } from "@/components/charts/bar-chart";
 import { DeleteActivityButton } from "@/components/delete-activity-button";
 
+// Cache the dashboard for 30 s. Mutations that actually change a KPI
+// (sales, payments, reservations, cutting-job completion, new rough /
+// gem, capital contributions) call revalidatePath("/") so the user sees
+// their own write instantly; everyone else gets a snappy edge hit until
+// the next revalidation window.
+export const revalidate = 30;
+
 export default async function DashboardPage() {
   const session = await requireCapability("dashboard:read");
   const isSuperAdmin = session.user.role === "SUPER_ADMIN";

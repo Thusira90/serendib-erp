@@ -160,4 +160,5 @@ export async function updateGemstone(fd: FormData) {
 
   revalidatePath(`/gemstones/${parsed.id}`);
   revalidatePath("/gemstones");
+  revalidatePath("/"); // dashboard: status change can shift AVAILABLE count
 }

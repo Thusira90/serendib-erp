@@ -108,6 +108,7 @@ export async function createEnquiry(fd: FormData) {
 
   revalidatePath("/enquiries");
   revalidatePath(`/customers/${parsed.customerId}`);
+  revalidatePath("/"); // dashboard: last-enquiry tile + due-enquiries alert
   redirect(`/enquiries`);
 }
 
@@ -125,6 +126,7 @@ export async function updateEnquiryStatus(fd: FormData) {
     userId: session.user.id, userName: session.user.name ?? null,
   });
   revalidatePath("/enquiries");
+  revalidatePath("/"); // dashboard: due-enquiries alert count
 }
 
 // ─── Quotations ──────────────────────────────────────────────────────────────
@@ -192,6 +194,7 @@ export async function createQuotation(fd: FormData) {
 
   revalidatePath("/quotations");
   revalidatePath(`/customers/${parsed.customerId}`);
+  revalidatePath("/"); // dashboard: expiring-quotations alert
   redirect(`/quotations/${quotation.id}`);
 }
 
@@ -217,6 +220,7 @@ export async function updateQuotationStatus(fd: FormData) {
   });
   revalidatePath("/quotations");
   revalidatePath(`/quotations/${id}`);
+  revalidatePath("/"); // dashboard: expiring-quotations alert
 }
 
 // ─── Reservations (transactional invariants) ─────────────────────────────────
@@ -312,6 +316,7 @@ export async function reserveGemstone(fd: FormData) {
   revalidatePath(`/gemstones/${parsed.gemstoneId}`);
   revalidatePath("/reservations");
   revalidatePath(`/customers/${parsed.customerId}`);
+  revalidatePath("/"); // dashboard: AVAILABLE count + expiring-reservations alert
   return reservation.id;
 }
 
@@ -347,6 +352,7 @@ export async function releaseReservation(fd: FormData) {
     }, tx);
   });
   revalidatePath("/reservations");
+  revalidatePath("/"); // dashboard: AVAILABLE count rises when reservation released
 }
 
 /**
@@ -385,6 +391,7 @@ export async function extendReservation(fd: FormData) {
   });
   revalidatePath("/reservations");
   revalidatePath(`/reservations/${id}`);
+  revalidatePath("/"); // dashboard: expiring-reservations alert
 }
 
 // ─── Sales orders (transactional invariants) ─────────────────────────────────
@@ -514,6 +521,7 @@ export async function createSale(fd: FormData) {
   revalidatePath(`/gemstones/${parsed.gemstoneId}`);
   revalidatePath("/sales");
   revalidatePath(`/customers/${parsed.customerId}`);
+  revalidatePath("/"); // dashboard: revenue tiles + last-sale + AVAILABLE count
   redirect(`/sales/${sale.id}`);
 }
 
@@ -598,4 +606,5 @@ export async function recordPayment(fd: FormData) {
 
   revalidatePath(`/sales/${parsed.salesOrderId}`);
   revalidatePath("/sales");
+  revalidatePath("/"); // dashboard: paid vs outstanding tiles
 }

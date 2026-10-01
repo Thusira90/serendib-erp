@@ -98,6 +98,7 @@ export async function createShipment(fd: FormData) {
 
   revalidatePath(`/sales/${parsed.salesOrderId}`);
   revalidatePath("/shipments");
+  revalidatePath("/"); // dashboard: unshipped-sales alert drops when a shipment is created
   redirect(`/shipments/${shipment.id}`);
 }
 
@@ -154,6 +155,7 @@ export async function updateShipmentTracking(fd: FormData) {
   revalidatePath(`/shipments/${parsed.id}`);
   revalidatePath("/shipments");
 }
+// Note: tracking-update doesn't change dashboard figures — no "/" invalidate.
 
 export async function updateShipmentStatus(fd: FormData) {
   const session = await requireCapability("shipment:write");
@@ -210,4 +212,5 @@ export async function updateShipmentStatus(fd: FormData) {
   });
   revalidatePath(`/shipments/${parsed.id}`);
   revalidatePath("/shipments");
+  revalidatePath("/"); // dashboard: unshipped-sales alert follows shipment status
 }

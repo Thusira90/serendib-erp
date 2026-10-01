@@ -97,6 +97,7 @@ export async function startCuttingJob(fd: FormData) {
 
   revalidatePath(`/rough/${parsed.roughStoneId}`);
   revalidatePath("/cutting");
+  revalidatePath("/"); // dashboard: in-cutting count
   redirect(`/cutting/${job.id}`);
 }
 
@@ -126,6 +127,7 @@ export async function updateCuttingJobStatus(fd: FormData) {
   });
   revalidatePath(`/cutting/${parsed.id}`);
   revalidatePath("/cutting");
+  revalidatePath("/"); // dashboard: in-cutting count may change
 }
 
 // ─── Complete a cutting job (produces finished gemstones + Transformation) ───
@@ -339,4 +341,5 @@ export async function completeCuttingJob(fd: FormData) {
   revalidatePath("/cutting");
   revalidatePath("/gemstones");
   revalidatePath("/genealogy");
+  revalidatePath("/"); // dashboard: in-cutting drops, gem count rises, recent gems
 }

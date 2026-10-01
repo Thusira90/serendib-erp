@@ -142,6 +142,7 @@ export async function createRoughStone(fd: FormData) {
   }, { timeout: 30_000 });
 
   revalidatePath("/rough");
+  revalidatePath("/"); // dashboard: rough count + weight + spend tiles
   redirect(`/rough/${rough.id}`);
 }
 
@@ -188,4 +189,5 @@ export async function updateRoughStone(fd: FormData) {
 
   revalidatePath(`/rough/${id}`);
   revalidatePath("/rough");
+  revalidatePath("/"); // dashboard: weight/spend tiles if weight or price changed
 }

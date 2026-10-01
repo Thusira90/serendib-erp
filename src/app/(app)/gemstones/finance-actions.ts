@@ -70,6 +70,7 @@ export async function addCostAllocation(fd: FormData) {
   });
 
   revalidatePath(`/gemstones/${parsed.gemstoneId}`);
+  revalidatePath("/"); // dashboard: gem totalCost tile
 }
 
 const priceSchema = z.object({
@@ -121,4 +122,5 @@ export async function changeAskingPrice(fd: FormData) {
   });
 
   revalidatePath(`/gemstones/${parsed.gemstoneId}`);
+  revalidatePath("/"); // dashboard: gem askingPrice tile
 }
