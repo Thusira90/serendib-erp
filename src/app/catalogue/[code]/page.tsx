@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
 
 export const metadata = { title: "Gemstone — Serendib Gemstones" };
-export const dynamic = "force-dynamic";
+// Public page — cache 60s so repeat views don't hit the DB.
+export const revalidate = 60;
 
 export default async function CatalogueDetail({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;

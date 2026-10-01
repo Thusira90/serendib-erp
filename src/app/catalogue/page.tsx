@@ -6,9 +6,9 @@ import { CgiBadge } from "@/components/cgi-badge";
 
 export const metadata = { title: "Catalogue — Serendib Gemstones" };
 
-// Rendered on every request — the catalogue reads live inventory from the
-// database. Marking it dynamic keeps `next build` out of the DB, so CI can
-// build without a live database.
+// Index reads `searchParams` for filters, which already makes it dynamic
+// in Next 15 — revalidate here would be a no-op. The /catalogue/[code]
+// detail page does cache (no searchParams).
 export const dynamic = "force-dynamic";
 
 type Filters = {

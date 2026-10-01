@@ -10,9 +10,25 @@ import { notify } from "@/lib/notifications";
  * (dashboard, /reservations) call this on every load, so any user hitting
  * the app naturally advances the state. Idempotent + cheap.
  *
+ * Throttled to one real sweep per 60 seconds across the whole process —
+ * before the throttle a dashboard refresh fired a Singapore round-trip even
+ * when there was nothing to do, which the user felt as laggy loads.
+ *
  * Returns the number of reservations that were expired.
  */
+const SWEEP_INTERVAL_MS = 60_000;
+const sweepState = globalThis as unknown as { __lastReservationSweep?: number };
+
 export async function sweepExpiredReservations(): Promise<number> {
+  const nowMs = Date.now();
+  if (sweepState.__lastReservationSweep && nowMs - sweepState.__lastReservationSweep < SWEEP_INTERVAL_MS) {
+    return 0;
+  }
+  sweepState.__lastReservationSweep = nowMs;
+  return doSweep();
+}
+
+async function doSweep(): Promise<number> {
   const now = new Date();
   const overdue = await prisma.reservation.findMany({
     where: {

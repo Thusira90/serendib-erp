@@ -9,7 +9,10 @@ import { Award, Gem, Star, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
 
-export const dynamic = "force-dynamic";
+// Public verify pages change rarely (edits to a stone's identity are rare).
+// Cache the rendered page for 60 seconds so repeat scans / shares are served
+// from the CDN edge instead of round-tripping to Singapore every time.
+export const revalidate = 60;
 
 /**
  * Public verification page. UNAUTHENTICATED.

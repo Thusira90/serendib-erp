@@ -24,20 +24,27 @@ export default async function DashboardPage() {
   const monthEnd = endOfMonth(now);
   const yearStart = new Date(now.getUTCFullYear(), 0, 1);
 
+  // Two groupBys replace five count/aggregate round-trips to Singapore:
+  //   one for RoughStone (total + weight + spend + IN_CUTTING count), and
+  //   one for Gemstone (total + weight + cost + ask + AVAILABLE count).
   const [
-    roughCount, roughAgg, gemCount, gemAgg,
-    availableGems, inCutting, recentGems,
+    roughByStatus, gemByStatus,
+    recentGems,
     salesThisMonth, salesThisYear, allPayments,
     lastAudit, alerts,
     lastSale, lastEnquiry,
     activeDirectorCount, allContributions,
   ] = await Promise.all([
-    prisma.roughStone.count(),
-    prisma.roughStone.aggregate({ _sum: { weightCt: true, purchasePrice: true } }),
-    prisma.gemstone.count(),
-    prisma.gemstone.aggregate({ _sum: { weightCt: true, totalCost: true, askingPrice: true } }),
-    prisma.gemstone.count({ where: { status: "AVAILABLE" } }),
-    prisma.roughStone.count({ where: { status: "IN_CUTTING" } }),
+    prisma.roughStone.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+      _sum: { weightCt: true, purchasePrice: true },
+    }),
+    prisma.gemstone.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+      _sum: { weightCt: true, totalCost: true, askingPrice: true },
+    }),
     prisma.gemstone.findMany({ take: 6, orderBy: { createdAt: "desc" } }),
     prisma.salesOrder.findMany({ where: { saleDate: { gte: monthStart, lte: monthEnd } } }),
     prisma.salesOrder.findMany({ where: { saleDate: { gte: yearStart } }, include: { gemstone: true } }),
@@ -52,6 +59,25 @@ export default async function DashboardPage() {
       select: { amount: true, currency: true, type: true },
     }),
   ]);
+
+  const roughCount = roughByStatus.reduce((n, r) => n + r._count._all, 0);
+  const inCutting  = roughByStatus.find((r) => r.status === "IN_CUTTING")?._count._all ?? 0;
+  const roughAgg = {
+    _sum: {
+      weightCt:      roughByStatus.reduce((s, r) => s + Number(r._sum.weightCt      ?? 0), 0),
+      purchasePrice: roughByStatus.reduce((s, r) => s + Number(r._sum.purchasePrice ?? 0), 0),
+    },
+  };
+
+  const gemCount      = gemByStatus.reduce((n, g) => n + g._count._all, 0);
+  const availableGems = gemByStatus.find((g) => g.status === "AVAILABLE")?._count._all ?? 0;
+  const gemAgg = {
+    _sum: {
+      weightCt:    gemByStatus.reduce((s, g) => s + Number(g._sum.weightCt    ?? 0), 0),
+      totalCost:   gemByStatus.reduce((s, g) => s + Number(g._sum.totalCost   ?? 0), 0),
+      askingPrice: gemByStatus.reduce((s, g) => s + Number(g._sum.askingPrice ?? 0), 0),
+    },
+  };
 
   // Capital in the base currency only — mixed-currency rollups need live
   // rates that aren't fetched server-side. The /capital ledger shows the
