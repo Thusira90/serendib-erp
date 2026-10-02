@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, Check, ExternalLink } from "lucide-react";
 
 /**
  * Small copyable-link row: shows the URL, has a Copy button, and an external
- * open button. `path` may be absolute or relative — when relative and the
- * `public` flag is set, we resolve against window.location.origin so the
- * copied value is a full shareable URL.
+ * open button. `path` may be absolute or relative — when relative we resolve
+ * it against window.location.origin so the copied value is a full shareable
+ * URL. The origin is read after mount: reading window during render makes the
+ * server HTML differ from the first client render (hydration mismatch).
  */
 export function CopyLinkButton({
   path,
@@ -19,10 +20,12 @@ export function CopyLinkButton({
   label?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { setOrigin(window.location.origin); }, []);
   const isAbsolute = /^https?:\/\//i.test(path);
   const href = isAbsolute
     ? path
-    : (typeof window !== "undefined" ? window.location.origin + (path.startsWith("/") ? path : `/${path}`) : path);
+    : origin + (path.startsWith("/") ? path : `/${path}`);
 
   async function copy() {
     try {
