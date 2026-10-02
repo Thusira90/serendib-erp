@@ -32,7 +32,9 @@ export default async function TrialBalancePage({
       by: ["accountId"],
       _sum: { debit: true, credit: true },
       where: {
-        journal: { status: "POSTED", transactionDate: { lte: asOfDate } },
+        // A reversed journal and its reversal entry net to zero only when BOTH
+        // are counted; counting just the reversal would flip the balance.
+        journal: { status: { in: ["POSTED", "REVERSED"] }, transactionDate: { lte: asOfDate } },
       },
     }),
     getCompanySettings(),

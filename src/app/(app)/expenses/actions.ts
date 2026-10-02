@@ -8,6 +8,7 @@ import { codePrefix, nextCode } from "@/lib/ids";
 import { writeAudit } from "@/lib/audit";
 import { saveUpload } from "@/lib/uploads";
 import { EXPENSE_CATEGORIES, EXPENSE_STATUSES } from "@/lib/enums";
+import { getExchangeRates, recomputeGemCost } from "@/lib/money";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const dec = (v: FormDataEntryValue | null) => {
@@ -144,6 +145,7 @@ export async function addStoneBill(fd: FormData) {
 
   const incurredAt = parsed.incurredAt ?? new Date();
   const year = incurredAt.getUTCFullYear();
+  const rates = parsed.kind === "gemstone" ? await getExchangeRates() : null;
 
   await prisma.$transaction(async (tx) => {
     const code = await nextCode(codePrefix.expense, year, tx, { pad: 4 });
@@ -167,8 +169,9 @@ export async function addStoneBill(fd: FormData) {
     });
 
     // Mirror the expense onto the stone's cost history. For gemstones we
-    // also recompute totalCost + costPerCt so the margin tile stays live.
-    if (parsed.kind === "gemstone") {
+    // also recompute totalCost + costPerCt (in the gem's own currency) so
+    // the margin tile stays live.
+    if (parsed.kind === "gemstone" && rates) {
       await tx.costAllocation.create({
         data: {
           gemstoneId: parsed.stoneId,
@@ -180,22 +183,7 @@ export async function addStoneBill(fd: FormData) {
           incurredAt,
         },
       });
-      const agg = await tx.costAllocation.aggregate({
-        where: { gemstoneId: parsed.stoneId },
-        _sum: { amount: true },
-      });
-      const gem = await tx.gemstone.findUniqueOrThrow({
-        where: { id: parsed.stoneId }, select: { weightCt: true },
-      });
-      const total = Number(agg._sum.amount ?? 0);
-      const wt = Number(gem.weightCt);
-      await tx.gemstone.update({
-        where: { id: parsed.stoneId },
-        data: {
-          totalCost: total,
-          costPerCt: wt > 0 ? total / wt : 0,
-        },
-      });
+      await recomputeGemCost(tx, parsed.stoneId, rates);
     } else {
       await tx.costAllocation.create({
         data: {

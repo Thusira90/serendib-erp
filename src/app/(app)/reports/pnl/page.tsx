@@ -19,7 +19,10 @@ export default async function PnlReport() {
       <ReportToolbar csvKind="pnl" />
       <div>
         <h1 className="font-serif text-3xl">Profit &amp; loss</h1>
-        <p className="text-sm text-muted-foreground">Rolling 12 months. Revenue less allocated COGS less operating expenses.</p>
+        <p className="text-sm text-muted-foreground">
+          Rolling 12 months, in LKR. Revenue (excl. tax) less stone cost of sales less operating expenses.
+          Stone bills are part of stone cost, not operating expenses. Foreign-currency amounts use today&apos;s rate.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

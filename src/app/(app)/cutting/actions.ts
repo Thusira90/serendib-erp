@@ -9,6 +9,7 @@ import { codePrefix, nextCode } from "@/lib/ids";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
 import { CUTTING_JOB_STATUSES } from "@/lib/enums";
+import { convertStrict, fxNote, getExchangeRates, round2 } from "@/lib/money";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const dec = (v: FormDataEntryValue | null) => {
@@ -161,8 +162,10 @@ const completeSchema = z.object({
  *  - Creates a GemstoneTransformation linking the rough → outputs, with
  *    computed yield, waste, and per-output allocated cost proportional to
  *    output weight.
- *  - Each output gets a per-stone CostAllocation for its share of the rough
- *    cost + its share of the cutting job cost.
+ *  - Each output gets per-stone CostAllocation lines for its share of the
+ *    rough's purchase price, its share of every bill filed against the rough
+ *    (transport, valuation, ...), and its share of the cutting job cost. All
+ *    amounts are converted into the job currency at today's rate first.
  *  - Rough status flips to CONVERTED. Job status flips to COMPLETED.
  *  - Job also gets the actual-yield computed.
  *  - Notifies stakeholders.
@@ -200,6 +203,8 @@ export async function completeCuttingJob(fd: FormData) {
   const outputTotalWt = parsed.outputs.reduce((s, o) => s + o.weightCt, 0);
 
   const year = new Date().getUTCFullYear();
+  const rates = await getExchangeRates();
+  const target = parsed.currency;
 
   await prisma.$transaction(async (tx) => {
     const job = await tx.cuttingJob.findUniqueOrThrow({
@@ -211,7 +216,17 @@ export async function completeCuttingJob(fd: FormData) {
     }
     const rough = job.roughStone;
     const roughWeight = Number(rough.weightCt);
-    const roughCost = Number(rough.purchasePrice);
+    const roughPurchase = convertStrict(rates, Number(rough.purchasePrice), rough.currency, target);
+    const roughBills = (await tx.costAllocation.findMany({
+      where: { roughStoneId: rough.id },
+      orderBy: { incurredAt: "asc" },
+    })).map((b) => ({
+      type: b.type,
+      description: b.description,
+      note: fxNote(rates, Number(b.amount), b.currency, target),
+      amount: convertStrict(rates, Number(b.amount), b.currency, target),
+    }));
+    const roughCost = roughPurchase + roughBills.reduce((s, b) => s + b.amount, 0);
     if (outputTotalWt > roughWeight + 0.001) {
       throw new Error(`Total output weight (${outputTotalWt.toFixed(2)}ct) exceeds rough weight (${roughWeight.toFixed(2)}ct).`);
     }
@@ -223,10 +238,28 @@ export async function completeCuttingJob(fd: FormData) {
     for (const o of parsed.outputs) {
       const code = await nextCode(codePrefix.gemstone, year, tx);
       const share = outputTotalWt > 0 ? o.weightCt / outputTotalWt : 0;
-      const roughShare = roughCost * share;
-      const cutShare = totalCost * share;
-      const totalGemCost = roughShare + cutShare;
-      const costPerCt = o.weightCt > 0 ? totalGemCost / o.weightCt : 0;
+      const pct = (share * 100).toFixed(1);
+      // Round each line first so totalCost always equals the sum of its
+      // allocation lines (later bills re-sum those lines).
+      const lines = [
+        {
+          type: "ROUGH_PURCHASE",
+          description: `Allocated share of ${rough.code} purchase (${pct}%)${fxNote(rates, Number(rough.purchasePrice), rough.currency, target)}`,
+          amount: round2(roughPurchase * share),
+        },
+        ...roughBills.map((b) => ({
+          type: b.type,
+          description: `Allocated share of ${b.description ?? b.type} on ${rough.code} (${pct}%)${b.note}`,
+          amount: round2(b.amount * share),
+        })),
+        ...(totalCost > 0 ? [{
+          type: "CUTTING",
+          description: `Allocated share of cutting job ${job.code} (${pct}%)`,
+          amount: round2(totalCost * share),
+        }] : []),
+      ];
+      const totalGemCost = round2(lines.reduce((s, l) => s + l.amount, 0));
+      const costPerCt = o.weightCt > 0 ? round2(totalGemCost / o.weightCt) : 0;
       const gem = await tx.gemstone.create({
         data: {
           code,
@@ -248,22 +281,13 @@ export async function completeCuttingJob(fd: FormData) {
       });
       // Allocation lines for the true-cost trail.
       await tx.costAllocation.createMany({
-        data: [
-          {
-            gemstoneId: gem.id,
-            type: "ROUGH_PURCHASE",
-            description: `Allocated share of ${rough.code} (${(share * 100).toFixed(1)}%)`,
-            amount: roughShare,
-            currency: parsed.currency,
-          },
-          ...(totalCost > 0 ? [{
-            gemstoneId: gem.id,
-            type: "CUTTING",
-            description: `Allocated share of cutting job ${job.code} (${(share * 100).toFixed(1)}%)`,
-            amount: cutShare,
-            currency: parsed.currency,
-          } as const] : []),
-        ],
+        data: lines.map((l) => ({
+          gemstoneId: gem.id,
+          type: l.type,
+          description: l.description,
+          amount: l.amount,
+          currency: target,
+        })),
       });
       gemRows.push({ id: gem.id, code: gem.code, weight: o.weightCt, allocatedCost: totalGemCost, askingPrice: o.askingPrice ?? null });
     }
@@ -288,7 +312,7 @@ export async function completeCuttingJob(fd: FormData) {
           create: [{
             roughStoneId: rough.id,
             inputWeightCt: roughWeight,
-            inputCost: roughCost,
+            inputCost: round2(roughCost),
           }],
         },
         outputs: {

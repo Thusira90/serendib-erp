@@ -23,7 +23,8 @@ export default async function AccountsPage() {
     prisma.journalLine.groupBy({
       by: ["accountId"],
       _sum: { debit: true, credit: true },
-      where: { journal: { status: "POSTED" } },
+      // Reversed originals stay in: they net to zero against their reversal entry.
+      where: { journal: { status: { in: ["POSTED", "REVERSED"] } } },
     }),
     getCompanySettings(),
   ]);

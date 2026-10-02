@@ -1,12 +1,19 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
+import { getExchangeRates, toBase } from "@/lib/money";
 
 /**
- * Simple accrual-style P&L: revenue from closed sales, direct COGS from the
- * gemstone's true-cost rollup at the time the sale closed, plus operating
- * expenses booked from the Expense register. Everything expressed in the base
- * currency (USD). Multi-currency reporting is out of scope for M8.
+ * Simple accrual-style P&L in LKR: revenue (agreed price, excl. tax) from
+ * non-cancelled sales, COGS from the gemstone's true-cost rollup, plus
+ * operating expenses from the Expense register.
+ *
+ * Two rules keep it from double counting or overstating:
+ *  - Expenses filed as stone bills are capitalised into the stone's cost (so
+ *    they reach COGS when the stone sells) and are excluded from opex.
+ *  - Rejected expenses and cancelled sales are ignored.
+ * Foreign-currency amounts are converted at today's rate (no historical rates
+ * are stored yet).
  */
 
 type MonthRow = {
@@ -29,24 +36,34 @@ export async function pnlForLast12Months(): Promise<PnlPeriod> {
   const now = new Date();
   const windowStart = startOfMonth(subMonths(now, 11));
 
-  const [orders, expenses] = await Promise.all([
+  const [orders, expenses, rates] = await Promise.all([
     prisma.salesOrder.findMany({
-      where: { saleDate: { gte: windowStart } },
+      where: { saleDate: { gte: windowStart }, status: { not: "CANCELLED" } },
       include: { gemstone: true, customer: true },
     }),
-    prisma.expense.findMany({ where: { incurredAt: { gte: windowStart } } }),
+    prisma.expense.findMany({
+      where: {
+        incurredAt: { gte: windowStart },
+        status: { not: "REJECTED" },
+        costAllocation: { is: null },
+      },
+    }),
+    getExchangeRates(),
   ]);
+  const saleLkr = (o: (typeof orders)[number]) => toBase(rates, Number(o.agreedPrice), o.currency);
+  const costLkr = (o: (typeof orders)[number]) => toBase(rates, Number(o.gemstone.totalCost), o.gemstone.currency);
+  const expenseLkr = (x: (typeof expenses)[number]) => toBase(rates, Number(x.amount), x.currency);
 
   const months: MonthRow[] = [];
   for (let i = 11; i >= 0; i--) {
     const s = startOfMonth(subMonths(now, i));
     const e = endOfMonth(s);
     const mOrders = orders.filter((o) => o.saleDate >= s && o.saleDate <= e);
-    const revenue = sum(mOrders, (o) => Number(o.agreedPrice));
-    const cogs = sum(mOrders, (o) => Number(o.gemstone.totalCost));
+    const revenue = sum(mOrders, saleLkr);
+    const cogs = sum(mOrders, costLkr);
     const opex = sum(
       expenses.filter((x) => x.incurredAt >= s && x.incurredAt <= e),
-      (x) => Number(x.amount)
+      expenseLkr,
     );
     const grossProfit = revenue - cogs;
     const netIncome = grossProfit - opex;
@@ -64,7 +81,7 @@ export async function pnlForLast12Months(): Promise<PnlPeriod> {
 
   const opexByCategoryMap = new Map<string, number>();
   for (const e of expenses) {
-    opexByCategoryMap.set(e.category, (opexByCategoryMap.get(e.category) ?? 0) + Number(e.amount));
+    opexByCategoryMap.set(e.category, (opexByCategoryMap.get(e.category) ?? 0) + expenseLkr(e));
   }
   const opexByCategory = Array.from(opexByCategoryMap.entries())
     .map(([key, value]) => ({ key: key.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase()), value }))
@@ -73,7 +90,7 @@ export async function pnlForLast12Months(): Promise<PnlPeriod> {
   const revByCountryMap = new Map<string, number>();
   for (const o of orders) {
     const k = o.customer.country ?? "Unknown";
-    revByCountryMap.set(k, (revByCountryMap.get(k) ?? 0) + Number(o.agreedPrice));
+    revByCountryMap.set(k, (revByCountryMap.get(k) ?? 0) + saleLkr(o));
   }
   const revenueByCountry = Array.from(revByCountryMap.entries())
     .map(([key, value]) => ({ key, value }))

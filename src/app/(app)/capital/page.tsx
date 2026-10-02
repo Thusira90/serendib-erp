@@ -48,7 +48,9 @@ export default async function CapitalLedgerPage() {
     getCompanySettings(),
   ]);
 
-  const activeTxns = allTxns.filter((t) => t.status !== "REVERSED");
+  // A reversal is stored as a negative row of the same type, so the reversed
+  // original must stay in the sum to net to zero. Only drafts are excluded.
+  const activeTxns = allTxns.filter((t) => t.status !== "DRAFT");
 
   // ── Cap-table % per shareholder & class ───────────────────────────────────
   const issuedByClass = new Map<string, number>();

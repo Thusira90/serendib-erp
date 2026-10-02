@@ -30,7 +30,7 @@ export default async function DirectorDetailPage({ params }: { params: Promise<{
   const txns = director.capitalTransactions ?? [];
   const totalsByType = new Map<string, Map<string, number>>();
   for (const t of txns) {
-    if (t.status === "REVERSED") continue;
+    if (t.status === "DRAFT") continue;
     const key = t.type;
     const perCcy = totalsByType.get(key) ?? new Map<string, number>();
     perCcy.set(t.currency, (perCcy.get(t.currency) ?? 0) + Number(t.amount));

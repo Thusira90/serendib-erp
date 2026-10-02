@@ -1,30 +1,51 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
+import { getExchangeRates, toBase } from "@/lib/money";
 
 // ─── Inventory reports ───────────────────────────────────────────────────────
 
 export async function inventoryOverview() {
-  const [
-    roughAll, gems,
-    roughByType, roughByOrigin,
-    gemByType, gemByOrigin, gemByStatus,
-  ] = await Promise.all([
+  const [roughRows, gemRows, rates] = await Promise.all([
     prisma.roughStone.findMany({
-      select: { id: true, weightCt: true, purchasePrice: true, status: true, gemType: true, origin: true, createdAt: true },
+      select: { id: true, weightCt: true, purchasePrice: true, currency: true, status: true, gemType: true, origin: true, createdAt: true },
     }),
     prisma.gemstone.findMany({
       select: {
-        id: true, code: true, weightCt: true, totalCost: true, askingPrice: true,
+        id: true, code: true, weightCt: true, totalCost: true, askingPrice: true, currency: true,
         status: true, gemType: true, variety: true, origin: true, createdAt: true,
       },
     }),
-    prisma.roughStone.groupBy({ by: ["gemType"], _sum: { weightCt: true, purchasePrice: true }, _count: { _all: true } }),
-    prisma.roughStone.groupBy({ by: ["origin"], _sum: { weightCt: true, purchasePrice: true }, _count: { _all: true } }),
-    prisma.gemstone.groupBy({ by: ["gemType"], _sum: { weightCt: true, totalCost: true, askingPrice: true }, _count: { _all: true } }),
-    prisma.gemstone.groupBy({ by: ["origin"], _sum: { weightCt: true, totalCost: true, askingPrice: true }, _count: { _all: true } }),
-    prisma.gemstone.groupBy({ by: ["status"], _sum: { totalCost: true, askingPrice: true }, _count: { _all: true } }),
+    getExchangeRates(),
   ]);
+  // Every money field is converted to LKR once, here, so the grouped and total
+  // figures below never add amounts in different currencies.
+  const roughAll = roughRows.map((r) => ({ ...r, purchasePrice: toBase(rates, Number(r.purchasePrice), r.currency) }));
+  const gems = gemRows.map((g) => ({
+    ...g,
+    totalCost: toBase(rates, Number(g.totalCost), g.currency),
+    askingPrice: g.askingPrice != null ? toBase(rates, Number(g.askingPrice), g.currency) : null,
+  }));
+
+  type Agg = { count: number; weight: number; value: number; asking: number };
+  const group = <T,>(list: T[], key: (v: T) => string, parts: (v: T) => { weight: number; value: number; asking: number }) => {
+    const map = new Map<string, Agg>();
+    for (const v of list) {
+      const k = key(v);
+      const p = parts(v);
+      const a = map.get(k) ?? { count: 0, weight: 0, value: 0, asking: 0 };
+      a.count++; a.weight += p.weight; a.value += p.value; a.asking += p.asking;
+      map.set(k, a);
+    }
+    return Array.from(map.entries());
+  };
+  const roughParts = (r: (typeof roughAll)[number]) => ({ weight: Number(r.weightCt), value: r.purchasePrice, asking: 0 });
+  const gemParts = (g: (typeof gems)[number]) => ({ weight: Number(g.weightCt), value: g.totalCost, asking: g.askingPrice ?? 0 });
+  const roughByType = group(roughAll, (r) => r.gemType, roughParts);
+  const roughByOrigin = group(roughAll, (r) => r.origin ?? "Unknown", roughParts);
+  const gemByType = group(gems, (g) => g.gemType, gemParts);
+  const gemByOrigin = group(gems, (g) => g.origin ?? "Unknown", gemParts);
+  const gemByStatus = group(gems, (g) => g.status, gemParts);
 
   const now = Date.now();
   const buckets = { "0-30": 0, "30-90": 0, "90-180": 0, "180+": 0 };
@@ -40,31 +61,26 @@ export async function inventoryOverview() {
     totals: {
       roughCount: roughAll.length,
       roughWeight: sum(roughAll, (r) => Number(r.weightCt)),
-      roughCost: sum(roughAll, (r) => Number(r.purchasePrice)),
+      roughCost: sum(roughAll, (r) => r.purchasePrice),
       gemCount: gems.length,
       gemWeight: sum(gems, (g) => Number(g.weightCt)),
-      gemTrueCost: sum(gems, (g) => Number(g.totalCost)),
-      gemAskingTotal: sum(gems, (g) => Number(g.askingPrice ?? 0)),
+      gemTrueCost: sum(gems, (g) => g.totalCost),
+      gemAskingTotal: sum(gems, (g) => g.askingPrice ?? 0),
     },
-    roughByType: roughByType.map((r) => ({
-      key: r.gemType, count: r._count._all,
-      weight: Number(r._sum.weightCt ?? 0), value: Number(r._sum.purchasePrice ?? 0),
+    roughByType: roughByType.map(([key, a]) => ({
+      key, count: a.count, weight: a.weight, value: a.value,
     })).sort((a, b) => b.value - a.value),
-    roughByOrigin: roughByOrigin.map((r) => ({
-      key: r.origin ?? "Unknown", count: r._count._all,
-      weight: Number(r._sum.weightCt ?? 0), value: Number(r._sum.purchasePrice ?? 0),
+    roughByOrigin: roughByOrigin.map(([key, a]) => ({
+      key, count: a.count, weight: a.weight, value: a.value,
     })).sort((a, b) => b.value - a.value),
-    gemByType: gemByType.map((g) => ({
-      key: g.gemType, count: g._count._all,
-      weight: Number(g._sum.weightCt ?? 0), cost: Number(g._sum.totalCost ?? 0), asking: Number(g._sum.askingPrice ?? 0),
+    gemByType: gemByType.map(([key, a]) => ({
+      key, count: a.count, weight: a.weight, cost: a.value, asking: a.asking,
     })).sort((a, b) => b.asking - a.asking),
-    gemByOrigin: gemByOrigin.map((g) => ({
-      key: g.origin ?? "Unknown", count: g._count._all,
-      weight: Number(g._sum.weightCt ?? 0), cost: Number(g._sum.totalCost ?? 0), asking: Number(g._sum.askingPrice ?? 0),
+    gemByOrigin: gemByOrigin.map(([key, a]) => ({
+      key, count: a.count, weight: a.weight, cost: a.value, asking: a.asking,
     })).sort((a, b) => b.asking - a.asking),
-    gemByStatus: gemByStatus.map((s) => ({
-      key: s.status, count: s._count._all,
-      cost: Number(s._sum.totalCost ?? 0), asking: Number(s._sum.askingPrice ?? 0),
+    gemByStatus: gemByStatus.map(([key, a]) => ({
+      key, count: a.count, cost: a.value, asking: a.asking,
     })),
     aging: buckets,
     gems,
@@ -76,18 +92,23 @@ export async function inventoryOverview() {
 export async function salesOverview() {
   const now = new Date();
   const start = startOfMonth(subMonths(now, 11));
-  const [orders, payments] = await Promise.all([
+  const [orders, payments, rates] = await Promise.all([
     prisma.salesOrder.findMany({
-      where: { saleDate: { gte: start } },
+      where: { saleDate: { gte: start }, status: { not: "CANCELLED" } },
       include: { customer: true, gemstone: true },
     }),
     prisma.payment.findMany({
       where: { receivedAt: { gte: start } },
       select: { amount: true, currency: true, receivedAt: true },
     }),
+    getExchangeRates(),
   ]);
   const users = await prisma.user.findMany({ select: { id: true, name: true } });
   const nameById = new Map(users.map((u) => [u.id, u.name]));
+  // Revenue is the agreed price (excl. tax) in LKR; what is still owed uses the tax-inclusive total.
+  const revenueOf = (o: (typeof orders)[number]) => toBase(rates, Number(o.agreedPrice), o.currency);
+  const billedOf = (o: (typeof orders)[number]) => toBase(rates, Number(o.totalAmount), o.currency);
+  const paidOf = (p: (typeof payments)[number]) => toBase(rates, Number(p.amount), p.currency);
 
   const byMonth: { month: string; revenue: number; count: number; paid: number }[] = [];
   for (let i = 11; i >= 0; i--) {
@@ -97,24 +118,24 @@ export async function salesOverview() {
     const mPay = payments.filter((p) => p.receivedAt >= s && p.receivedAt <= e);
     byMonth.push({
       month: format(s, "MMM yy"),
-      revenue: sum(mOrders, (o) => Number(o.totalAmount)),
+      revenue: sum(mOrders, revenueOf),
       count: mOrders.length,
-      paid: sum(mPay, (p) => Number(p.amount)),
+      paid: sum(mPay, paidOf),
     });
   }
 
-  const byCountry = groupSum(orders, (o) => o.customer.country ?? "Unknown", (o) => Number(o.totalAmount));
-  const byCustomer = groupSum(orders, (o) => o.customer.displayName, (o) => Number(o.totalAmount));
-  const byGemType = groupSum(orders, (o) => o.gemstone.gemType, (o) => Number(o.totalAmount));
+  const byCountry = groupSum(orders, (o) => o.customer.country ?? "Unknown", revenueOf);
+  const byCustomer = groupSum(orders, (o) => o.customer.displayName, revenueOf);
+  const byGemType = groupSum(orders, (o) => o.gemstone.gemType, revenueOf);
   const bySalesperson = groupSum(
     orders.filter((o) => o.salespersonId),
     (o) => nameById.get(o.salespersonId!) ?? "—",
-    (o) => Number(o.totalAmount),
+    revenueOf,
   );
 
-  const totalRevenue = sum(orders, (o) => Number(o.totalAmount));
-  const totalPaid = sum(payments, (p) => Number(p.amount));
-  const outstanding = totalRevenue - totalPaid;
+  const totalRevenue = sum(orders, revenueOf);
+  const totalPaid = sum(payments, paidOf);
+  const outstanding = sum(orders, billedOf) - totalPaid;
   const avgOrderValue = orders.length ? totalRevenue / orders.length : 0;
 
   return {
@@ -137,8 +158,9 @@ export async function salesOverview() {
 // ─── Profitability report ────────────────────────────────────────────────────
 
 export async function profitabilityOverview() {
-  const [orders, allGems] = await Promise.all([
+  const [orders, allGems, rates] = await Promise.all([
     prisma.salesOrder.findMany({
+      where: { status: { not: "CANCELLED" } },
       include: { gemstone: true, customer: true },
     }),
     prisma.gemstone.findMany({
@@ -147,11 +169,13 @@ export async function profitabilityOverview() {
         totalCost: true, askingPrice: true, currency: true,
       },
     }),
+    getExchangeRates(),
   ]);
 
+  // Cost and revenue can be in different currencies; both are compared in LKR.
   const perStone = orders.map((o) => {
-    const cost = Number(o.gemstone.totalCost);
-    const revenue = Number(o.agreedPrice);
+    const cost = toBase(rates, Number(o.gemstone.totalCost), o.gemstone.currency);
+    const revenue = toBase(rates, Number(o.agreedPrice), o.currency);
     const profit = revenue - cost;
     const margin = revenue > 0 ? profit / revenue : 0;
     const roi = cost > 0 ? profit / cost : 0;
@@ -162,18 +186,22 @@ export async function profitabilityOverview() {
       customer: o.customer.displayName,
       weightCt: Number(o.gemstone.weightCt),
       cost, revenue, profit, margin, roi,
-      currency: o.currency,
+      currency: "LKR",
     };
   }).sort((a, b) => b.profit - a.profit);
 
-  const potential = allGems.map((g) => ({
-    code: g.code,
-    label: `${g.gemType}${g.variety ? ` · ${g.variety}` : ""}`,
-    cost: Number(g.totalCost),
-    asking: g.askingPrice != null ? Number(g.askingPrice) : 0,
-    projectedProfit: g.askingPrice != null ? Number(g.askingPrice) - Number(g.totalCost) : 0,
-    weightCt: Number(g.weightCt),
-  }));
+  const potential = allGems.map((g) => {
+    const cost = toBase(rates, Number(g.totalCost), g.currency);
+    const asking = g.askingPrice != null ? toBase(rates, Number(g.askingPrice), g.currency) : 0;
+    return {
+      code: g.code,
+      label: `${g.gemType}${g.variety ? ` · ${g.variety}` : ""}`,
+      cost,
+      asking,
+      projectedProfit: g.askingPrice != null ? asking - cost : 0,
+      weightCt: Number(g.weightCt),
+    };
+  });
 
   const totalRealizedRevenue = sum(perStone, (r) => r.revenue);
   const totalRealizedCost = sum(perStone, (r) => r.cost);

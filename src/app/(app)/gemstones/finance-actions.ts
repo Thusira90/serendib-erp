@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireCapability } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { COST_TYPES } from "@/lib/enums";
+import { getExchangeRates, recomputeGemCost } from "@/lib/money";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const parseDec = (v: FormDataEntryValue | null) => {
@@ -32,7 +33,9 @@ export async function addCostAllocation(fd: FormData) {
     currency: str(fd.get("currency")) ?? "LKR",
   });
 
+  const rates = await getExchangeRates();
   await prisma.$transaction(async (tx) => {
+    const gem = await tx.gemstone.findUniqueOrThrow({ where: { id: parsed.gemstoneId } });
     await tx.costAllocation.create({
       data: {
         gemstoneId: parsed.gemstoneId,
@@ -42,17 +45,8 @@ export async function addCostAllocation(fd: FormData) {
         currency: parsed.currency,
       },
     });
-    const totals = await tx.costAllocation.aggregate({
-      where: { gemstoneId: parsed.gemstoneId },
-      _sum: { amount: true },
-    });
-    const gem = await tx.gemstone.findUniqueOrThrow({ where: { id: parsed.gemstoneId } });
-    const totalCost = Number(totals._sum.amount ?? 0);
-    const costPerCt = Number(gem.weightCt) > 0 ? totalCost / Number(gem.weightCt) : 0;
-    const updated = await tx.gemstone.update({
-      where: { id: parsed.gemstoneId },
-      data: { totalCost, costPerCt },
-    });
+    const totalCost = await recomputeGemCost(tx, parsed.gemstoneId, rates);
+    const updated = await tx.gemstone.findUniqueOrThrow({ where: { id: parsed.gemstoneId } });
     await writeAudit({
       entity: "Gemstone", entityId: parsed.gemstoneId, entityCode: updated.code,
       action: "COST_ALLOCATED",

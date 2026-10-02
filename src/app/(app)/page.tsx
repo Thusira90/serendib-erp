@@ -14,6 +14,7 @@ import { sweepExpiredReservations } from "@/lib/sweeper";
 import { ColumnChart } from "@/components/charts/column-chart";
 import { compactCurrency } from "@/components/charts/bar-chart";
 import { DeleteActivityButton } from "@/components/delete-activity-button";
+import { getExchangeRates, toBase } from "@/lib/money";
 
 // Cache the dashboard for 30 s. Mutations that actually change a KPI
 // (sales, payments, reservations, cutting-job completion, new rough /
@@ -34,6 +35,8 @@ export default async function DashboardPage() {
   // Two groupBys replace five count/aggregate round-trips to Singapore:
   //   one for RoughStone (total + weight + spend + IN_CUTTING count), and
   //   one for Gemstone (total + weight + cost + ask + AVAILABLE count).
+  // Grouped by currency as well so each group can be converted to LKR before
+  // summing (raw sums across currencies are meaningless).
   const [
     roughByStatus, gemByStatus,
     recentGems,
@@ -41,48 +44,52 @@ export default async function DashboardPage() {
     lastAudit, alerts,
     lastSale, lastEnquiry,
     activeDirectorCount, allContributions,
+    rates,
   ] = await Promise.all([
     prisma.roughStone.groupBy({
-      by: ["status"],
+      by: ["status", "currency"],
       _count: { _all: true },
       _sum: { weightCt: true, purchasePrice: true },
     }),
     prisma.gemstone.groupBy({
-      by: ["status"],
+      by: ["status", "currency"],
       _count: { _all: true },
       _sum: { weightCt: true, totalCost: true, askingPrice: true },
     }),
     prisma.gemstone.findMany({ take: 6, orderBy: { createdAt: "desc" } }),
-    prisma.salesOrder.findMany({ where: { saleDate: { gte: monthStart, lte: monthEnd } } }),
-    prisma.salesOrder.findMany({ where: { saleDate: { gte: yearStart } }, include: { gemstone: true } }),
+    prisma.salesOrder.findMany({ where: { saleDate: { gte: monthStart, lte: monthEnd }, status: { not: "CANCELLED" } } }),
+    prisma.salesOrder.findMany({ where: { saleDate: { gte: yearStart }, status: { not: "CANCELLED" } }, include: { gemstone: true } }),
     prisma.payment.findMany({ where: { receivedAt: { gte: yearStart } } }),
     prisma.auditLog.findMany({ take: 8, orderBy: { at: "desc" } }),
     dashboardAlerts(),
     prisma.salesOrder.findFirst({ orderBy: { saleDate: "desc" }, select: { saleDate: true } }),
     prisma.enquiry.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     prisma.director.count({ where: { active: true } }),
+    // Reversed originals stay in: the reversal row is negative, so both are needed to net to zero.
     prisma.capitalTransaction.findMany({
-      where: { status: "POSTED" },
+      where: { status: { in: ["POSTED", "REVERSED"] } },
       select: { amount: true, currency: true, type: true },
     }),
+    getExchangeRates(),
   ]);
+  const lkr = (n: unknown, ccy: string) => toBase(rates, Number(n ?? 0), ccy);
 
   const roughCount = roughByStatus.reduce((n, r) => n + r._count._all, 0);
-  const inCutting  = roughByStatus.find((r) => r.status === "IN_CUTTING")?._count._all ?? 0;
+  const inCutting  = roughByStatus.filter((r) => r.status === "IN_CUTTING").reduce((n, r) => n + r._count._all, 0);
   const roughAgg = {
     _sum: {
-      weightCt:      roughByStatus.reduce((s, r) => s + Number(r._sum.weightCt      ?? 0), 0),
-      purchasePrice: roughByStatus.reduce((s, r) => s + Number(r._sum.purchasePrice ?? 0), 0),
+      weightCt:      roughByStatus.reduce((s, r) => s + Number(r._sum.weightCt ?? 0), 0),
+      purchasePrice: roughByStatus.reduce((s, r) => s + lkr(r._sum.purchasePrice, r.currency), 0),
     },
   };
 
   const gemCount      = gemByStatus.reduce((n, g) => n + g._count._all, 0);
-  const availableGems = gemByStatus.find((g) => g.status === "AVAILABLE")?._count._all ?? 0;
+  const availableGems = gemByStatus.filter((g) => g.status === "AVAILABLE").reduce((n, g) => n + g._count._all, 0);
   const gemAgg = {
     _sum: {
-      weightCt:    gemByStatus.reduce((s, g) => s + Number(g._sum.weightCt    ?? 0), 0),
-      totalCost:   gemByStatus.reduce((s, g) => s + Number(g._sum.totalCost   ?? 0), 0),
-      askingPrice: gemByStatus.reduce((s, g) => s + Number(g._sum.askingPrice ?? 0), 0),
+      weightCt:    gemByStatus.reduce((s, g) => s + Number(g._sum.weightCt ?? 0), 0),
+      totalCost:   gemByStatus.reduce((s, g) => s + lkr(g._sum.totalCost, g.currency), 0),
+      askingPrice: gemByStatus.reduce((s, g) => s + lkr(g._sum.askingPrice, g.currency), 0),
     },
   };
 
@@ -103,12 +110,14 @@ export default async function DashboardPage() {
     .reduce((s, c) => s + Number(c.amount) * (balanceSign[c.type] ?? 0), 0);
   const otherCurrencyContribs = allContributions.filter((c) => c.currency !== "LKR").length;
 
-  const revenueMonth = sum(salesThisMonth, (o) => Number(o.totalAmount));
-  const revenueYtd   = sum(salesThisYear,  (o) => Number(o.totalAmount));
-  const paidYtd      = sum(allPayments,    (p) => Number(p.amount));
-  const outstandingYtd = revenueYtd - paidYtd;
+  // Revenue excludes tax (agreedPrice); what customers still owe includes it (totalAmount).
+  const revenueMonth = sum(salesThisMonth, (o) => lkr(o.agreedPrice, o.currency));
+  const revenueYtd   = sum(salesThisYear,  (o) => lkr(o.agreedPrice, o.currency));
+  const billedYtd    = sum(salesThisYear,  (o) => lkr(o.totalAmount, o.currency));
+  const paidYtd      = sum(allPayments,    (p) => lkr(p.amount, p.currency));
+  const outstandingYtd = billedYtd - paidYtd;
 
-  const grossProfitYtd = sum(salesThisYear, (o) => Number(o.agreedPrice) - Number(o.gemstone.totalCost));
+  const grossProfitYtd = sum(salesThisYear, (o) => lkr(o.agreedPrice, o.currency) - lkr(o.gemstone.totalCost, o.gemstone.currency));
 
   // 6-month revenue mini chart
   const monthly: { label: string; value: number }[] = [];
@@ -116,7 +125,7 @@ export default async function DashboardPage() {
     const s = startOfMonth(subMonths(now, i));
     const e = endOfMonth(s);
     const inWin = salesThisYear.filter((o) => o.saleDate >= s && o.saleDate <= e);
-    monthly.push({ label: format(s, "MMM"), value: sum(inWin, (o) => Number(o.totalAmount)) });
+    monthly.push({ label: format(s, "MMM"), value: sum(inWin, (o) => lkr(o.agreedPrice, o.currency)) });
   }
 
   const alertCount =
