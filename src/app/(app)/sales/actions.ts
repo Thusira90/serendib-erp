@@ -241,7 +241,9 @@ const reservationSchema = z.object({
  * Invariants:
  *  - The gemstone must be AVAILABLE at the moment of reservation.
  *  - There must be no other ACTIVE reservation on the same gemstone.
- * Both checks run inside a single serializable transaction.
+ * The checks give friendly errors, but the real guard is the atomic claim
+ * below (UPDATE ... WHERE status = 'AVAILABLE'): of two simultaneous
+ * requests only one updates the row, the other sees zero rows and fails.
  */
 export async function reserveGemstone(fd: FormData) {
   const session = await requireCapability("reservation:write");
@@ -268,6 +270,13 @@ export async function reserveGemstone(fd: FormData) {
     if (existing) {
       throw new Error(`Cannot reserve ${gem.code}: an active reservation (${existing.code}) already exists.`);
     }
+    const claim = await tx.gemstone.updateMany({
+      where: { id: parsed.gemstoneId, status: "AVAILABLE" },
+      data: { status: "RESERVED" },
+    });
+    if (claim.count !== 1) {
+      throw new Error(`Cannot reserve ${gem.code}: someone else just reserved or sold it.`);
+    }
     const code = await nextCode(codePrefix.reservation, year, tx, { pad: 4 });
     const created = await tx.reservation.create({
       data: {
@@ -283,10 +292,6 @@ export async function reserveGemstone(fd: FormData) {
         notes: parsed.notes,
         status: "ACTIVE",
       },
-    });
-    await tx.gemstone.update({
-      where: { id: parsed.gemstoneId },
-      data: { status: "RESERVED" },
     });
     if (parsed.quotationId) {
       await tx.quotation.update({
@@ -333,16 +338,19 @@ export async function releaseReservation(fd: FormData) {
     if (res.status !== "ACTIVE") {
       throw new Error(`Reservation ${res.code} is already ${res.status}.`);
     }
-    await tx.reservation.update({
-      where: { id },
+    // Guarded so a release can never undo a sale that converted this
+    // reservation a moment earlier.
+    const released = await tx.reservation.updateMany({
+      where: { id, status: "ACTIVE" },
       data: { status: "RELEASED", releasedAt: new Date(), releasedReason: reason },
     });
-    if (res.gemstone.status === "RESERVED") {
-      await tx.gemstone.update({
-        where: { id: res.gemstoneId },
-        data: { status: "AVAILABLE" },
-      });
+    if (released.count !== 1) {
+      throw new Error(`Reservation ${res.code} was just changed by someone else.`);
     }
+    await tx.gemstone.updateMany({
+      where: { id: res.gemstoneId, status: "RESERVED" },
+      data: { status: "AVAILABLE" },
+    });
     await writeAudit({
       entity: "Gemstone", entityId: res.gemstoneId, entityCode: res.gemstone.code,
       action: "RESERVATION_RELEASED", field: "status",
@@ -464,6 +472,25 @@ export async function createSale(fd: FormData) {
       }
     }
 
+    // Atomic claims: only one of two simultaneous sales can flip the stone
+    // (and the reservation) — the loser updates zero rows and fails here.
+    const gemClaim = await tx.gemstone.updateMany({
+      where: { id: gem.id, status: { in: reservation ? ["AVAILABLE", "RESERVED"] : ["AVAILABLE"] } },
+      data: { status: "SOLD" },
+    });
+    if (gemClaim.count !== 1) {
+      throw new Error(`Cannot sell ${gem.code}: it was just sold or is no longer available.`);
+    }
+    if (reservation) {
+      const resClaim = await tx.reservation.updateMany({
+        where: { id: reservation.id, status: "ACTIVE" },
+        data: { status: "CONVERTED" },
+      });
+      if (resClaim.count !== 1) {
+        throw new Error(`Reservation ${reservation.code} was just changed by someone else.`);
+      }
+    }
+
     const code = await nextCode(codePrefix.salesOrder, year, tx, { pad: 4 });
     const invoiceNumber = `INV-${year}-${code.split("-").pop()}`;
     const total = parsed.agreedPrice + parsed.taxAmount;
@@ -485,18 +512,6 @@ export async function createSale(fd: FormData) {
         status: "INVOICED",
       },
     });
-
-    await tx.gemstone.update({
-      where: { id: gem.id },
-      data: { status: "SOLD" },
-    });
-
-    if (reservation) {
-      await tx.reservation.update({
-        where: { id: reservation.id },
-        data: { status: "CONVERTED" },
-      });
-    }
 
     await writeAudit({
       entity: "Gemstone", entityId: gem.id, entityCode: gem.code,

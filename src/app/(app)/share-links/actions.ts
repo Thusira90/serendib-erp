@@ -4,13 +4,24 @@ import { z } from "zod";
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/rbac";
+import { can, requireAuth, type Capability } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 
+// Sharing sends stone data outside the company, so the creator needs the
+// sharing capability AND permission to see the kind of stone being shared.
+const SCOPE_CAPS: Record<"CATALOGUE" | "GEMSTONE" | "GEMSTONES" | "COLLECTION" | "ROUGH" | "ROUGHS", Capability[]> = {
+  CATALOGUE: ["collection:write", "gemstone:read"],
+  GEMSTONE: ["collection:write", "gemstone:read"],
+  GEMSTONES: ["collection:write", "gemstone:read"],
+  COLLECTION: ["collection:write", "gemstone:read"],
+  ROUGH: ["collection:write", "rough:read"],
+  ROUGHS: ["collection:write", "rough:read"],
+};
+
 const createSchema = z.object({
-  scope: z.enum(["CATALOGUE", "GEMSTONE", "GEMSTONES", "COLLECTION"]),
+  scope: z.enum(["CATALOGUE", "GEMSTONE", "GEMSTONES", "COLLECTION", "ROUGH", "ROUGHS"]),
   payload: z.string().nullable(),                 // JSON string, per-scope shape
   ttlMinutes: z.number().int().positive().max(60 * 24 * 30), // hard cap 30 days
   message: z.string().nullable(),
@@ -47,6 +58,10 @@ export async function createShareLink(fd: FormData): Promise<{ code: string }> {
     brokerPhone: str(fd.get("brokerPhone")),
     brokerEmail: str(fd.get("brokerEmail")),
   });
+
+  for (const cap of SCOPE_CAPS[parsed.scope]) {
+    if (!can(session.user, cap)) throw new Error(`Forbidden: missing capability ${cap}`);
+  }
 
   // Slug uniqueness: retry a couple of times on collision — 6 random bytes
   // (~48 bits) makes clashes vanishingly unlikely, so 3 tries is plenty.
