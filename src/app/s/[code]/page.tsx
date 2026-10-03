@@ -24,8 +24,8 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
     return <ExpiredView expiresAt={link.expiresAt} revokedAt={link.revokedAt} brokerMode={link.brokerMode} brandLabel={link.brokerCompany ?? link.brokerName ?? null} />;
   }
 
-  // Fire-and-forget view counter.
-  prisma.shareLink.update({
+  // Awaited so serverless does not drop the write when the response finishes.
+  await prisma.shareLink.update({
     where: { id: link.id },
     data: {
       viewCount: { increment: 1 },

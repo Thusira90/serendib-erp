@@ -66,8 +66,8 @@ export default async function TimedShareGemPage({
   });
   if (!gem) return notFound();
 
-  // Track another view.
-  prisma.shareLink.update({
+  // Awaited so serverless does not drop the write when the response finishes.
+  await prisma.shareLink.update({
     where: { id: link.id },
     data: {
       viewCount: { increment: 1 },

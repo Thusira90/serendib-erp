@@ -1,4 +1,5 @@
-// Client-safe capability matrix mirror. Keep in sync with rbac.ts.
+// Client-safe capability matrix mirror of rbac.ts (which is server-only and
+// cannot be imported here). scripts/test-rbac-drift.ts fails on any difference.
 import type { Role } from "@/lib/enums";
 
 export type Capability =
@@ -116,6 +117,7 @@ const matrix: Record<Role, Capability[]> = {
     "rough:read","gemstone:read","supplier:read","financials:read","dashboard:read","audit:read","cost:write",
     "customer:read","quotation:read","reservation:read","sale:read","sale:write",
     "payment:read","payment:write","shipment:read","report:read",
+    "expense:read","expense:write",
     "director:read","director:write",
     "shareholder:read","shareholder:write",
     "capital:read","capital:write",

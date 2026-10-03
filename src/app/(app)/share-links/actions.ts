@@ -54,9 +54,9 @@ const createSchema = z.object({
   brokerEmail: z.string().nullable(),
 });
 
-/** URL-safe short slug, ~48 bits of entropy — hard to guess in the wild. */
+/** URL-safe 12-char slug, 72 bits of entropy — hard to guess in the wild. */
 function slug(): string {
-  return randomBytes(6).toString("base64url").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 10);
+  return randomBytes(9).toString("base64url");
 }
 
 export async function createShareLink(fd: FormData): Promise<{ code: string }> {
@@ -91,8 +91,8 @@ export async function createShareLink(fd: FormData): Promise<{ code: string }> {
     payload = JSON.stringify(shaped.data);
   }
 
-  // Slug uniqueness: retry a couple of times on collision — 6 random bytes
-  // (~48 bits) makes clashes vanishingly unlikely, so 3 tries is plenty.
+  // Slug uniqueness: retry a couple of times on collision — 9 random bytes
+  // (72 bits) makes clashes vanishingly unlikely, so 3 tries is plenty.
   let code = slug();
   for (let attempt = 0; attempt < 3; attempt++) {
     const clash = await prisma.shareLink.findUnique({ where: { code } });
@@ -135,9 +135,13 @@ export async function revokeShareLink(fd: FormData) {
   const id = str(fd.get("id"));
   if (!id) throw new Error("id required");
   const before = await prisma.shareLink.findUniqueOrThrow({ where: { id } });
-  if (before.createdById !== session.user.id && session.user.role !== "SUPER_ADMIN" && session.user.role !== "ADMINISTRATOR") {
+  const isCreator = before.createdById === session.user.id;
+  const isAdmin = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMINISTRATOR";
+  if (!isCreator && !isAdmin) {
+    if (!can(session.user, "collection:write")) throw new Error("Forbidden: missing capability collection:write");
     throw new Error("You can only revoke your own links.");
   }
+  if (before.revokedAt) return;
   await prisma.shareLink.update({ where: { id }, data: { revokedAt: new Date() } });
   await writeAudit({
     entity: "ShareLink", entityId: id, entityCode: before.code,

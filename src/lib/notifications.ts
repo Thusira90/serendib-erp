@@ -10,20 +10,20 @@ type Tx = PrismaClient | Prisma.TransactionClient;
  * still only gets one notification per event because we de-duplicate on userId.
  */
 const audienceByType: Record<NotificationType, Role[]> = {
-  SALE_CREATED:          ["ADMINISTRATOR", "MANAGEMENT", "SALES", "FINANCE"],
-  PAYMENT_RECORDED:      ["ADMINISTRATOR", "MANAGEMENT", "FINANCE"],
-  RESERVATION_CREATED:   ["ADMINISTRATOR", "SALES"],
-  RESERVATION_RELEASED:  ["ADMINISTRATOR", "SALES"],
-  RESERVATION_EXPIRING:  ["ADMINISTRATOR", "SALES"],
-  QUOTATION_ACCEPTED:    ["ADMINISTRATOR", "MANAGEMENT", "SALES"],
-  QUOTATION_EXPIRING:    ["ADMINISTRATOR", "SALES"],
-  CERTIFICATE_ISSUED:    ["ADMINISTRATOR", "MANAGEMENT", "GEMOLOGIST", "SALES"],
-  CGI_MASTER_SET:        ["ADMINISTRATOR", "MANAGEMENT", "CGI_MEDIA", "SALES"],
-  SHIPMENT_CREATED:      ["ADMINISTRATOR", "MANAGEMENT", "WAREHOUSE", "SALES"],
-  SHIPMENT_DELIVERED:    ["ADMINISTRATOR", "MANAGEMENT", "WAREHOUSE", "SALES"],
-  ENQUIRY_NEW:           ["ADMINISTRATOR", "SALES"],
-  CUTTING_COMPLETED:     ["ADMINISTRATOR", "MANAGEMENT", "GEMOLOGIST"],
-  ALERT:                 ["ADMINISTRATOR", "MANAGEMENT"],
+  SALE_CREATED:          ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "SALES", "FINANCE"],
+  PAYMENT_RECORDED:      ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "FINANCE"],
+  RESERVATION_CREATED:   ["SUPER_ADMIN", "ADMINISTRATOR", "SALES"],
+  RESERVATION_RELEASED:  ["SUPER_ADMIN", "ADMINISTRATOR", "SALES"],
+  RESERVATION_EXPIRING:  ["SUPER_ADMIN", "ADMINISTRATOR", "SALES"],
+  QUOTATION_ACCEPTED:    ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "SALES"],
+  QUOTATION_EXPIRING:    ["SUPER_ADMIN", "ADMINISTRATOR", "SALES"],
+  CERTIFICATE_ISSUED:    ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "GEMOLOGIST", "SALES"],
+  CGI_MASTER_SET:        ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "CGI_MEDIA", "SALES"],
+  SHIPMENT_CREATED:      ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "WAREHOUSE", "SALES"],
+  SHIPMENT_DELIVERED:    ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "WAREHOUSE", "SALES"],
+  ENQUIRY_NEW:           ["SUPER_ADMIN", "ADMINISTRATOR", "SALES"],
+  CUTTING_COMPLETED:     ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "GEMOLOGIST"],
+  ALERT:                 ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT"],
 };
 
 export type NotifyEvent = {
@@ -46,6 +46,7 @@ export type NotifyEvent = {
 export async function notify(event: NotifyEvent, tx: Tx = defaultPrisma) {
   const client = tx as PrismaClient;
   const roles = new Set<Role>([...audienceByType[event.type], ...(event.extraRoles ?? [])]);
+  if (roles.has("ADMINISTRATOR")) roles.add("SUPER_ADMIN"); // owner tier sees whatever admins see
   const roleUsers = await client.user.findMany({
     where: { active: true, role: { in: Array.from(roles) } },
     select: { id: true },

@@ -120,8 +120,9 @@ export async function postJournal(args: PostJournalArgs, tx: Tx = defaultPrisma)
 /**
  * Post a reversing journal: same lines with debit/credit swapped, dated
  * today, linked back to the original via reversalOfId. The original is
- * marked REVERSED (still visible, still queryable, but excluded from the
- * live trial balance by convention — we sum only POSTED rows).
+ * marked REVERSED (still visible and queryable). The trial balance counts
+ * both POSTED and REVERSED journals, so the original and its reversal net
+ * to zero; only DRAFT journals are left out.
  *
  * We never edit posted lines. This is the only permitted "correction" flow.
  */
