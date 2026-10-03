@@ -17,5 +17,8 @@ export async function signInAction(fd: FormData, callbackUrl: string) {
     }
     throw err;
   }
-  redirect(callbackUrl || "/");
+  // Only same-site paths: an absolute or protocol-relative callbackUrl would
+  // let a crafted login link send the user to another site after signing in.
+  const safe = callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") && !callbackUrl.startsWith("/\\");
+  redirect(safe ? callbackUrl : "/");
 }
