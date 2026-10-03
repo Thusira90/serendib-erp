@@ -1,5 +1,5 @@
 import "server-only";
-import type { Payment, Prisma, SalesOrder } from "@prisma/client";
+import type { Payment, Prisma, SalesOrder, Shipment } from "@prisma/client";
 import { captureRate, convertStrict, paymentInOrderCurrency, round2, toBaseAt, type Rates } from "@/lib/money";
 import { codePrefix, nextCode } from "@/lib/ids";
 import type { PaymentMethod, SalesOrderStatus } from "@/lib/enums";
@@ -57,12 +57,49 @@ async function lockSale(tx: Tx, salesOrderId: string): Promise<SalesOrder> {
   return tx.salesOrder.findUniqueOrThrow({ where: { id: salesOrderId } });
 }
 
-async function loadNetPaid(tx: Tx, rates: Rates, so: Pick<SalesOrder, "id" | "currency">): Promise<number> {
-  const payments = await tx.payment.findMany({
-    where: { salesOrderId: so.id },
-    select: { amount: true, currency: true, orderCurrencyAmount: true },
+type HeldPayment = { amount: unknown; currency: string; orderCurrencyAmount?: unknown; fxRateLkr?: { toString(): string } | null };
+
+async function loadPayments(tx: Tx, salesOrderId: string): Promise<HeldPayment[]> {
+  return tx.payment.findMany({
+    where: { salesOrderId },
+    select: { amount: true, currency: true, orderCurrencyAmount: true, fxRateLkr: true },
   });
-  return netPaidInOrderCurrency(rates, payments, so.currency);
+}
+
+async function loadNetPaid(tx: Tx, rates: Rates, so: Pick<SalesOrder, "id" | "currency">): Promise<number> {
+  return netPaidInOrderCurrency(rates, await loadPayments(tx, so.id), so.currency);
+}
+
+/**
+ * Value of a refund in the order currency and its LKR rate. Cash still held in
+ * the refund currency is returned at the rate it came in at (pro rata), so
+ * refunding exactly what was received always nets to zero whatever the rate
+ * does; only cash not held in that currency is converted at today's rate.
+ */
+export function refundValue(
+  rates: Rates,
+  payments: HeldPayment[],
+  amount: number,
+  currency: string,
+  orderCurrency: string,
+): { orderCurrencyAmount: number; fxRateLkr: number | null } {
+  let heldCash = 0;
+  let heldOrder = 0;
+  let heldLkr = 0;
+  for (const p of payments) {
+    if (p.currency !== currency) continue;
+    const cash = Number(p.amount);
+    heldCash += cash;
+    heldOrder += paymentInOrderCurrency(rates, p, orderCurrency);
+    heldLkr += toBaseStored(rates, cash, p.currency, p.fxRateLkr);
+  }
+  const fromHeld = heldCash > MONEY_TOLERANCE ? Math.min(amount, heldCash) : 0;
+  const rest = amount - fromHeld;
+  const restValue = rest > MONEY_TOLERANCE ? toOrderCurrency(rates, rest, currency, orderCurrency) : 0;
+  const orderCurrencyAmount = round2((fromHeld > 0 ? (heldOrder * fromHeld) / heldCash : 0) + restValue);
+  if (currency === rates.base) return { orderCurrencyAmount, fxRateLkr: null };
+  const lkr = (fromHeld > 0 ? (heldLkr * fromHeld) / heldCash : 0) + (rest > MONEY_TOLERANCE ? toBaseStored(rates, rest, currency, null) : 0);
+  return { orderCurrencyAmount, fxRateLkr: lkr > 0 ? lkr / amount : captureRate(rates, currency) };
 }
 
 async function settle(tx: Tx, so: SalesOrder, netPaid: number): Promise<SalesOrderStatus> {
@@ -143,8 +180,9 @@ export async function applyRefund(tx: Tx, rates: Rates, input: PaymentInput, now
   const so = await lockSale(tx, input.salesOrderId);
   if (so.status === "CANCELLED") throw new LedgerError(`Sales order ${so.code} is cancelled.`);
 
-  const orderCurrencyAmount = toOrderCurrency(rates, input.amount, input.currency, so.currency);
-  const before = await loadNetPaid(tx, rates, so);
+  const payments = await loadPayments(tx, so.id);
+  const before = netPaidInOrderCurrency(rates, payments, so.currency);
+  const { orderCurrencyAmount, fxRateLkr } = refundValue(rates, payments, input.amount, input.currency, so.currency);
   if (orderCurrencyAmount > before + MONEY_TOLERANCE) {
     throw new LedgerError(
       `Cannot refund more than has been paid: ${Math.max(0, before).toFixed(2)} ${so.currency} is held on ${so.code}.`,
@@ -158,7 +196,7 @@ export async function applyRefund(tx: Tx, rates: Rates, input: PaymentInput, now
       customerId: so.customerId,
       amount: -input.amount,
       currency: input.currency,
-      fxRateLkr: captureRate(rates, input.currency),
+      fxRateLkr,
       orderCurrencyAmount: -orderCurrencyAmount,
       method: input.method,
       reference: input.reference ?? null,
@@ -224,6 +262,44 @@ export async function applyCancelSale(
     data: { status: "AVAILABLE" },
   });
   return { so, gemCode: gem.code, gemReleased: release.count === 1, shipmentCancelled };
+}
+
+/**
+ * Moves a shipment to a new status and, for SHIPPED / DELIVERED, the sales
+ * order with it. Takes the same sales-order lock as cancelSale, so a cancelled
+ * sale (or its cancelled shipment) can never be revived by a status click.
+ * Returns the shipment as it was before the change.
+ */
+export async function applyShipmentStatus(
+  tx: Tx,
+  shipmentId: string,
+  status: string,
+  now = new Date(),
+): Promise<Shipment & { salesOrder: SalesOrder }> {
+  if (status === "CANCELLED") throw new LedgerError("A shipment is cancelled by cancelling its sale.");
+  const found = await tx.shipment.findUniqueOrThrow({ where: { id: shipmentId }, select: { salesOrderId: true } });
+  await lockSale(tx, found.salesOrderId);
+  const before = await tx.shipment.findUniqueOrThrow({ where: { id: shipmentId }, include: { salesOrder: true } });
+  if (before.status === "CANCELLED" || before.salesOrder.status === "CANCELLED") {
+    throw new LedgerError(`Sales order ${before.salesOrder.code} is cancelled; shipment ${before.code} can no longer change status.`);
+  }
+  await tx.shipment.update({
+    where: { id: shipmentId },
+    data: {
+      status,
+      ...(status === "PACKED" && !before.packedAt ? { packedAt: now } : {}),
+      ...(status === "SHIPPED" && !before.shippedAt ? { shippedAt: now } : {}),
+      ...(status === "DELIVERED" && !before.deliveredAt ? { deliveredAt: now } : {}),
+    },
+  });
+  if (status === "SHIPPED" || status === "DELIVERED") {
+    const res = await tx.salesOrder.updateMany({
+      where: { id: before.salesOrderId, status: { not: "CANCELLED" } },
+      data: { status },
+    });
+    if (res.count !== 1) throw new LedgerError(`Sales order ${before.salesOrder.code} was just changed by someone else.`);
+  }
+  return before;
 }
 
 /** toBaseAt for Prisma rows, whose stored rate is a Decimal: LKR value at the rate stored on the record, else today's. */

@@ -41,7 +41,7 @@ export default async function DashboardPage() {
   const [
     roughByStatus, gemByStatus,
     recentGems,
-    salesThisMonth, salesThisYear,
+    salesThisMonth, salesThisYear, openOrders,
     lastAudit, alerts,
     lastSale, lastEnquiry,
     activeDirectorCount, allContributions,
@@ -60,6 +60,11 @@ export default async function DashboardPage() {
     prisma.gemstone.findMany({ take: 6, orderBy: { createdAt: "desc" } }),
     prisma.salesOrder.findMany({ where: { saleDate: { gte: monthStart, lte: monthEnd }, status: { not: "CANCELLED" } } }),
     prisma.salesOrder.findMany({ where: { saleDate: { gte: yearStart }, status: { not: "CANCELLED" } }, include: { gemstone: true, payments: { select: { amount: true, currency: true, orderCurrencyAmount: true } } } }),
+    // Outstanding covers every live invoice with a balance, whatever year it was issued.
+    prisma.salesOrder.findMany({
+      where: { status: { notIn: ["CANCELLED", "PAID"] } },
+      select: { totalAmount: true, currency: true, fxRateLkr: true, payments: { select: { amount: true, currency: true, orderCurrencyAmount: true } } },
+    }),
     prisma.auditLog.findMany({ take: 8, orderBy: { at: "desc" } }),
     dashboardAlerts(),
     prisma.salesOrder.findFirst({ orderBy: { saleDate: "desc" }, select: { saleDate: true } }),
@@ -116,7 +121,7 @@ export default async function DashboardPage() {
     toBaseStored(rates, Number(o.agreedPrice), o.currency, o.fxRateLkr);
   const revenueMonth = sum(salesThisMonth, revenueOf);
   const revenueYtd   = sum(salesThisYear,  revenueOf);
-  const outstandingYtd = sum(salesThisYear, (o) => {
+  const outstanding = sum(openOrders, (o) => {
     const owed = round2(Number(o.totalAmount) - netPaidInOrderCurrency(rates, o.payments, o.currency));
     return toBaseStored(rates, owed, o.currency, o.fxRateLkr);
   });
@@ -180,8 +185,8 @@ export default async function DashboardPage() {
         />
         <KpiTile
           label="Outstanding"
-          value={salesThisYear.length === 0 ? "—" : formatCurrency(outstandingYtd)}
-          subtitle={salesThisYear.length === 0 ? "Nothing invoiced yet" : undefined}
+          value={openOrders.length === 0 && salesThisYear.length === 0 ? "—" : formatCurrency(outstanding)}
+          subtitle={openOrders.length === 0 && salesThisYear.length === 0 ? "Nothing invoiced yet" : undefined}
           icon={<AlertTriangle />}
         />
       </div>

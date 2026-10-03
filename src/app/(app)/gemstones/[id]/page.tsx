@@ -48,7 +48,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
       },
       digitalAssets: { orderBy: { createdAt: "desc" } },
       reservations: { orderBy: { reservedAt: "desc" }, include: { customer: true } },
-      salesOrders: { orderBy: { saleDate: "desc" }, include: { customer: true }, take: 1 },
+      salesOrders: { where: { status: { not: "CANCELLED" } }, orderBy: { saleDate: "desc" }, include: { customer: true }, take: 1 },
     },
   });
   if (!g) return notFound();

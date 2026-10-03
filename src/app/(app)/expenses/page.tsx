@@ -10,6 +10,8 @@ import { NewExpenseButton } from "./new-expense-button";
 import { Coins, ReceiptText } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { HBarChart, compactCurrency } from "@/components/charts/bar-chart";
+import { getExchangeRates } from "@/lib/money";
+import { toBaseStored } from "@/lib/sales-ledger";
 
 const statusVariant: Record<string, "muted" | "teal" | "success" | "danger" | "purple"> = {
   RECORDED: "muted", APPROVED: "success", REIMBURSED: "purple", REJECTED: "danger",
@@ -19,23 +21,32 @@ const catLabel = (c: string) => c.replaceAll("_", " ").toLowerCase().replace(/\b
 
 export default async function ExpensesPage() {
   const session = await requireCapability("expense:read");
-  const canWrite = can(session.user.role, "expense:write");
+  const canWrite = can(session.user, "expense:write");
 
   const now = new Date();
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
   const yearStart = new Date(now.getUTCFullYear(), 0, 1);
 
-  const [all, thisMonth, ytd, byCategory, company] = await Promise.all([
+  // Same basis as the P&L opex: rejected rows and stone bills capitalised into stone cost are left out,
+  // and every amount is converted at the rate stored on the expense, never summed raw across currencies.
+  const [all, ytdRows, company, rates] = await Promise.all([
     prisma.expense.findMany({ orderBy: { incurredAt: "desc" }, take: 200 }),
-    prisma.expense.aggregate({ where: { incurredAt: { gte: monthStart, lte: monthEnd } }, _sum: { amount: true }, _count: { _all: true } }),
-    prisma.expense.aggregate({ where: { incurredAt: { gte: yearStart } }, _sum: { amount: true } }),
-    prisma.expense.groupBy({ by: ["category"], where: { incurredAt: { gte: yearStart } }, _sum: { amount: true } }),
+    prisma.expense.findMany({
+      where: { incurredAt: { gte: yearStart }, status: { not: "REJECTED" }, costAllocation: { is: null } },
+      select: { category: true, amount: true, currency: true, fxRateLkr: true, incurredAt: true },
+    }),
     getCompanySettings(),
+    getExchangeRates(),
   ]);
+  const lkr = (x: (typeof ytdRows)[number]) => toBaseStored(rates, Number(x.amount), x.currency, x.fxRateLkr);
+  const monthRows = ytdRows.filter((x) => x.incurredAt >= monthStart && x.incurredAt <= monthEnd);
+  const monthTotal = monthRows.reduce((s, x) => s + lkr(x), 0);
+  const ytdTotal = ytdRows.reduce((s, x) => s + lkr(x), 0);
+  const byCategoryMap = new Map<string, number>();
+  for (const x of ytdRows) byCategoryMap.set(x.category, (byCategoryMap.get(x.category) ?? 0) + lkr(x));
 
-  const chart = byCategory
-    .map((c) => ({ label: catLabel(c.category), value: Number(c._sum.amount ?? 0) }))
+  const chart = Array.from(byCategoryMap, ([category, value]) => ({ label: catLabel(category), value }))
     .sort((a, b) => b.value - a.value);
 
   return (
@@ -49,10 +60,10 @@ export default async function ExpensesPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="This month" value={formatCurrency(Number(thisMonth._sum.amount ?? 0))} accent />
-        <Stat label="Count this month" value={String(thisMonth._count._all)} />
-        <Stat label="YTD" value={formatCurrency(Number(ytd._sum.amount ?? 0))} />
-        <Stat label="Categories" value={String(byCategory.length)} />
+        <Stat label="This month" value={formatCurrency(monthTotal)} accent />
+        <Stat label="Count this month" value={String(monthRows.length)} />
+        <Stat label="YTD" value={formatCurrency(ytdTotal)} />
+        <Stat label="Categories" value={String(byCategoryMap.size)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">

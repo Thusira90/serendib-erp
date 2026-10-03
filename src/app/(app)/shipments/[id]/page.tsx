@@ -32,7 +32,8 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
     },
   });
   if (!s) return notFound();
-  const canWrite = can(session.user.role, "shipment:write");
+  const canWrite = can(session.user, "shipment:write");
+  const cancelled = s.status === "CANCELLED" || s.salesOrder.status === "CANCELLED";
 
   return (
     <div className="space-y-4">
@@ -101,7 +102,7 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
             <Stage label="In transit" date={null}         current={s.status === "IN_TRANSIT"} done={s.status === "IN_TRANSIT" || s.status === "DELIVERED"} />
             <Stage label="Delivered" date={s.deliveredAt} current={s.status === "DELIVERED"} done={!!s.deliveredAt} />
 
-            {canWrite && (
+            {canWrite && !cancelled && (
               <div className="pt-3 border-t">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Set status</div>
                 <div className="flex flex-wrap gap-1">

@@ -10,7 +10,7 @@ import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
 import { CUTTING_JOB_STATUSES } from "@/lib/enums";
 import { convertStrict, getExchangeRates, round2 } from "@/lib/money";
-import { cutGemLines, lockRoughStone } from "@/lib/bill-allocation";
+import { cutAllGemLines, lockRoughStone } from "@/lib/bill-allocation";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const dec = (v: FormDataEntryValue | null) => {
@@ -259,15 +259,16 @@ export async function completeCuttingJob(fd: FormData) {
 
     // Mint gemstones.
     const gemRows: { id: string; code: string; weight: number; allocatedCost: number; askingPrice: number | null }[] = [];
-    for (const o of parsed.outputs) {
+    // Each line is rounded on its own so totalCost always equals the sum of its
+    // allocation lines (later bills re-sum those lines); the last gem takes
+    // the rounding remainder so the gems add up to the rough's full cost.
+    const allLines = cutAllGemLines(rates, {
+      rough, bills: roughBills, weights: parsed.outputs.map((o) => o.weightCt), target,
+      cutting: { jobCode: job.code, totalCost },
+    });
+    for (const [idx, o] of parsed.outputs.entries()) {
       const code = await nextCode(codePrefix.gemstone, year, tx);
-      const share = outputTotalWt > 0 ? o.weightCt / outputTotalWt : 0;
-      // Each line is rounded on its own so totalCost always equals the sum of
-      // its allocation lines (later bills re-sum those lines).
-      const lines = cutGemLines(rates, {
-        rough, bills: roughBills, share, target,
-        cutting: { jobCode: job.code, totalCost },
-      });
+      const lines = allLines[idx];
       const totalGemCost = round2(lines.reduce((s, l) => s + l.amount, 0));
       const costPerCt = o.weightCt > 0 ? round2(totalGemCost / o.weightCt) : 0;
       const gem = await tx.gemstone.create({

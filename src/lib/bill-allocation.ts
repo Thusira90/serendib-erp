@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
-import { convertStrict, fxNote, recomputeGemCost, round2, type Rates } from "@/lib/money";
+import { STONE_BILL_CATEGORIES } from "@/lib/enums";
+import { convert, convertStrict, fxNote, recomputeGemCost, round2, toBaseAt, type Rates } from "@/lib/money";
 
 type Tx = Prisma.TransactionClient;
 
@@ -89,6 +90,53 @@ export function cutGemLines(
   return lines;
 }
 
+/**
+ * Lines for every gem of one cut, with the rounding remainder of each line
+ * given to the last gem so the gems together carry exactly the rough price,
+ * each bill and the cutting cost. `weights` are the output weights in order.
+ */
+export function cutAllGemLines(
+  rates: Rates,
+  p: {
+    rough: { code: string; purchasePrice: unknown; currency: string };
+    bills: BillLike[];
+    weights: number[];
+    target: string;
+    cutting?: { jobCode: string; totalCost: number };
+  },
+): GemCostLine[][] {
+  const total = p.weights.reduce((s, w) => s + w, 0);
+  const perGem = p.weights.map((w) => cutGemLines(rates, { ...p, share: total > 0 ? w / total : 0 }));
+  if (perGem.length < 2 || total <= 0) return perGem;
+  const exact = [
+    convertStrict(rates, Number(p.rough.purchasePrice), p.rough.currency, p.target),
+    ...p.bills.map((b) => convertStrict(rates, Number(b.amount), b.currency, p.target)),
+    ...(p.cutting && p.cutting.totalCost > 0 ? [p.cutting.totalCost] : []),
+  ];
+  const last = perGem[perGem.length - 1];
+  exact.forEach((amount, j) => {
+    const others = perGem.slice(0, -1).reduce((s, lines) => s + lines[j].amount, 0);
+    last[j] = { ...last[j], amount: round2(amount - others) };
+  });
+  return perGem;
+}
+
+/** A cost entered against a gem, expressed in the gem's currency at the rate stored on the booking (today's when none). */
+export function amountInGemCurrency(
+  rates: Rates,
+  amount: number,
+  currency: string,
+  gemCurrency: string,
+  storedRate?: { toString(): string } | number | null,
+): number {
+  if (currency === gemCurrency) return round2(amount);
+  const stored = storedRate == null ? NaN : Number(storedRate.toString());
+  if (currency !== rates.base && Number.isFinite(stored) && stored > 0) {
+    return round2(convertStrict(rates, toBaseAt(rates, amount, currency, stored), rates.base, gemCurrency));
+  }
+  return round2(convertStrict(rates, amount, currency, gemCurrency));
+}
+
 /** The gems a cut rough produced, each with its weight share of its cutting transformation. */
 export async function derivedGemShares(tx: Tx, roughStoneId: string): Promise<GemShare[]> {
   const inputs = await tx.transformationInput.findMany({
@@ -129,16 +177,28 @@ export async function allocateRoughBillToGems(
 ): Promise<string[]> {
   const shares = await derivedGemShares(tx, rough.id);
   if (shares.length === 0) return [];
-  const have = new Set(
-    (await tx.costAllocation.findMany({
-      where: { sourceAllocationId: bill.id },
-      select: { gemstoneId: true },
-    })).map((l) => l.gemstoneId),
-  );
+  const existing = await tx.costAllocation.findMany({
+    where: { sourceAllocationId: bill.id },
+    select: { gemstoneId: true, amount: true },
+  });
+  const have = new Map(existing.map((l) => [l.gemstoneId, Number(l.amount)]));
+  const lineFor = new Map(shares.map((s) => [s.gemstoneId, roughBillShareLine(rates, bill, rough.code, s.share, s.currency)]));
+  // Per gem currency, the last gem takes the rounding remainder so the copies add up to the bill.
+  const byCurrency = new Map<string, GemShare[]>();
+  for (const s of shares) byCurrency.set(s.currency, [...(byCurrency.get(s.currency) ?? []), s]);
+  for (const [currency, group] of byCurrency) {
+    const lastGem = group[group.length - 1];
+    if (have.has(lastGem.gemstoneId)) continue;
+    const exact = convert(rates, Number(bill.amount), bill.currency, currency);
+    if (exact == null) continue;
+    const target = round2(exact * group.reduce((sum, g) => sum + g.share, 0));
+    const others = group.slice(0, -1).reduce((sum, g) => sum + (have.get(g.gemstoneId) ?? lineFor.get(g.gemstoneId)!.amount), 0);
+    lineFor.set(lastGem.gemstoneId, { ...lineFor.get(lastGem.gemstoneId)!, amount: round2(target - others) });
+  }
   const changed: string[] = [];
   for (const s of shares) {
     if (have.has(s.gemstoneId)) continue;
-    const line = roughBillShareLine(rates, bill, rough.code, s.share, s.currency);
+    const line = lineFor.get(s.gemstoneId)!;
     await tx.costAllocation.create({
       data: {
         gemstoneId: s.gemstoneId,
@@ -151,7 +211,7 @@ export async function allocateRoughBillToGems(
     });
     changed.push(s.gemstoneId);
   }
-  for (const id of changed) await recomputeGemCost(tx, id, rates);
+  for (const id of changed.sort()) await recomputeGemCost(tx, id, rates);
   return changed;
 }
 
@@ -161,6 +221,7 @@ export type StoneBillExpense = {
   description: string;
   amount: unknown;
   currency: string;
+  fxRateLkr?: { toString(): string } | null;
   incurredAt: Date;
   relatedEntity: string | null;
   relatedId: string | null;
@@ -170,7 +231,7 @@ export type StoneBillExpense = {
  * Creates the stone's CostAllocation for a stone-bill expense: on the gem
  * (recomputing its cost) or on the rough (and on every gem already cut from
  * it). Returns null when there is nothing to do: no linked stone, the stone
- * is gone, or the expense already has its allocation.
+ * is gone, the category is overhead, or the expense already has its allocation.
  */
 export async function allocateExpenseToStone(
   tx: Tx,
@@ -178,6 +239,8 @@ export async function allocateExpenseToStone(
   expense: StoneBillExpense,
 ): Promise<{ allocationId: string; gemIds: string[] } | null> {
   if (!expense.relatedId) return null;
+  // Overhead (rent, salaries, ...) must never be capitalised into stone cost, whoever linked it.
+  if (!(STONE_BILL_CATEGORIES as readonly string[]).includes(expense.category)) return null;
   if (await tx.costAllocation.findUnique({ where: { expenseId: expense.id }, select: { id: true } })) return null;
 
   const base = {
@@ -190,9 +253,19 @@ export async function allocateExpenseToStone(
   };
 
   if (expense.relatedEntity === "Gemstone") {
-    const gem = await tx.gemstone.findUnique({ where: { id: expense.relatedId }, select: { id: true } });
+    const gem = await tx.gemstone.findUnique({ where: { id: expense.relatedId }, select: { id: true, currency: true } });
     if (!gem) return null;
-    const a = await tx.costAllocation.create({ data: { ...base, gemstoneId: gem.id } });
+    // Frozen in the gem's currency at booking, like the rough-bill copies, so later recomputes never re-price it.
+    const amount = amountInGemCurrency(rates, Number(expense.amount), expense.currency, gem.currency, expense.fxRateLkr);
+    const a = await tx.costAllocation.create({
+      data: {
+        ...base,
+        amount,
+        currency: gem.currency,
+        description: `${expense.description}${fxNote(rates, Number(expense.amount), expense.currency, gem.currency)}`,
+        gemstoneId: gem.id,
+      },
+    });
     await recomputeGemCost(tx, gem.id, rates);
     return { allocationId: a.id, gemIds: [gem.id] };
   }
@@ -236,6 +309,6 @@ export async function removeExpenseAllocation(
   const { count } = await tx.costAllocation.deleteMany({
     where: { OR: [{ id: alloc.id }, { sourceAllocationId: alloc.id }] },
   });
-  for (const id of gemIds) await recomputeGemCost(tx, id, rates);
+  for (const id of [...gemIds].sort()) await recomputeGemCost(tx, id, rates);
   return { allocationId: alloc.id, removedLines: count, gemIds: [...gemIds] };
 }

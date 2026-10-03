@@ -9,6 +9,7 @@ import { codePrefix, nextCode } from "@/lib/ids";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
 import { SHIPMENT_STATUSES } from "@/lib/enums";
+import { applyShipmentStatus } from "@/lib/sales-ledger";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const dec = (v: FormDataEntryValue | null) => {
@@ -164,34 +165,7 @@ export async function updateShipmentStatus(fd: FormData) {
     status: str(fd.get("status")),
   });
   await prisma.$transaction(async (tx) => {
-    const before = await tx.shipment.findUniqueOrThrow({ where: { id: parsed.id }, include: { salesOrder: true } });
-    const now = new Date();
-    const patches: {
-      packedAt?: Date;
-      shippedAt?: Date;
-      deliveredAt?: Date;
-    } = {};
-    if (parsed.status === "PACKED" && !before.packedAt) patches.packedAt = now;
-    if (parsed.status === "SHIPPED" && !before.shippedAt) patches.shippedAt = now;
-    if (parsed.status === "DELIVERED" && !before.deliveredAt) patches.deliveredAt = now;
-
-    await tx.shipment.update({
-      where: { id: parsed.id },
-      data: { status: parsed.status, ...patches },
-    });
-
-    if (parsed.status === "SHIPPED") {
-      await tx.salesOrder.update({
-        where: { id: before.salesOrderId },
-        data: { status: "SHIPPED" },
-      });
-    } else if (parsed.status === "DELIVERED") {
-      await tx.salesOrder.update({
-        where: { id: before.salesOrderId },
-        data: { status: "DELIVERED" },
-      });
-    }
-
+    const before = await applyShipmentStatus(tx, parsed.id, parsed.status);
     await writeAudit({
       entity: "Shipment", entityId: parsed.id, entityCode: before.code,
       action: "STATUS_CHANGE", field: "status",

@@ -83,6 +83,8 @@ export async function recomputeGemCost(
   gemstoneId: string,
   rates: Rates,
 ): Promise<number> {
+  // Serialises concurrent recomputes so the later one re-reads after the earlier commit (NO KEY UPDATE: the FK share lock of a line insert would deadlock a plain FOR UPDATE).
+  await tx.$queryRaw`SELECT "id" FROM "Gemstone" WHERE "id" = ${gemstoneId} FOR NO KEY UPDATE`;
   const gem = await tx.gemstone.findUniqueOrThrow({
     where: { id: gemstoneId },
     select: { weightCt: true, currency: true },

@@ -71,7 +71,8 @@ export async function createExpense(fd: FormData) {
         description: parsed.description,
         incurredAt: parsed.incurredAt ?? new Date(),
         relatedEntity: parsed.relatedEntity,
-        relatedId: parsed.relatedId,
+        // Stone cost links come only from addStoneBill; a client-supplied id must not capitalise a general expense.
+        relatedId: parsed.relatedEntity === "RoughStone" || parsed.relatedEntity === "Gemstone" ? null : parsed.relatedId,
         relatedCode: parsed.relatedCode,
         receiptUrl: receipt?.url ?? str(fd.get("receiptUrl")),
         recordedBy: session.user.name ?? null,
