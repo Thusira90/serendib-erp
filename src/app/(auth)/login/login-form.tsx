@@ -25,15 +25,18 @@ export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?
         <CardDescription>Serendib Gemstones ERP</CardDescription>
       </CardHeader>
       <CardContent>
+        {/* onSubmit rather than action={...}: React 19 resets the form after an action, which wiped the email and password on a failed sign-in. */}
         <form
           className="space-y-4"
-          action={(fd) =>
+          onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
             start(async () => {
               setMessage(null);
               const res = await signInAction(fd, callbackUrl ?? "/");
               if (res?.error) setMessage(res.error);
-            })
-          }
+            });
+          }}
         >
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
