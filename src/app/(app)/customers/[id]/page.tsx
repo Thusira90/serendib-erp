@@ -11,6 +11,8 @@ import { ArrowLeft, User } from "lucide-react";
 import { MatchingGemsPanel } from "./matches-panel";
 import { CommentsThread } from "@/components/comments-thread";
 import { ShareCatalogueButton } from "@/components/share-catalogue-button";
+import { getExchangeRates } from "@/lib/money";
+import { netPaidInOrderCurrency, toBaseStored } from "@/lib/sales-ledger";
 
 const typeLabel: Record<string, string> = {
   COLLECTOR: "Collector", JEWELLER: "Jeweller", JEWELLERY_BRAND: "Jewelry Brand",
@@ -34,9 +36,17 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   if (!customer) return notFound();
   const prefs = parsePreferences(customer.preferences);
 
-  const totalSales = customer.salesOrders.reduce((s, so) => s + Number(so.totalAmount), 0);
-  const totalPaid = customer.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const outstanding = totalSales - totalPaid;
+  // Outstanding is what this customer still owes on live (non-cancelled)
+  // sales, in LKR; each sale's paid amount is summed in that sale's own
+  // currency, never across currencies.
+  const rates = await getExchangeRates();
+  const owedLkr = customer.salesOrders
+    .filter((so) => so.status !== "CANCELLED")
+    .reduce((s, so) => s + toBaseStored(rates, Number(so.totalAmount) - netPaidInOrderCurrency(rates, so.payments, so.currency), so.currency, so.fxRateLkr), 0);
+  const outstanding = owedLkr;
+  const totalSales = customer.salesOrders
+    .filter((so) => so.status !== "CANCELLED")
+    .reduce((s, so) => s + toBaseStored(rates, Number(so.agreedPrice), so.currency, so.fxRateLkr), 0);
 
   return (
     <div className="space-y-6">
@@ -197,8 +207,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             <CardContent className="p-0 divide-y">
               {customer.salesOrders.length === 0 && <div className="p-4 text-sm text-muted-foreground">No sales yet.</div>}
               {customer.salesOrders.map((s) => {
-                const paid = s.payments.reduce((a, p) => a + Number(p.amount), 0);
-                const remaining = Number(s.totalAmount) - paid;
+                const paid = netPaidInOrderCurrency(rates, s.payments, s.currency);
+                const remaining = s.status === "CANCELLED" ? 0 : Number(s.totalAmount) - paid;
                 return (
                   <Link key={s.id} href={`/sales/${s.id}`} className="p-3 flex items-center justify-between text-sm hover:bg-secondary/40">
                     <div>

@@ -8,6 +8,8 @@ import { requireCapability } from "@/lib/rbac";
 import { codePrefix, nextCode } from "@/lib/ids";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
+import { captureRate, getExchangeRates } from "@/lib/money";
+import { LedgerError, applyCancelSale, applyPayment, applyRefund } from "@/lib/sales-ledger";
 import type { EnquiryStatus, PaymentMethod, QuotationStatus, SalesOrderStatus } from "@/lib/enums";
 import { PAYMENT_METHODS } from "@/lib/enums";
 
@@ -439,6 +441,7 @@ export async function createSale(fd: FormData) {
   });
 
   const year = new Date().getUTCFullYear();
+  const rates = await getExchangeRates();
   const sale = await prisma.$transaction(async (tx) => {
     const gem = await tx.gemstone.findUniqueOrThrow({ where: { id: parsed.gemstoneId } });
     if (gem.status === "SOLD") {
@@ -506,12 +509,40 @@ export async function createSale(fd: FormData) {
         taxAmount: parsed.taxAmount,
         totalAmount: total,
         currency: parsed.currency,
+        fxRateLkr: captureRate(rates, parsed.currency),
         saleDate: parsed.saleDate ?? new Date(),
         salespersonId: session.user.id,
         notes: parsed.notes,
         status: "INVOICED",
       },
     });
+
+    // The reservation deposit is money already received: book it as a payment so the invoice balance is right.
+    const deposit = reservation?.deposit != null ? Number(reservation.deposit) : 0;
+    if (reservation && deposit > 0) {
+      let settled;
+      try {
+        settled = await applyPayment(tx, rates, {
+          salesOrderId: so.id,
+          amount: deposit,
+          currency: reservation.currency,
+          method: "OTHER",
+          reference: `Deposit from ${reservation.code}`,
+          receivedAt: reservation.reservedAt,
+          recordedBy: session.user.name ?? null,
+        });
+      } catch (e) {
+        if (e instanceof LedgerError) throw new Error(`Cannot convert reservation ${reservation.code}: its deposit ${e.message}`);
+        throw e;
+      }
+      await writeAudit({
+        entity: "SalesOrder", entityId: so.id, entityCode: so.code,
+        action: "PAYMENT_RECORDED",
+        userId: session.user.id, userName: session.user.name ?? null,
+        newValue: `${deposit.toFixed(2)} ${reservation.currency} (deposit from ${reservation.code})`,
+        metadata: { netPaid: settled.netPaid, totalAmount: total, newStatus: settled.status },
+      }, tx);
+    }
 
     await writeAudit({
       entity: "Gemstone", entityId: gem.id, entityCode: gem.code,
@@ -531,7 +562,7 @@ export async function createSale(fd: FormData) {
     }, tx);
 
     return so;
-  });
+  }, { timeout: 20_000 });
 
   revalidatePath(`/gemstones/${parsed.gemstoneId}`);
   revalidatePath("/sales");
@@ -540,25 +571,28 @@ export async function createSale(fd: FormData) {
   redirect(`/sales/${sale.id}`);
 }
 
-// ─── Payments ────────────────────────────────────────────────────────────────
+// ─── Payments, refunds, cancellation ─────────────────────────────────────────
+
+export type LedgerActionResult = { ok: true } | { ok: false; error: string };
+
+/** Business-rule refusals become a message the dialog can show; anything else is a real failure. */
+function refusal(e: unknown): LedgerActionResult {
+  if (e instanceof LedgerError) return { ok: false, error: e.message };
+  throw e;
+}
 
 const paymentSchema = z.object({
   salesOrderId: z.string().min(1),
-  amount: z.number().positive(),
-  currency: z.string(),
+  amount: z.number().positive("Enter an amount greater than zero."),
+  currency: z.string().min(1),
   method: z.enum(PAYMENT_METHODS),
   reference: z.string().nullable(),
   receivedAt: z.date().nullable(),
   notes: z.string().nullable(),
 });
 
-/**
- * Record a payment against a sales order.
- * Recalculates SalesOrder.status → PARTIAL or PAID based on aggregate.
- */
-export async function recordPayment(fd: FormData) {
-  const session = await requireCapability("payment:write");
-  const parsed = paymentSchema.parse({
+function parsePaymentForm(fd: FormData) {
+  return paymentSchema.safeParse({
     salesOrderId: str(fd.get("salesOrderId")),
     amount: dec(fd.get("amount")),
     currency: str(fd.get("currency")) ?? "LKR",
@@ -567,59 +601,139 @@ export async function recordPayment(fd: FormData) {
     receivedAt: date(fd.get("receivedAt")),
     notes: str(fd.get("notes")),
   });
+}
 
-  const year = new Date().getUTCFullYear();
-  await prisma.$transaction(async (tx) => {
-    const so = await tx.salesOrder.findUniqueOrThrow({ where: { id: parsed.salesOrderId } });
-    if (so.status === "CANCELLED") {
-      throw new Error(`Sales order ${so.code} is cancelled.`);
-    }
-    const code = await nextCode(codePrefix.payment, year, tx, { pad: 4 });
-    await tx.payment.create({
-      data: {
-        code,
-        salesOrderId: so.id,
-        customerId: so.customerId,
-        amount: parsed.amount,
-        currency: parsed.currency,
-        method: parsed.method,
-        reference: parsed.reference,
-        receivedAt: parsed.receivedAt ?? new Date(),
-        notes: parsed.notes,
-        recordedBy: session.user.name ?? null,
-      },
-    });
-    const paid = await tx.payment.aggregate({
-      where: { salesOrderId: so.id },
-      _sum: { amount: true },
-    });
-    const paidTotal = Number(paid._sum.amount ?? 0);
-    const target = Number(so.totalAmount);
-    const nextStatus: SalesOrderStatus =
-      paidTotal >= target ? "PAID"
-      : paidTotal > 0 ? "PARTIAL"
-      : (so.status as SalesOrderStatus);
-    if (nextStatus !== so.status) {
-      await tx.salesOrder.update({ where: { id: so.id }, data: { status: nextStatus } });
-    }
-    await writeAudit({
-      entity: "SalesOrder", entityId: so.id, entityCode: so.code,
-      action: "PAYMENT_RECORDED",
-      userId: session.user.id, userName: session.user.name ?? null,
-      newValue: `${parsed.amount.toFixed(2)} ${parsed.currency} (${parsed.method})`,
-      metadata: { paidTotal, totalAmount: target, newStatus: nextStatus },
-    }, tx);
-    await notify({
-      type: "PAYMENT_RECORDED",
-      title: `Payment received — ${so.code}`,
-      body: `${parsed.amount.toFixed(2)} ${parsed.currency} · ${nextStatus === "PAID" ? "fully paid" : "partial"}`,
-      entity: "SalesOrder", entityId: so.id, entityCode: so.code,
-      url: `/sales/${so.id}`,
-      excludeUserIds: [session.user.id],
-    }, tx);
-  });
-
-  revalidatePath(`/sales/${parsed.salesOrderId}`);
+function revalidateSale(salesOrderId: string) {
+  revalidatePath(`/sales/${salesOrderId}`);
   revalidatePath("/sales");
   revalidatePath("/"); // dashboard: paid vs outstanding tiles
+  revalidatePath("/reports/sales");
+}
+
+/**
+ * Record a payment against a sales order. The amount is converted into the
+ * order's currency at receipt and the order moves to PARTIAL or PAID from the
+ * net paid total (never from raw amounts in mixed currencies).
+ */
+export async function recordPayment(fd: FormData): Promise<LedgerActionResult> {
+  const session = await requireCapability("payment:write");
+  const parsed = parsePaymentForm(fd);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid payment." };
+  const input = parsed.data;
+
+  const rates = await getExchangeRates();
+  try {
+    await prisma.$transaction(async (tx) => {
+      const r = await applyPayment(tx, rates, { ...input, recordedBy: session.user.name ?? null });
+      await writeAudit({
+        entity: "SalesOrder", entityId: r.so.id, entityCode: r.so.code,
+        action: "PAYMENT_RECORDED",
+        userId: session.user.id, userName: session.user.name ?? null,
+        newValue: `${input.amount.toFixed(2)} ${input.currency} (${input.method})`,
+        metadata: { paymentCode: r.payment.code, orderCurrencyAmount: r.orderCurrencyAmount, netPaid: r.netPaid, totalAmount: Number(r.so.totalAmount), newStatus: r.status },
+      }, tx);
+      await notify({
+        type: "PAYMENT_RECORDED",
+        title: `Payment received — ${r.so.code}`,
+        body: `${input.amount.toFixed(2)} ${input.currency} · ${r.status === "PAID" ? "fully paid" : "partial"}`,
+        entity: "SalesOrder", entityId: r.so.id, entityCode: r.so.code,
+        url: `/sales/${r.so.id}`,
+        excludeUserIds: [session.user.id],
+      }, tx);
+    }, { timeout: 20_000 });
+  } catch (e) {
+    return refusal(e);
+  }
+  revalidateSale(input.salesOrderId);
+  return { ok: true };
+}
+
+/** Pay money back to the customer. The amount is entered positive and stored negative. */
+export async function recordRefund(fd: FormData): Promise<LedgerActionResult> {
+  const session = await requireCapability("payment:write");
+  const parsed = parsePaymentForm(fd);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid refund." };
+  const input = parsed.data;
+
+  const rates = await getExchangeRates();
+  try {
+    await prisma.$transaction(async (tx) => {
+      const r = await applyRefund(tx, rates, { ...input, recordedBy: session.user.name ?? null });
+      await writeAudit({
+        entity: "SalesOrder", entityId: r.so.id, entityCode: r.so.code,
+        action: "PAYMENT_REFUNDED",
+        userId: session.user.id, userName: session.user.name ?? null,
+        newValue: `-${input.amount.toFixed(2)} ${input.currency} (${input.method})`,
+        metadata: { paymentCode: r.payment.code, orderCurrencyAmount: r.orderCurrencyAmount, netPaid: r.netPaid, totalAmount: Number(r.so.totalAmount), newStatus: r.status },
+      }, tx);
+      await notify({
+        type: "PAYMENT_RECORDED",
+        title: `Refund issued — ${r.so.code}`,
+        body: `${input.amount.toFixed(2)} ${input.currency} refunded · now ${r.status.toLowerCase()}`,
+        entity: "SalesOrder", entityId: r.so.id, entityCode: r.so.code,
+        url: `/sales/${r.so.id}`,
+        excludeUserIds: [session.user.id],
+      }, tx);
+    }, { timeout: 20_000 });
+  } catch (e) {
+    return refusal(e);
+  }
+  revalidateSale(input.salesOrderId);
+  return { ok: true };
+}
+
+/**
+ * Cancel a sale: only with nothing held (refund first) and nothing shipped.
+ * The stone returns to AVAILABLE so it can be sold again.
+ */
+export async function cancelSale(fd: FormData): Promise<LedgerActionResult> {
+  const session = await requireCapability("sale:write");
+  const id = str(fd.get("id"));
+  const reason = str(fd.get("reason"))?.trim();
+  if (!id) return { ok: false, error: "Sales order is required." };
+  if (!reason) return { ok: false, error: "A reason is required to cancel a sale." };
+
+  const rates = await getExchangeRates();
+  let gemstoneId = "";
+  let customerId = "";
+  try {
+    await prisma.$transaction(async (tx) => {
+      const r = await applyCancelSale(tx, rates, { salesOrderId: id, reason });
+      gemstoneId = r.so.gemstoneId;
+      customerId = r.so.customerId;
+      await writeAudit({
+        entity: "SalesOrder", entityId: r.so.id, entityCode: r.so.code,
+        action: "CANCELLED", field: "status",
+        oldValue: r.so.status, newValue: "CANCELLED",
+        userId: session.user.id, userName: session.user.name ?? null,
+        metadata: { reason, gemstoneCode: r.gemCode, gemReleased: r.gemReleased, shipmentCancelled: r.shipmentCancelled },
+      }, tx);
+      if (r.gemReleased) {
+        await writeAudit({
+          entity: "Gemstone", entityId: r.so.gemstoneId, entityCode: r.gemCode,
+          action: "SALE_CANCELLED", field: "status",
+          oldValue: "SOLD", newValue: "AVAILABLE",
+          userId: session.user.id, userName: session.user.name ?? null,
+          metadata: { salesOrderId: r.so.id, salesOrderCode: r.so.code, reason },
+        }, tx);
+      }
+      await notify({
+        type: "ALERT",
+        title: `Sale ${r.so.code} cancelled`,
+        body: `${r.gemCode} is back in stock. Reason: ${reason.slice(0, 160)}`,
+        entity: "SalesOrder", entityId: r.so.id, entityCode: r.so.code,
+        url: `/sales/${r.so.id}`,
+        excludeUserIds: [session.user.id],
+      }, tx);
+    }, { timeout: 20_000 });
+  } catch (e) {
+    return refusal(e);
+  }
+  revalidatePath("/");
+  revalidatePath("/sales");
+  revalidatePath(`/sales/${id}`);
+  revalidatePath(`/gemstones/${gemstoneId}`);
+  revalidatePath(`/customers/${customerId}`);
+  revalidatePath("/reports/pnl");
+  return { ok: true };
 }

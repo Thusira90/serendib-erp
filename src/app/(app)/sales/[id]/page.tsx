@@ -6,6 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import { ArrowLeft, Receipt } from "lucide-react";
+import { getExchangeRates, paymentInOrderCurrency } from "@/lib/money";
+import { MONEY_TOLERANCE, netPaidInOrderCurrency } from "@/lib/sales-ledger";
+import { CancelSaleButton } from "@/components/cancel-sale-button";
+import { RefundPaymentButton } from "@/components/refund-payment-button";
 import { RecordPaymentButton } from "./record-payment-button";
 import { PrepareShipmentButton } from "./prepare-shipment-button";
 import { getCompanySettings } from "@/lib/company-settings";
@@ -42,12 +46,19 @@ export default async function SaleDetail({ params }: { params: Promise<{ id: str
     },
   });
   if (!s) return notFound();
-  const canPay = can(session.user.role, "payment:write");
-  const canShip = can(session.user.role, "shipment:write");
+  const canPay = can(session.user, "payment:write");
+  const canShip = can(session.user, "shipment:write");
+  const canCancel = can(session.user, "sale:write");
 
-  const paid = s.payments.reduce((a, p) => a + Number(p.amount), 0);
-  const remaining = Number(s.totalAmount) - paid;
-  const company = await getCompanySettings();
+  const [rates, company] = await Promise.all([getExchangeRates(), getCompanySettings()]);
+  // Paid is the sum of each payment's value in the order currency, never raw amounts across currencies.
+  const paid = netPaidInOrderCurrency(rates, s.payments, s.currency);
+  const remaining = Math.round((Number(s.totalAmount) - paid) * 100) / 100;
+  const cancelled = s.status === "CANCELLED";
+  const shipmentLeft = s.shipment != null && ["SHIPPED", "IN_TRANSIT", "DELIVERED"].includes(s.shipment.status);
+  const showRecordPayment = canPay && !cancelled && remaining > MONEY_TOLERANCE;
+  const showRefund = canPay && !cancelled && paid > MONEY_TOLERANCE;
+  const showCancel = canCancel && !cancelled && !shipmentLeft && Math.abs(paid) <= MONEY_TOLERANCE;
 
   return (
     <div className="space-y-4">
@@ -139,33 +150,44 @@ export default async function SaleDetail({ params }: { params: Promise<{ id: str
             <div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Payments</div>
               <div className="text-sm">
-                <span className="num font-medium">{formatCurrency(paid, s.currency)}</span> of {formatCurrency(Number(s.totalAmount), s.currency)} received
-                {remaining > 0 && <span className="text-muted-foreground"> · {formatCurrency(remaining, s.currency)} outstanding</span>}
+                Net paid <span className="num font-medium">{formatCurrency(paid, s.currency)}</span> of {formatCurrency(Number(s.totalAmount), s.currency)}
+                {!cancelled && remaining > MONEY_TOLERANCE && <span className="text-muted-foreground"> · balance {formatCurrency(remaining, s.currency)}</span>}
+                {!cancelled && remaining < -MONEY_TOLERANCE && <span className="text-red-600"> · overpaid by {formatCurrency(-remaining, s.currency)}</span>}
               </div>
             </div>
-            {canPay && remaining > 0 && (
-              <div className="print:hidden">
-                <RecordPaymentButton salesOrderId={s.id} currency={s.currency} suggestedAmount={remaining} />
+            {(showRecordPayment || showRefund || showCancel) && (
+              <div className="print:hidden flex flex-wrap items-center justify-end gap-2">
+                {showRecordPayment && <RecordPaymentButton salesOrderId={s.id} currency={s.currency} suggestedAmount={remaining} />}
+                {showRefund && <RefundPaymentButton salesOrderId={s.id} currency={s.currency} maxAmount={paid} />}
+                {showCancel && <CancelSaleButton salesOrderId={s.id} saleCode={s.code} gemCode={s.gemstone.code} />}
               </div>
             )}
           </div>
           <Card>
             <CardContent className="p-0 divide-y">
               {s.payments.length === 0 && <div className="p-3 text-sm text-muted-foreground">No payments yet.</div>}
-              {s.payments.map((p) => (
-                <div key={p.id} className="p-3 flex items-center justify-between text-sm">
-                  <div>
-                    <span className="font-mono text-xs mr-2">{p.code}</span>
-                    <span>{p.method.replaceAll("_", " ")}</span>
-                    {p.reference && <span className="text-muted-foreground ml-2">Ref {p.reference}</span>}
-                    {p.notes && <div className="text-xs text-muted-foreground">{p.notes}</div>}
+              {s.payments.map((p) => {
+                const refund = Number(p.amount) < 0;
+                const inOrder = paymentInOrderCurrency(rates, p, s.currency);
+                return (
+                  <div key={p.id} className="p-3 flex items-center justify-between text-sm">
+                    <div>
+                      <span className="font-mono text-xs mr-2">{p.code}</span>
+                      {refund && <Badge variant="danger" className="mr-2">Refund</Badge>}
+                      <span>{p.method.replaceAll("_", " ")}</span>
+                      {p.reference && <span className="text-muted-foreground ml-2">Ref {p.reference}</span>}
+                      {p.notes && <div className="text-xs text-muted-foreground">{p.notes}</div>}
+                    </div>
+                    <div className="text-right">
+                      <div className={`num ${refund ? "text-red-600" : ""}`}>{formatCurrency(Number(p.amount), p.currency)}</div>
+                      {p.currency !== s.currency && (
+                        <div className="text-xs text-muted-foreground num">= {formatCurrency(inOrder, s.currency)} on this invoice</div>
+                      )}
+                      <div className="text-xs text-muted-foreground">{formatDate(p.receivedAt)} · {p.recordedBy ?? "—"}</div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="num">{formatCurrency(Number(p.amount), p.currency)}</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(p.receivedAt)} · {p.recordedBy ?? "—"}</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </section>
@@ -184,7 +206,7 @@ export default async function SaleDetail({ params }: { params: Promise<{ id: str
                 <div className="text-sm text-muted-foreground">Not yet shipped.</div>
               )}
             </div>
-            {canShip && !s.shipment && (
+            {canShip && !s.shipment && !cancelled && (
               <div className="print:hidden">
                 <PrepareShipmentButton
                   salesOrderId={s.id}

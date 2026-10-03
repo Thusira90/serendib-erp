@@ -14,7 +14,8 @@ import { sweepExpiredReservations } from "@/lib/sweeper";
 import { ColumnChart } from "@/components/charts/column-chart";
 import { compactCurrency } from "@/components/charts/bar-chart";
 import { DeleteActivityButton } from "@/components/delete-activity-button";
-import { getExchangeRates, toBase } from "@/lib/money";
+import { getExchangeRates, round2, toBase } from "@/lib/money";
+import { netPaidInOrderCurrency, toBaseStored } from "@/lib/sales-ledger";
 
 // Cache the dashboard for 30 s. Mutations that actually change a KPI
 // (sales, payments, reservations, cutting-job completion, new rough /
@@ -40,7 +41,7 @@ export default async function DashboardPage() {
   const [
     roughByStatus, gemByStatus,
     recentGems,
-    salesThisMonth, salesThisYear, allPayments,
+    salesThisMonth, salesThisYear,
     lastAudit, alerts,
     lastSale, lastEnquiry,
     activeDirectorCount, allContributions,
@@ -58,8 +59,7 @@ export default async function DashboardPage() {
     }),
     prisma.gemstone.findMany({ take: 6, orderBy: { createdAt: "desc" } }),
     prisma.salesOrder.findMany({ where: { saleDate: { gte: monthStart, lte: monthEnd }, status: { not: "CANCELLED" } } }),
-    prisma.salesOrder.findMany({ where: { saleDate: { gte: yearStart }, status: { not: "CANCELLED" } }, include: { gemstone: true } }),
-    prisma.payment.findMany({ where: { receivedAt: { gte: yearStart } } }),
+    prisma.salesOrder.findMany({ where: { saleDate: { gte: yearStart }, status: { not: "CANCELLED" } }, include: { gemstone: true, payments: { select: { amount: true, currency: true, orderCurrencyAmount: true } } } }),
     prisma.auditLog.findMany({ take: 8, orderBy: { at: "desc" } }),
     dashboardAlerts(),
     prisma.salesOrder.findFirst({ orderBy: { saleDate: "desc" }, select: { saleDate: true } }),
@@ -110,14 +110,18 @@ export default async function DashboardPage() {
     .reduce((s, c) => s + Number(c.amount) * (balanceSign[c.type] ?? 0), 0);
   const otherCurrencyContribs = allContributions.filter((c) => c.currency !== "LKR").length;
 
-  // Revenue excludes tax (agreedPrice); what customers still owe includes it (totalAmount).
-  const revenueMonth = sum(salesThisMonth, (o) => lkr(o.agreedPrice, o.currency));
-  const revenueYtd   = sum(salesThisYear,  (o) => lkr(o.agreedPrice, o.currency));
-  const billedYtd    = sum(salesThisYear,  (o) => lkr(o.totalAmount, o.currency));
-  const paidYtd      = sum(allPayments,    (p) => lkr(p.amount, p.currency));
-  const outstandingYtd = billedYtd - paidYtd;
+  // Sales convert at the rate stored on the sale. Revenue excludes tax (agreedPrice); what customers
+  // still owe is total minus net paid (refunds are negative), both in the order's own currency.
+  const revenueOf = (o: { agreedPrice: unknown; currency: string; fxRateLkr: { toString(): string } | null }) =>
+    toBaseStored(rates, Number(o.agreedPrice), o.currency, o.fxRateLkr);
+  const revenueMonth = sum(salesThisMonth, revenueOf);
+  const revenueYtd   = sum(salesThisYear,  revenueOf);
+  const outstandingYtd = sum(salesThisYear, (o) => {
+    const owed = round2(Number(o.totalAmount) - netPaidInOrderCurrency(rates, o.payments, o.currency));
+    return toBaseStored(rates, owed, o.currency, o.fxRateLkr);
+  });
 
-  const grossProfitYtd = sum(salesThisYear, (o) => lkr(o.agreedPrice, o.currency) - lkr(o.gemstone.totalCost, o.gemstone.currency));
+  const grossProfitYtd = sum(salesThisYear, (o) => revenueOf(o) - lkr(o.gemstone.totalCost, o.gemstone.currency));
 
   // 6-month revenue mini chart
   const monthly: { label: string; value: number }[] = [];
@@ -125,7 +129,7 @@ export default async function DashboardPage() {
     const s = startOfMonth(subMonths(now, i));
     const e = endOfMonth(s);
     const inWin = salesThisYear.filter((o) => o.saleDate >= s && o.saleDate <= e);
-    monthly.push({ label: format(s, "MMM"), value: sum(inWin, (o) => lkr(o.agreedPrice, o.currency)) });
+    monthly.push({ label: format(s, "MMM"), value: sum(inWin, revenueOf) });
   }
 
   const alertCount =

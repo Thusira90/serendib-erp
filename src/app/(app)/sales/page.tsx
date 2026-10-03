@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Receipt } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
+import { getExchangeRates } from "@/lib/money";
+import { netPaidInOrderCurrency, toBaseStored } from "@/lib/sales-ledger";
 
 const statusVariant: Record<string, "muted" | "teal" | "warning" | "success" | "danger" | "purple"> = {
   DRAFT: "muted", CONFIRMED: "teal", INVOICED: "teal",
@@ -23,9 +25,15 @@ export default async function SalesPage() {
       payments: true,
     },
   });
-  const totalSales = sales.reduce((s, so) => s + Number(so.totalAmount), 0);
-  const totalCollected = sales.reduce((s, so) => s + so.payments.reduce((a, p) => a + Number(p.amount), 0), 0);
-  const outstanding = totalSales - totalCollected;
+  const rates = await getExchangeRates();
+  // Headline figures cover live (non-cancelled) sales only, in LKR. Each sale's
+  // paid amount is summed in that sale's own currency, never across currencies.
+  const live = sales.filter((so) => so.status !== "CANCELLED");
+  const paidIn = (so: (typeof sales)[number]) => netPaidInOrderCurrency(rates, so.payments, so.currency);
+  const lkr = (so: (typeof sales)[number], amount: number) => toBaseStored(rates, amount, so.currency, so.fxRateLkr);
+  const totalSales = live.reduce((s, so) => s + lkr(so, Number(so.agreedPrice)), 0);
+  const totalCollected = live.reduce((s, so) => s + lkr(so, paidIn(so)), 0);
+  const outstanding = live.reduce((s, so) => s + lkr(so, Number(so.totalAmount) - paidIn(so)), 0);
 
   return (
     <div className="space-y-6">
@@ -35,7 +43,7 @@ export default async function SalesPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Sales" value={String(sales.length)} />
+        <Stat label="Sales" value={String(live.length)} />
         <Stat label="Revenue booked" value={formatCurrency(totalSales)} />
         <Stat label="Collected" value={formatCurrency(totalCollected)} />
         <Stat label="Outstanding" value={formatCurrency(outstanding)} accent={outstanding > 0} />
@@ -69,8 +77,8 @@ export default async function SalesPage() {
                 </TableCell></TableRow>
               )}
               {sales.map((s) => {
-                const paid = s.payments.reduce((a, p) => a + Number(p.amount), 0);
-                const remaining = Number(s.totalAmount) - paid;
+                const paid = paidIn(s);
+                const remaining = s.status === "CANCELLED" ? 0 : Number(s.totalAmount) - paid;
                 return (
                   <TableRow key={s.id}>
                     <TableCell className="font-mono text-xs">

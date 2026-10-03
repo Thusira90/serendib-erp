@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
 import { getExchangeRates, toBase } from "@/lib/money";
+import { toBaseStored } from "@/lib/sales-ledger";
 
 /**
  * Simple accrual-style P&L in LKR: revenue (agreed price, excl. tax) from
@@ -12,8 +13,9 @@ import { getExchangeRates, toBase } from "@/lib/money";
  *  - Expenses filed as stone bills are capitalised into the stone's cost (so
  *    they reach COGS when the stone sells) and are excluded from opex.
  *  - Rejected expenses and cancelled sales are ignored.
- * Foreign-currency amounts are converted at today's rate (no historical rates
- * are stored yet).
+ * Sales and expenses convert at the rate stored on the record when it was
+ * created (today's rate for older rows without one); stone cost converts at
+ * today's rate.
  */
 
 type MonthRow = {
@@ -50,9 +52,9 @@ export async function pnlForLast12Months(): Promise<PnlPeriod> {
     }),
     getExchangeRates(),
   ]);
-  const saleLkr = (o: (typeof orders)[number]) => toBase(rates, Number(o.agreedPrice), o.currency);
+  const saleLkr = (o: (typeof orders)[number]) => toBaseStored(rates, Number(o.agreedPrice), o.currency, o.fxRateLkr);
   const costLkr = (o: (typeof orders)[number]) => toBase(rates, Number(o.gemstone.totalCost), o.gemstone.currency);
-  const expenseLkr = (x: (typeof expenses)[number]) => toBase(rates, Number(x.amount), x.currency);
+  const expenseLkr = (x: (typeof expenses)[number]) => toBaseStored(rates, Number(x.amount), x.currency, x.fxRateLkr);
 
   const months: MonthRow[] = [];
   for (let i = 11; i >= 0; i--) {

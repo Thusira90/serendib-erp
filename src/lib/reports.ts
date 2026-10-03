@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
-import { getExchangeRates, toBase } from "@/lib/money";
+import { getExchangeRates, round2, toBase } from "@/lib/money";
+import { netPaidInOrderCurrency, toBaseStored } from "@/lib/sales-ledger";
 
 // ─── Inventory reports ───────────────────────────────────────────────────────
 
@@ -95,20 +96,26 @@ export async function salesOverview() {
   const [orders, payments, rates] = await Promise.all([
     prisma.salesOrder.findMany({
       where: { saleDate: { gte: start }, status: { not: "CANCELLED" } },
-      include: { customer: true, gemstone: true },
+      include: {
+        customer: true, gemstone: true,
+        payments: { select: { amount: true, currency: true, orderCurrencyAmount: true } },
+      },
     }),
+    // Refunds are negative rows, so this is net cash collected.
     prisma.payment.findMany({
       where: { receivedAt: { gte: start } },
-      select: { amount: true, currency: true, receivedAt: true },
+      select: { amount: true, currency: true, fxRateLkr: true, receivedAt: true },
     }),
     getExchangeRates(),
   ]);
   const users = await prisma.user.findMany({ select: { id: true, name: true } });
   const nameById = new Map(users.map((u) => [u.id, u.name]));
-  // Revenue is the agreed price (excl. tax) in LKR; what is still owed uses the tax-inclusive total.
-  const revenueOf = (o: (typeof orders)[number]) => toBase(rates, Number(o.agreedPrice), o.currency);
-  const billedOf = (o: (typeof orders)[number]) => toBase(rates, Number(o.totalAmount), o.currency);
-  const paidOf = (p: (typeof payments)[number]) => toBase(rates, Number(p.amount), p.currency);
+  // Revenue is the agreed price (excl. tax) in LKR at the rate stored on the sale; what is still owed
+  // is the tax-inclusive total minus net paid, both in the order currency, then converted.
+  const revenueOf = (o: (typeof orders)[number]) => toBaseStored(rates, Number(o.agreedPrice), o.currency, o.fxRateLkr);
+  const owedOf = (o: (typeof orders)[number]) =>
+    toBaseStored(rates, round2(Number(o.totalAmount) - netPaidInOrderCurrency(rates, o.payments, o.currency)), o.currency, o.fxRateLkr);
+  const paidOf = (p: (typeof payments)[number]) => toBaseStored(rates, Number(p.amount), p.currency, p.fxRateLkr);
 
   const byMonth: { month: string; revenue: number; count: number; paid: number }[] = [];
   for (let i = 11; i >= 0; i--) {
@@ -135,7 +142,7 @@ export async function salesOverview() {
 
   const totalRevenue = sum(orders, revenueOf);
   const totalPaid = sum(payments, paidOf);
-  const outstanding = sum(orders, billedOf) - totalPaid;
+  const outstanding = sum(orders, owedOf);
   const avgOrderValue = orders.length ? totalRevenue / orders.length : 0;
 
   return {
@@ -175,7 +182,7 @@ export async function profitabilityOverview() {
   // Cost and revenue can be in different currencies; both are compared in LKR.
   const perStone = orders.map((o) => {
     const cost = toBase(rates, Number(o.gemstone.totalCost), o.gemstone.currency);
-    const revenue = toBase(rates, Number(o.agreedPrice), o.currency);
+    const revenue = toBaseStored(rates, Number(o.agreedPrice), o.currency, o.fxRateLkr);
     const profit = revenue - cost;
     const margin = revenue > 0 ? profit / revenue : 0;
     const roi = cost > 0 ? profit / cost : 0;
