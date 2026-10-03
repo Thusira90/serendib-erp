@@ -5,8 +5,10 @@ import { getExchangeRates, type Rates } from "@/lib/exchange-rates";
 export type { Rates };
 export { getExchangeRates };
 
+/** Half away from zero, symmetric for negatives (Math.round alone rounds -1.005 the other way). */
 export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  const sign = n < 0 ? -1 : 1;
+  return (sign * Math.round((Math.abs(n) + Number.EPSILON) * 100)) / 100;
 }
 
 /** Convert between any two supported currencies through the LKR base. Null when a rate is unknown. */

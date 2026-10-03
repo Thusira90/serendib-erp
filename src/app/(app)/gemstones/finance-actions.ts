@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireCapability } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { COST_TYPES } from "@/lib/enums";
-import { getExchangeRates, recomputeGemCost } from "@/lib/money";
+import { convertStrict, getExchangeRates, recomputeGemCost, round2 } from "@/lib/money";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const parseDec = (v: FormDataEntryValue | null) => {
@@ -83,18 +83,27 @@ export async function changeAskingPrice(fd: FormData) {
     reason: str(fd.get("reason")),
   });
 
+  const rates = await getExchangeRates();
   await prisma.$transaction(async (tx) => {
     const gem = await tx.gemstone.findUniqueOrThrow({ where: { id: parsed.gemstoneId } });
     const oldPrice = gem.askingPrice != null ? Number(gem.askingPrice) : null;
     const pricePerCt = Number(gem.weightCt) > 0 ? parsed.newPrice / Number(gem.weightCt) : null;
+    // The gemstone has one currency for both its cost and its prices. Changing
+    // it must convert the stored cost and minimum price, not just relabel them
+    // (relabelling a LKR cost as USD would make the stone look ~300x costlier).
+    const currencyChanged = parsed.currency !== gem.currency;
     await tx.gemstone.update({
       where: { id: parsed.gemstoneId },
       data: {
         askingPrice: parsed.newPrice,
         currency: parsed.currency,
         pricePerCt,
+        ...(currencyChanged && gem.minimumPrice != null
+          ? { minimumPrice: round2(convertStrict(rates, Number(gem.minimumPrice), gem.currency, parsed.currency)) }
+          : {}),
       },
     });
+    if (currencyChanged) await recomputeGemCost(tx, parsed.gemstoneId, rates);
     await tx.priceHistory.create({
       data: {
         gemstoneId: parsed.gemstoneId,

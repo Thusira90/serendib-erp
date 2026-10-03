@@ -215,6 +215,11 @@ export async function completeCuttingJob(fd: FormData) {
       throw new Error(`Cutting job ${job.code} is already ${job.status}.`);
     }
     const rough = job.roughStone;
+    // A second cut of the same rough would count its cost twice.
+    const alreadyCut = await tx.transformationInput.count({ where: { roughStoneId: rough.id } });
+    if (alreadyCut > 0) {
+      throw new Error(`Rough ${rough.code} has already been cut into finished stones.`);
+    }
     const roughWeight = Number(rough.weightCt);
     const roughPurchase = convertStrict(rates, Number(rough.purchasePrice), rough.currency, target);
     const roughBills = (await tx.costAllocation.findMany({

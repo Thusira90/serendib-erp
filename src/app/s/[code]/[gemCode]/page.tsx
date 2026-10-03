@@ -5,14 +5,17 @@ import { getCompanySettings } from "@/lib/company-settings";
 import { ArrowLeft } from "lucide-react";
 import {
   resolveBrand, resolveContact, Watermark, BrandHeader, ContactFooter, CopyrightNotice,
-  SingleStone, gemsWhereForLink,
+  SingleStone, gemsWhereForLink, shareMetadata, opaqueStoneToken,
 } from "../shared";
 import { ExpiredView } from "../expired";
 
 // Deep-dive view for a single stone within a share link. Same expiry
 // checks + view tracking as the parent /s/<code> route.
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Serendib Gemstones" };
+
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
+  return shareMetadata((await params).code);
+}
 
 export default async function TimedShareGemPage({
   params,
@@ -28,13 +31,27 @@ export default async function TimedShareGemPage({
     return <ExpiredView expiresAt={link.expiresAt} revokedAt={link.revokedAt} brokerMode={link.brokerMode} brandLabel={link.brokerCompany ?? link.brokerName ?? null} />;
   }
 
+  // Broker links address stones by an opaque token (never the "SGS-" code);
+  // raw codes are refused so they cannot be used to probe the catalogue.
+  let requestedCode = gemCode;
+  if (link.brokerMode) {
+    const inScope = await prisma.gemstone.findMany({
+      where: gemsWhereForLink(link),
+      select: { id: true, code: true },
+      take: 500,
+    });
+    const match = inScope.find((g) => opaqueStoneToken(link.id, g.id) === gemCode);
+    if (!match) return notFound();
+    requestedCode = match.code;
+  }
+
   // Validate the requested gem is actually part of this link's scope,
   // otherwise a leaked URL could be used to enumerate the whole
   // catalogue by trying different codes.
   const gem = await prisma.gemstone.findFirst({
     where: {
       AND: [
-        { code: gemCode },
+        { code: requestedCode },
         gemsWhereForLink(link),
       ],
     },
@@ -79,7 +96,7 @@ export default async function TimedShareGemPage({
           </div>
         )}
 
-        <SingleStone gem={gem} />
+        <SingleStone gem={gem} neutral={link.brokerMode} />
 
         <ContactFooter contact={contact} isBroker={link.brokerMode} />
         <CopyrightNotice brand={brand} link={link} viewCount={link.viewCount + 1} />

@@ -20,6 +20,23 @@ const SCOPE_CAPS: Record<"CATALOGUE" | "GEMSTONE" | "GEMSTONES" | "COLLECTION" |
   ROUGHS: ["collection:write", "rough:read"],
 };
 
+const payloadSchema = z.object({
+  gemstoneCode: z.string().min(1).max(64).optional(),
+  gemstoneCodes: z.array(z.string().min(1).max(64)).min(1).max(500).optional(),
+  collectionShareCode: z.string().min(1).max(32).optional(),
+  roughCode: z.string().min(1).max(64).optional(),
+  roughCodes: z.array(z.string().min(1).max(64)).min(1).max(500).optional(),
+}).strict();
+
+// The payload key each scope needs; a link without it would select nothing.
+const REQUIRED_PAYLOAD_KEY = {
+  GEMSTONE: "gemstoneCode",
+  GEMSTONES: "gemstoneCodes",
+  COLLECTION: "collectionShareCode",
+  ROUGH: "roughCode",
+  ROUGHS: "roughCodes",
+} as const;
+
 const createSchema = z.object({
   scope: z.enum(["CATALOGUE", "GEMSTONE", "GEMSTONES", "COLLECTION", "ROUGH", "ROUGHS"]),
   payload: z.string().nullable(),                 // JSON string, per-scope shape
@@ -63,6 +80,17 @@ export async function createShareLink(fd: FormData): Promise<{ code: string }> {
     if (!can(session.user, cap)) throw new Error(`Forbidden: missing capability ${cap}`);
   }
 
+  let payload: string | null = null;
+  if (parsed.scope !== "CATALOGUE") {
+    let raw: unknown;
+    try { raw = JSON.parse(parsed.payload ?? ""); } catch { raw = null; }
+    const shaped = payloadSchema.safeParse(raw);
+    if (!shaped.success || !shaped.data[REQUIRED_PAYLOAD_KEY[parsed.scope]]) {
+      throw new Error("Select at least one stone before creating a share link.");
+    }
+    payload = JSON.stringify(shaped.data);
+  }
+
   // Slug uniqueness: retry a couple of times on collision — 6 random bytes
   // (~48 bits) makes clashes vanishingly unlikely, so 3 tries is plenty.
   let code = slug();
@@ -78,7 +106,7 @@ export async function createShareLink(fd: FormData): Promise<{ code: string }> {
     data: {
       code,
       scope: parsed.scope,
-      payload: parsed.payload,
+      payload,
       expiresAt,
       message: parsed.message,
       createdById: session.user.id,

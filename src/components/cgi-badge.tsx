@@ -41,8 +41,10 @@ export function CgiBadge({
  * public share pages (admin + broker modes alike — same stone, same identity).
  */
 export function CgiBreakdownCard({
-  score, band, breakdown, title = "Ceylon Gem Identity",
+  score, band, breakdown, title = "Ceylon Gem Identity", neutral = false,
 }: {
+  /** Neutral wording for seller-hidden (broker) pages: no company name anywhere. */
+  neutral?: boolean;
   score: number | null;
   band: string | null;
   breakdown: Partial<{
@@ -104,7 +106,7 @@ export function CgiBreakdownCard({
       </div>
 
       <div className="mt-3 pt-3 border-t text-[11px] text-muted-foreground leading-relaxed">
-        Ceylon Gem Identity — a Serendib score that rolls up origin confidence, treatment, grading, certification and traceability. Recomputed on every edit.
+        Ceylon Gem Identity — {neutral ? "a" : "a Serendib"} score that rolls up origin confidence, treatment, grading, certification and traceability. Recomputed on every edit.
       </div>
     </div>
   );
@@ -115,7 +117,7 @@ export function CgiBreakdownCard({
  * buyers understand what the number means. Pairs with CgiBreakdownCard
  * (which shows THIS stone's sub-scores) to give the full picture.
  */
-export function CgiMethodologyCard() {
+export function CgiMethodologyCard({ neutral = false }: { neutral?: boolean } = {}) {
   const pillars: Array<[string, number, string]> = [
     ["Origin confidence",      20, "How solidly the origin is proven. Tier-A lab (SSEF, Gübelin, GRS, GIA, AGL, Lotus) = full points. GIC Colombo = next. Other labs or declared-only = less. No data = zero."],
     ["Treatment status",       20, "No-heat with a lab report wins. Declared no-heat next. Traditional heat is accepted but scored lower. Diffusion / fracture-fill carry a heavy penalty."],
@@ -165,7 +167,7 @@ export function CgiMethodologyCard() {
       </div>
 
       <div className="mt-4 pt-4 border-t text-[11px] text-muted-foreground leading-relaxed">
-        CGI is Serendib&apos;s own quality roll-up — a plain-English way to compare stones at a glance. It does not replace an independent laboratory report, which remains the authority on origin and treatment.
+        CGI is {neutral ? "a" : "Serendib's own"} quality roll-up — a plain-English way to compare stones at a glance. It does not replace an independent laboratory report, which remains the authority on origin and treatment.
       </div>
     </div>
   );

@@ -5,13 +5,16 @@ import { getCompanySettings } from "@/lib/company-settings";
 import { ArrowLeft } from "lucide-react";
 import {
   resolveBrand, resolveContact, Watermark, BrandHeader, ContactFooter, CopyrightNotice,
-  SingleRoughStone, roughsWhereForLink,
+  SingleRoughStone, roughsWhereForLink, shareMetadata, opaqueStoneToken,
 } from "../../shared";
 import { ExpiredView } from "../../expired";
 
 // Deep-dive view for a single rough within a rough-scoped share link.
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Serendib Gemstones" };
+
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
+  return shareMetadata((await params).code);
+}
 
 export default async function TimedShareRoughPage({
   params,
@@ -27,12 +30,25 @@ export default async function TimedShareRoughPage({
     return <ExpiredView expiresAt={link.expiresAt} revokedAt={link.revokedAt} brokerMode={link.brokerMode} brandLabel={link.brokerCompany ?? link.brokerName ?? null} />;
   }
 
+  // Broker links address stones by an opaque token (never the "SGS-" code).
+  let requestedCode = roughCode;
+  if (link.brokerMode) {
+    const inScope = await prisma.roughStone.findMany({
+      where: roughsWhereForLink(link),
+      select: { id: true, code: true },
+      take: 500,
+    });
+    const match = inScope.find((r) => opaqueStoneToken(link.id, r.id) === roughCode);
+    if (!match) return notFound();
+    requestedCode = match.code;
+  }
+
   // Validate the requested rough is actually part of this link's scope,
   // so a leaked URL can't enumerate the rest of the vault.
   const rough = await prisma.roughStone.findFirst({
     where: {
       AND: [
-        { code: roughCode },
+        { code: requestedCode },
         roughsWhereForLink(link),
       ],
     },

@@ -4,12 +4,15 @@ import { getCompanySettings } from "@/lib/company-settings";
 import {
   resolveBrand, resolveContact, Watermark, BrandHeader, ContactFooter, CopyrightNotice,
   SingleStone, StoneGrid, SingleRoughStone, RoughGrid,
-  titleForScope, gemsWhereForLink, roughsWhereForLink, isRoughScope,
+  titleForScope, gemsWhereForLink, roughsWhereForLink, isRoughScope, shareMetadata,
 } from "./shared";
 import { ExpiredView } from "./expired";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Serendib Gemstones" };
+
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
+  return shareMetadata((await params).code);
+}
 
 export default async function TimedSharePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -85,10 +88,10 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
         {isRough
           ? (isSingle && roughs[0]
               ? <SingleRoughStone rough={roughs[0]} />
-              : <RoughGrid roughs={roughs} shareCode={link.code} />)
+              : <RoughGrid roughs={roughs} shareCode={link.code} opaqueFor={link.brokerMode ? link.id : undefined} />)
           : (isSingle && gems[0]
-              ? <SingleStone gem={gems[0]} />
-              : <StoneGrid gems={gems} shareCode={link.code} />)}
+              ? <SingleStone gem={gems[0]} neutral={link.brokerMode} />
+              : <StoneGrid gems={gems} shareCode={link.code} opaqueFor={link.brokerMode ? link.id : undefined} />)}
 
         <ContactFooter contact={contact} isBroker={link.brokerMode} />
         <CopyrightNotice brand={brand} link={link} viewCount={link.viewCount + 1} />

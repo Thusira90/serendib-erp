@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { createHash } from "node:crypto";
+import type { Metadata } from "next";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import type { getCompanySettings } from "@/lib/company-settings";
@@ -227,7 +230,7 @@ export function isRoughScope(scope: string): boolean {
  * Used both for scope=GEMSTONE links AND when a viewer clicks a card
  * in a multi-stone share to open its full page.
  */
-export function SingleStone({ gem }: { gem: Gem }) {
+export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: boolean }) {
   const cgi = gem.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
   const hero = cgi?.renderUrl ?? gem.digitalAssets[0]?.url;
   const cert = gem.certificates[0];
@@ -241,7 +244,7 @@ export function SingleStone({ gem }: { gem: Gem }) {
       <div className="aspect-[16/10] bg-sgs-gradient relative">
         {hero && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero} alt={gem.code} className="absolute inset-0 h-full w-full object-cover" />
+          <img src={hero} alt={gem.gemType} className="absolute inset-0 h-full w-full object-cover" />
         )}
       </div>
       <div className="p-8 space-y-6">
@@ -261,8 +264,9 @@ export function SingleStone({ gem }: { gem: Gem }) {
               band={gem.cgiBand}
               breakdown={safeBreakdown(gem.cgiBreakdown)}
               title="Ceylon Gem Identity"
+              neutral={neutral}
             />
-            <CgiMethodologyCard />
+            <CgiMethodologyCard neutral={neutral} />
           </>
         )}
 
@@ -317,7 +321,17 @@ export function SingleStone({ gem }: { gem: Gem }) {
  * Grid of cards. Each card is a link into /s/<code>/<gemCode> so the
  * recipient can open the full profile without leaving the share.
  */
-export function StoneGrid({ gems, shareCode }: { gems: Gem[]; shareCode: string }) {
+/**
+ * Opaque per-link identifier for a stone, used in broker-mode URLs so the
+ * company's "SGS-..." stone codes never appear in the address bar. Derived
+ * from two internal ids that are never exposed, so it cannot be computed (or
+ * reversed to a stone code) by anyone holding only the link.
+ */
+export function opaqueStoneToken(linkId: string, stoneId: string): string {
+  return createHash("sha256").update(`${linkId}:${stoneId}`).digest("base64url").slice(0, 12);
+}
+
+export function StoneGrid({ gems, shareCode, opaqueFor }: { gems: Gem[]; shareCode: string; opaqueFor?: string }) {
   if (gems.length === 0) {
     return (
       <div className="rounded-xl border bg-white p-10 text-center text-sm text-muted-foreground">
@@ -333,13 +347,13 @@ export function StoneGrid({ gems, shareCode }: { gems: Gem[]; shareCode: string 
         return (
           <Link
             key={g.id}
-            href={`/s/${shareCode}/${encodeURIComponent(g.code)}`}
+            href={`/s/${shareCode}/${opaqueFor ? opaqueStoneToken(opaqueFor, g.id) : encodeURIComponent(g.code)}`}
             className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
           >
             <div className="aspect-square bg-sgs-gradient relative">
               {heroImg ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImg} alt={g.code} className="absolute inset-0 h-full w-full object-cover" />
+                <img src={heroImg} alt={g.gemType} className="absolute inset-0 h-full w-full object-cover" />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-white/80">
                   <Gem className="h-8 w-8" />
@@ -412,32 +426,77 @@ export function safePayloadParse(s: string | null): {
   roughCodes?: string[];
 } {
   if (!s) return {};
-  try { return JSON.parse(s); } catch { return {}; }
+  try {
+    const v = JSON.parse(s);
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch { return {}; }
+}
+
+/**
+ * Tab title / robots for the share routes. A broker-mode link must not name
+ * the underlying seller anywhere, including the browser tab.
+ */
+export async function shareMetadata(code: string): Promise<Metadata> {
+  const link = await prisma.shareLink.findUnique({
+    where: { code },
+    select: { brokerMode: true, brokerCompany: true, brokerName: true },
+  });
+  const title = link?.brokerMode
+    ? (link.brokerCompany ?? link.brokerName ?? "Available inventory")
+    : "Serendib Gemstones";
+  return {
+    title,
+    description: link?.brokerMode ? "Private inventory selection" : undefined,
+    robots: { index: false, follow: false },
+  };
 }
 
 /**
  * Build the where clause that scopes gemstone queries to a share link's
  * contents. Used both by the index and the single-stone routes.
  */
-export function gemsWhereForLink(link: NonNullable<ShareLinkRecord>) {
+// Matches nothing. Used so a link whose payload is missing or malformed shows
+// an empty selection instead of falling open to the whole inventory.
+const MATCH_NONE = { id: "__no_match__" };
+
+export function gemsWhereForLink(link: NonNullable<ShareLinkRecord>): Prisma.GemstoneWhereInput {
   const payload = safePayloadParse(link.payload);
-  return {
-    status: "AVAILABLE" as const,
-    ...(link.scope === "GEMSTONE" && payload.gemstoneCode ? { code: payload.gemstoneCode } : {}),
-    ...(link.scope === "GEMSTONES" && payload.gemstoneCodes?.length ? { code: { in: payload.gemstoneCodes } } : {}),
-    ...(link.scope === "COLLECTION" && payload.collectionShareCode
-      ? { collectionItems: { some: { collection: { shareCode: payload.collectionShareCode } } } }
-      : {}),
-  };
+  const base = { status: "AVAILABLE" as const };
+  switch (link.scope) {
+    case "CATALOGUE":
+      return base;
+    case "GEMSTONE":
+      return typeof payload.gemstoneCode === "string" && payload.gemstoneCode
+        ? { ...base, code: payload.gemstoneCode }
+        : MATCH_NONE;
+    case "GEMSTONES":
+      return Array.isArray(payload.gemstoneCodes) && payload.gemstoneCodes.length
+        ? { ...base, code: { in: payload.gemstoneCodes.filter((c): c is string => typeof c === "string") } }
+        : MATCH_NONE;
+    case "COLLECTION":
+      return typeof payload.collectionShareCode === "string" && payload.collectionShareCode
+        ? { ...base, collectionItems: { some: { collection: { shareCode: payload.collectionShareCode } } } }
+        : MATCH_NONE;
+    default:
+      return MATCH_NONE;
+  }
 }
 
 /** Same as gemsWhereForLink but for the rough scopes. */
-export function roughsWhereForLink(link: NonNullable<ShareLinkRecord>) {
+export function roughsWhereForLink(link: NonNullable<ShareLinkRecord>): Prisma.RoughStoneWhereInput {
   const payload = safePayloadParse(link.payload);
-  return {
-    ...(link.scope === "ROUGH" && payload.roughCode ? { code: payload.roughCode } : {}),
-    ...(link.scope === "ROUGHS" && payload.roughCodes?.length ? { code: { in: payload.roughCodes } } : {}),
-  };
+  switch (link.scope) {
+    case "ROUGH":
+      return typeof payload.roughCode === "string" && payload.roughCode
+        ? { code: payload.roughCode }
+        : MATCH_NONE;
+    case "ROUGHS":
+      return Array.isArray(payload.roughCodes) && payload.roughCodes.length
+        ? { code: { in: payload.roughCodes.filter((c): c is string => typeof c === "string") } }
+        : MATCH_NONE;
+    default:
+      return MATCH_NONE;
+  }
 }
 
 /* ------------------------------ Rough views ------------------------------ */
@@ -463,7 +522,7 @@ export function SingleRoughStone({ rough }: { rough: Rough }) {
       <div className="aspect-[16/10] bg-sgs-gradient relative">
         {hero && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero} alt={rough.code} className="absolute inset-0 h-full w-full object-cover" />
+          <img src={hero} alt={rough.gemType} className="absolute inset-0 h-full w-full object-cover" />
         )}
       </div>
       <div className="p-8 space-y-6">
@@ -518,7 +577,7 @@ export function SingleRoughStone({ rough }: { rough: Rough }) {
 }
 
 /** Grid of rough cards; each links to /s/<code>/r/<roughCode>. */
-export function RoughGrid({ roughs, shareCode }: { roughs: Rough[]; shareCode: string }) {
+export function RoughGrid({ roughs, shareCode, opaqueFor }: { roughs: Rough[]; shareCode: string; opaqueFor?: string }) {
   if (roughs.length === 0) {
     return (
       <div className="rounded-xl border bg-white p-10 text-center text-sm text-muted-foreground">
@@ -533,13 +592,13 @@ export function RoughGrid({ roughs, shareCode }: { roughs: Rough[]; shareCode: s
         return (
           <Link
             key={r.id}
-            href={`/s/${shareCode}/r/${encodeURIComponent(r.code)}`}
+            href={`/s/${shareCode}/r/${opaqueFor ? opaqueStoneToken(opaqueFor, r.id) : encodeURIComponent(r.code)}`}
             className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
           >
             <div className="aspect-square bg-sgs-gradient relative">
               {heroImg ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImg} alt={r.code} className="absolute inset-0 h-full w-full object-cover" />
+                <img src={heroImg} alt={r.gemType} className="absolute inset-0 h-full w-full object-cover" />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-white/80">
                   <Gem className="h-8 w-8" />
