@@ -210,18 +210,3 @@ export async function archiveCollection(fd: FormData) {
   revalidatePath("/collections");
   redirect("/collections");
 }
-
-/**
- * Public-safe increment. Called from the /share page whenever a viewer
- * loads a collection. Does not require auth — the share code itself is the
- * capability.
- */
-export async function trackCollectionView(shareCode: string) {
-  await prisma.collection.update({
-    where: { shareCode },
-    data: {
-      viewCount: { increment: 1 },
-      lastViewedAt: new Date(),
-    },
-  });
-}

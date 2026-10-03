@@ -2,8 +2,10 @@ import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { authConfig } from "@/lib/auth.config";
 import { prisma } from "@/lib/db";
 import type { Role } from "@/lib/enums";
+import { loadLiveUser, parseArr, pwStamp } from "@/lib/session-guard";
 
 declare module "next-auth" {
   interface Session {
@@ -20,6 +22,7 @@ declare module "next-auth" {
     role: Role;
     grants?: string[];
     denies?: string[];
+    stamp?: string;
   }
 }
 
@@ -29,18 +32,12 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
-function parseArr(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
-  } catch { return []; }
-}
+// Compared against when the email is unknown or inactive, so response time does not reveal which emails exist.
+let dummyHash: Promise<string> | null = null;
+const getDummyHash = () => (dummyHash ??= bcrypt.hash("serendib-timing-equaliser", 10));
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
-  trustHost: true,
+  ...authConfig,
   providers: [
     Credentials({
       credentials: {
@@ -52,7 +49,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.active) return null;
+        if (!user || !user.active) {
+          await bcrypt.compare(password, await getDummyHash());
+          return null;
+        }
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
         return {
@@ -62,6 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role as Role,
           grants: parseArr(user.capabilityGrants),
           denies: parseArr(user.capabilityDenies),
+          stamp: pwStamp(user.passwordHash),
         };
       },
     }),
@@ -73,7 +74,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.grants = user.grants ?? [];
         token.denies = user.denies ?? [];
+        token.stamp = user.stamp;
+        return token;
       }
+      if (typeof token.id !== "string") return null;
+      const live = await loadLiveUser(token.id);
+      // Deactivated, deleted, or password reset since this session began: end it.
+      if (!live || live.stamp !== token.stamp) return null;
+      token.role = live.role;
+      token.grants = live.grants;
+      token.denies = live.denies;
       return token;
     },
     async session({ session, token }) {

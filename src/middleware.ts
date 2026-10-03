@@ -11,7 +11,6 @@ export const PUBLIC_PATHS = [
   "/catalogue",
   "/share", // legacy share links
   "/s", // seller-neutral share links (incl. /s/icon.svg)
-  "/p", // reserved: partner portal
   "/uploads", // local-disk uploads (dev fallback; R2 is served off-site)
   "/_next",
   "/icon.svg",
@@ -41,13 +40,8 @@ export default auth((req) => {
     return NextResponse.redirect(url);
   }
 
-  // Only bounce page navigations: a stale tab's sign-in server action is a POST to /login.
-  if (isAuthed && pathname === "/login" && (req.method === "GET" || req.method === "HEAD")) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
+  // Signed-in users are not bounced away from /login: the cookie can still be valid here (the edge only
+  // verifies the signature) while auth() has rejected it as deactivated or reset, which would loop.
 
   return NextResponse.next();
 });

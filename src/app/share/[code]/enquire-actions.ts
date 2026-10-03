@@ -8,12 +8,12 @@ import { notify } from "@/lib/notifications";
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
 const enquirySchema = z.object({
-  shareCode: z.string().min(1),
-  gemstoneId: z.string().min(1),
-  senderName: z.string().min(1, "Name is required"),
-  senderEmail: z.string().email().or(z.literal("").transform(() => "")).optional(),
-  senderPhone: z.string().nullable(),
-  message: z.string().min(1, "Please add a short message"),
+  shareCode: z.string().min(1).max(64),
+  gemstoneId: z.string().min(1).max(64),
+  senderName: z.string().min(1, "Name is required").max(120, "Name is too long"),
+  senderEmail: z.string().email().max(200).or(z.literal("").transform(() => "")).optional(),
+  senderPhone: z.string().max(40, "Phone number is too long").nullable(),
+  message: z.string().min(1, "Please add a short message").max(2000, "Message is too long (2000 characters at most)"),
 });
 
 /**
@@ -46,8 +46,13 @@ export async function submitShareEnquiry(fd: FormData): Promise<{ ok: true } | {
     return { ok: false, error: "This share link has expired." };
   }
 
-  const gem = await prisma.gemstone.findUnique({ where: { id: parsed.gemstoneId } });
-  if (!gem) return { ok: false, error: "Stone not found in this collection." };
+  // The stone must belong to this collection, not merely exist.
+  const item = await prisma.collectionItem.findFirst({
+    where: { collectionId: collection.id, gemstoneId: parsed.gemstoneId },
+    include: { gemstone: true },
+  });
+  if (!item) return { ok: false, error: "Stone not found in this collection." };
+  const gem = item.gemstone;
 
   const year = new Date().getUTCFullYear();
 
@@ -104,7 +109,8 @@ export async function submitShareEnquiry(fd: FormData): Promise<{ ok: true } | {
       }, tx);
     });
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    console.error("submitShareEnquiry failed", e);
+    return { ok: false, error: "We could not send your enquiry. Please try again in a moment." };
   }
   return { ok: true };
 }

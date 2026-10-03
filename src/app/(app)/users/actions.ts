@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireCapability } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { ROLES } from "@/lib/enums";
+import { forgetLiveUser } from "@/lib/session-guard";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 
@@ -55,6 +56,7 @@ export async function updateUserRole(fd: FormData) {
   }
   const before = await prisma.user.findUniqueOrThrow({ where: { id: parsed.id } });
   await prisma.user.update({ where: { id: parsed.id }, data: { role: parsed.role } });
+  forgetLiveUser(parsed.id);
   await writeAudit({
     entity: "User", entityId: before.id, entityCode: before.email,
     action: "ROLE_CHANGE", field: "role",
@@ -71,6 +73,7 @@ export async function toggleUserActive(fd: FormData) {
   if (id === session.user.id) throw new Error("You can't deactivate your own account.");
   const before = await prisma.user.findUniqueOrThrow({ where: { id } });
   await prisma.user.update({ where: { id }, data: { active: !before.active } });
+  forgetLiveUser(id);
   await writeAudit({
     entity: "User", entityId: before.id, entityCode: before.email,
     action: before.active ? "DEACTIVATED" : "REACTIVATED",
@@ -93,6 +96,7 @@ export async function resetPassword(fd: FormData) {
   const before = await prisma.user.findUniqueOrThrow({ where: { id: parsed.id } });
   const passwordHash = await bcrypt.hash(parsed.password, 10);
   await prisma.user.update({ where: { id: parsed.id }, data: { passwordHash } });
+  forgetLiveUser(parsed.id);
   await writeAudit({
     entity: "User", entityId: before.id, entityCode: before.email,
     action: "PASSWORD_RESET",
@@ -137,6 +141,7 @@ export async function updateUserPermissions(fd: FormData) {
       capabilityDenies: denies.length ? JSON.stringify(denies) : null,
     },
   });
+  forgetLiveUser(parsed.id);
   await writeAudit({
     entity: "User", entityId: before.id, entityCode: before.email,
     action: "PERMISSIONS_UPDATED",

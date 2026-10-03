@@ -20,3 +20,6 @@ tsconfig.tsbuildinfo
 prisma/*.db
 prisma/*.db-journal
 public/uploads/
+
+# one-off scripts that may touch credentials
+scripts/temp-*

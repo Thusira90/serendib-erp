@@ -5,7 +5,7 @@ import { formatCarat, formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { EnquireButton } from "./enquire-button";
 import { Gem, Award, ShieldCheck, Sparkles } from "lucide-react";
-import { trackCollectionView } from "@/app/(app)/collections/actions";
+import { trackCollectionView } from "@/lib/collection-views";
 import { CgiBadge, CgiMethodologyCard } from "@/components/cgi-badge";
 
 // Public share pages must always reflect the latest state, not a build-time

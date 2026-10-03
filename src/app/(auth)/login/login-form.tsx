@@ -9,6 +9,9 @@ import { signInAction } from "./actions";
 import { SgsMark } from "@/components/brand/logo";
 import { Eye, EyeOff } from "lucide-react";
 
+// Seeded demo accounts are a development convenience only.
+const DEMO = process.env.NODE_ENV !== "production";
+
 export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?: string }) {
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(error ?? null);
@@ -34,7 +37,7 @@ export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?
         >
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required placeholder="you@serendib.lk" defaultValue="admin@serendib.lk" />
+            <Input id="email" name="email" type="email" required placeholder="you@serendib.lk" defaultValue={DEMO ? "admin@serendib.lk" : undefined} autoComplete="username" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
@@ -44,7 +47,8 @@ export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?
                 name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                defaultValue="password123"
+                defaultValue={DEMO ? "password123" : undefined}
+                autoComplete="current-password"
                 className="pr-10"
               />
               <button
@@ -65,15 +69,17 @@ export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?
             </div>
           )}
           <Button className="w-full" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</Button>
-          <div className="text-xs text-muted-foreground">
-            Demo accounts (password <span className="font-mono">password123</span>):
-            <ul className="mt-1 space-y-0.5">
-              <li>admin@serendib.lk — Administrator</li>
-              <li>buyer@serendib.lk — Gem Buyer</li>
-              <li>cutter@serendib.lk — Cutter</li>
-              <li>sales@serendib.lk — Sales</li>
-            </ul>
-          </div>
+          {DEMO && (
+            <div className="text-xs text-muted-foreground">
+              Demo accounts (password <span className="font-mono">password123</span>):
+              <ul className="mt-1 space-y-0.5">
+                <li>admin@serendib.lk — Administrator</li>
+                <li>buyer@serendib.lk — Gem Buyer</li>
+                <li>cutter@serendib.lk — Cutter</li>
+                <li>sales@serendib.lk — Sales</li>
+              </ul>
+            </div>
+          )}
         </form>
       </CardContent>
     </Card>
