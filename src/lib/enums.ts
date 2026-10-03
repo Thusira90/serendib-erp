@@ -369,6 +369,134 @@ export const NOTIFICATION_TYPES = [
   "SALE_CREATED","PAYMENT_RECORDED","RESERVATION_CREATED","RESERVATION_RELEASED",
   "RESERVATION_EXPIRING","QUOTATION_ACCEPTED","QUOTATION_EXPIRING","CERTIFICATE_ISSUED",
   "CGI_MASTER_SET","SHIPMENT_CREATED","SHIPMENT_DELIVERED","ENQUIRY_NEW",
-  "CUTTING_COMPLETED","ALERT",
+  "CUTTING_COMPLETED","ALERT","PARTNER_ACTIVITY",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+// ─── Partner deals ──────────────────────────────────────────────────────────
+// Stored as String columns. The CHECK constraints in scripts/add-partner-deals.ts
+// freeze method, scope, earnOn, status and direction, so extend those with a migration.
+
+export const PARTNER_KINDS = ["BROKER", "INVESTOR", "AGENT"] as const;
+export type PartnerKind = (typeof PARTNER_KINDS)[number];
+
+/** The four ways a partner is paid; each has its own pure function in partner-engine.ts. */
+export const PAYOUT_METHODS = ["PROFIT_SHARE", "SALE_COMMISSION", "FIXED_FEE", "INVESTMENT"] as const;
+export type PayoutMethod = (typeof PAYOUT_METHODS)[number];
+
+export const PARTNER_SCOPES = ["PER_STONE", "POOLED"] as const;
+export type PartnerScope = (typeof PARTNER_SCOPES)[number];
+
+export const EARN_ON = ["SALE", "PAYMENT"] as const;
+export type EarnOn = (typeof EARN_ON)[number];
+
+export const DEAL_STATUSES = ["DRAFT", "ACTIVE", "CLOSED", "CANCELLED"] as const;
+export type DealStatus = (typeof DEAL_STATUSES)[number];
+
+export const ALLOCATION_BASES = ["WEIGHT", "EQUAL", "MANUAL"] as const;
+export type AllocationBasis = (typeof ALLOCATION_BASES)[number];
+
+/** Where a deal stone's acquisitionOverride came from. */
+export const ACQUISITION_SOURCES = ["MANUAL", "POOL_LUMP", "PARCEL_TOTAL"] as const;
+export type AcquisitionSource = (typeof ACQUISITION_SOURCES)[number];
+
+export const DEAL_VISIBILITY_PRESETS = ["FULL", "STANDARD", "MINIMAL", "CUSTOM"] as const;
+export type DealVisibilityPreset = (typeof DEAL_VISIBILITY_PRESETS)[number];
+
+export const ADJUSTMENT_REASONS = [
+  "COST_CHANGE", "PRICE_CHANGE", "FX_CORRECTION", "SALE_CANCELLED", "NETTING", "STONE_REMOVED",
+  "STONE_WRITTEN_OFF", "FORFEITED_DEPOSIT", "CORRECTION", "GOODWILL", "MANUAL",
+] as const;
+export type AdjustmentReason = (typeof ADJUSTMENT_REASONS)[number];
+
+export const PAYOUT_DIRECTIONS = ["PAID", "RECEIVED"] as const;
+export type PayoutDirection = (typeof PAYOUT_DIRECTIONS)[number];
+
+/** How money physically reached the partner (not the deal's payout method). */
+export const PAYOUT_PAYMENT_METHODS = ["BANK_TRANSFER", "CASH", "CHEQUE", "OTHER"] as const;
+export type PayoutPaymentMethod = (typeof PAYOUT_PAYMENT_METHODS)[number];
+
+export const ACCESS_OUTCOMES = [
+  "OK", "NOT_FOUND", "EXPIRED", "REVOKED", "INACTIVE", "LOCKED", "PASSWORD_REQUIRED", "BAD_PASSWORD",
+  "UNLOCKED", "RATE_LIMITED", "DOC_OK", "DOC_DENIED", "RESALE_CREATED", "RESALE_DENIED", "RESALE_REVOKED", "RESALE_VIEW",
+] as const;
+export type AccessOutcome = (typeof ACCESS_OUTCOMES)[number];
+
+/** Closed set of activity-feed event types; built from structured tables, never free text. */
+export const PARTNER_EVENT_TYPES = [
+  "ACQUIRED", "CUTTING_STARTED", "CUTTING_COMPLETED", "GEM_REGISTERED", "CERTIFICATE_SUBMITTED",
+  "CERTIFICATE_ISSUED", "MEDIA_ADDED", "COST_RECORDED", "SOLD", "PAYMENT_RECEIVED",
+  "SETTLEMENT_RECORDED", "ADJUSTMENT_RECORDED", "PAYOUT_MADE", "TERMS_AMENDED", "DEAL_STARTED", "DEAL_CLOSED",
+] as const;
+export type PartnerEventType = (typeof PARTNER_EVENT_TYPES)[number];
+
+/** Every gather flag code. Severity (BLOCK, ACK, INFO) is decided where the flag is raised, not here. */
+export const FLAG_CODES = [
+  // BLOCK
+  "DUPLICATE_UNIT", "OVERLAP_ROUGH_GEM", "MULTIPLE_LIVE_SALES", "APPROX_RATES_USED", "CO_PARTNER_CAP_EXCEEDED",
+  "CO_PARTNER_TOTAL_EXCEEDS_REVENUE", "INVESTED_MISMATCH", "INVESTED_EXCEEDS_BASIS", "ALLOCATION_INCOMPLETE",
+  "NEGATIVE_AMOUNT",
+  // BLOCK for INVESTMENT, ACK otherwise
+  "STONE_ALREADY_SOLD",
+  // ACK
+  "NEEDS_RATE_COST", "NEEDS_RATE_SALE", "NEEDS_RATE_PAYMENT", "COST_MISSING", "ZERO_PRICE_SALE",
+  "ROUGH_SOLD_NO_PROCEEDS", "MULTIPLE_CUTS", "REJECTED_BILL_IN_CUT", "COST_DRIFT", "PURCHASE_DRIFT", "PARCEL_DRIFT",
+  "STATUS_MISMATCH", "DEPOSIT_NOT_RECORDED", "UNKNOWN_COST_TYPE", "WEIGHT_CHANGED", "LATE_BILL_UNALLOCATED",
+  "NEGATIVE_COST_LINE", "POSSIBLE_PARTNER_PAYOUT_BILL", "FEE_EXCEEDS_REVENUE", "COST_BASIS_DIVERGES_ACROSS_DEALS",
+  // INFO
+  "CANCELLED_WITH_PAYMENTS", "OVERPAID", "FUTURE_SALE", "PRE_DEAL_SALE_IGNORED", "OVERHEAD_EXCLUDED", "ROUGH_UNCUT",
+  "CONVERTED_NO_OUTPUT", "LATE_ROUGH_BILL_ALLOCATED", "ACQUISITION_OVERRIDDEN", "APPROX_RATES",
+  "OBLIGATIONS_EXCEED_PROFIT", "TOTAL_WEIGHT_ZERO",
+] as const;
+export type FlagCode = (typeof FLAG_CODES)[number];
+
+/**
+ * Currencies a deal ledger may use. The engine does all arithmetic in 2-decimal
+ * minor units, so zero-decimal currencies (JPY, KRW, IDR) are left out.
+ */
+export const PARTNER_CURRENCIES = [
+  "LKR", "USD", "EUR", "GBP", "CHF", "CNY", "HKD", "SGD", "AUD", "CAD", "NZD", "AED", "SAR", "INR", "THB", "MYR", "ZAR", "BRL",
+] as const satisfies readonly CurrencyCode[];
+export type PartnerCurrency = (typeof PARTNER_CURRENCIES)[number];
+
+/**
+ * CostAllocation.type holds a CostType, or an ExpenseCategory for a stone bill.
+ * Partners see only these coarse labels, never the raw type or a description.
+ * LAB is not a current type; the spec groups it with certification, so it is kept as an alias.
+ */
+export const PARTNER_COST_TYPE_LABELS: Record<CostType | ExpenseCategory | "LAB", string> = {
+  ROUGH_PURCHASE: "Acquisition",
+  CUTTING: "Cutting & polishing",
+  TRANSPORT: "Transport & shipping",
+  SHIPPING: "Transport & shipping",
+  INSURANCE: "Insurance",
+  CERTIFICATION: "Certification",
+  LAB: "Certification",
+  MARKETING: "Marketing",
+  LABOR: "Other costs",
+  PHOTOGRAPHY: "Other costs",
+  CGI: "Other costs",
+  PACKAGING: "Other costs",
+  CUSTOMS: "Other costs",
+  OTHER: "Other costs",
+  RENT: "Other costs",
+  UTILITIES: "Other costs",
+  OFFICE: "Other costs",
+  SUPPLIES: "Other costs",
+  EQUIPMENT: "Other costs",
+  SOFTWARE: "Other costs",
+  PROFESSIONAL_FEES: "Other costs",
+  TRAVEL: "Other costs",
+  BANK_FEES: "Other costs",
+  TAX: "Other costs",
+  SALARIES: "Other costs",
+};
+
+export const PARTNER_COST_FALLBACK_LABEL = "Other costs";
+
+/** Partner-safe label for any CostAllocation.type, including values not in the enums. */
+export function partnerCostLabel(type: string): string {
+  return Object.prototype.hasOwnProperty.call(PARTNER_COST_TYPE_LABELS, type)
+    ? PARTNER_COST_TYPE_LABELS[type as keyof typeof PARTNER_COST_TYPE_LABELS]
+    : PARTNER_COST_FALLBACK_LABEL;
+}

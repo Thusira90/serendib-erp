@@ -56,7 +56,10 @@ export type Capability =
   | "capital:write"
   | "accounting:read"
   | "accounting:write"
-  | "period:manage";
+  | "period:manage"
+  | "partner:read"
+  | "partner:write"
+  | "partner:settle";
 
 const ADMIN_BASE: Capability[] = [
   "rough:read","rough:write","gemstone:read","gemstone:write",
@@ -75,6 +78,7 @@ const ADMIN_BASE: Capability[] = [
   "shareholder:read","shareholder:write",
   "capital:read","capital:write",
   "accounting:read","accounting:write","period:manage",
+  "partner:read","partner:write","partner:settle",
 ];
 
 const matrix: Record<Role, Capability[]> = {
@@ -88,7 +92,7 @@ const matrix: Record<Role, Capability[]> = {
     "sale:read","payment:read","shipment:read","report:read",
     "expense:read","settings:read","collection:read",
     "director:read","shareholder:read","capital:read",
-    "accounting:read",
+    "accounting:read","partner:read",
   ],
   GEM_BUYER: [
     "rough:read","rough:write","supplier:read","supplier:write",
@@ -122,6 +126,7 @@ const matrix: Record<Role, Capability[]> = {
     "shareholder:read","shareholder:write",
     "capital:read","capital:write",
     "accounting:read","accounting:write","period:manage",
+    "partner:read","partner:settle",
   ],
   WAREHOUSE: [
     "rough:read","gemstone:read","location:read","location:write","dashboard:read",
@@ -136,11 +141,16 @@ export type Principal = {
 };
 
 /** Client mirror of the permissions groups + presets used by the UI. */
-export const PERMISSION_GROUPS: Array<{ label: string; caps: Capability[] }> = [
+export const PERMISSION_GROUPS: Array<{ label: string; caps: Capability[]; note?: string }> = [
   { label: "Inventory",  caps: ["rough:read","rough:write","gemstone:read","gemstone:write","location:read","location:write","genealogy:read","supplier:read","supplier:write"] },
   { label: "Operations", caps: ["cutting:read","cutting:write","cutting:plan","certificate:read","certificate:write","cgi:read","cgi:write","media:read","media:write"] },
   { label: "Sales & CRM", caps: ["customer:read","customer:write","enquiry:read","enquiry:write","quotation:read","quotation:write","reservation:read","reservation:write","sale:read","sale:write","payment:read","payment:write","shipment:read","shipment:write","collection:read","collection:write"] },
   { label: "Finance & Accounting", caps: ["financials:read","expense:read","expense:write","cost:write","price:write","accounting:read","accounting:write","period:manage","director:read","director:write","shareholder:read","shareholder:write","capital:read","capital:write"] },
+  {
+    label: "Partners",
+    caps: ["partner:read","partner:write","partner:settle"],
+    note: "partner:read shows deal costs, supplier names and bill receipts on the admin pages. partner:settle records settlements, adjustments and payouts.",
+  },
   { label: "Reports & Insights", caps: ["dashboard:read","report:read","audit:read"] },
   { label: "System", caps: ["settings:read","settings:write","user:manage"] },
 ];
@@ -164,7 +174,7 @@ export const PERMISSION_PRESETS: Array<{ label: string; description: string; cap
   {
     label: "Read only (all)",
     description: "See everything, edit nothing. Good for auditors or observers.",
-    caps: ["rough:read","gemstone:read","cutting:read","genealogy:read","location:read","dashboard:read","supplier:read","financials:read","certificate:read","cgi:read","media:read","customer:read","enquiry:read","quotation:read","reservation:read","sale:read","payment:read","shipment:read","report:read","expense:read","settings:read","collection:read","director:read","shareholder:read","capital:read","accounting:read","audit:read"],
+    caps: ["rough:read","gemstone:read","cutting:read","genealogy:read","location:read","dashboard:read","supplier:read","financials:read","certificate:read","cgi:read","media:read","customer:read","enquiry:read","quotation:read","reservation:read","sale:read","payment:read","shipment:read","report:read","expense:read","settings:read","collection:read","director:read","shareholder:read","capital:read","accounting:read","audit:read","partner:read"],
   },
 ];
 

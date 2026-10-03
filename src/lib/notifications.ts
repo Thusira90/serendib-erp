@@ -24,6 +24,7 @@ const audienceByType: Record<NotificationType, Role[]> = {
   ENQUIRY_NEW:           ["SUPER_ADMIN", "ADMINISTRATOR", "SALES"],
   CUTTING_COMPLETED:     ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT", "GEMOLOGIST"],
   ALERT:                 ["SUPER_ADMIN", "ADMINISTRATOR", "MANAGEMENT"],
+  PARTNER_ACTIVITY:      ["SUPER_ADMIN", "ADMINISTRATOR", "FINANCE"],
 };
 
 export type NotifyEvent = {

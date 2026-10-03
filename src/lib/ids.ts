@@ -47,6 +47,13 @@ export const codePrefix = {
   capitalTxn: "CT",
   shareTxn: "ST",
   journal: "JE",
+  // Partner deals. Pass { pad: 4 }: PTR-0001 (nextGlobalCode), DEAL-2026-0001, STL-2026-0001,
+  // ADJ-2026-0001, PAYOUT-2026-0001 (nextCode). "PAY" is taken by customer payments.
+  partner: "PTR",
+  partnerDeal: "DEAL",
+  partnerSettlement: "STL",
+  partnerAdjustment: "ADJ",
+  partnerPayout: "PAYOUT",
 } as const;
 
 /**

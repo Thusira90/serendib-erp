@@ -23,6 +23,7 @@ const typeLabel: Record<string, { label: string; variant: "muted" | "teal" | "pu
   ENQUIRY_NEW:          { label: "Enquiry",           variant: "teal" },
   CUTTING_COMPLETED:    { label: "Cutting",           variant: "purple" },
   ALERT:                { label: "Alert",             variant: "warning" },
+  PARTNER_ACTIVITY:     { label: "Partner",           variant: "teal" },
 };
 
 export default async function InboxPage() {

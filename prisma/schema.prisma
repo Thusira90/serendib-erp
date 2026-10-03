@@ -151,6 +151,9 @@ model RoughStone {
   // storage, etc.) — allocated cost lines that follow the rough into
   // any finished gems it becomes.
   costAllocations CostAllocation[]
+
+  // Partner deals this rough is attached to (no database column).
+  partnerDealStones PartnerDealStone[]
 }
 
 // ─── Finished gemstones ──────────────────────────────────────────────────────
@@ -240,6 +243,9 @@ model Gemstone {
 
   // Collections (curated share bundles for customers)
   collectionItems CollectionItem[]
+
+  // Partner deals this gemstone is attached to (no database column).
+  partnerDealStones PartnerDealStone[]
 }
 
 // ─── Gemstone transformations (the genealogy engine) ─────────────────────────
@@ -602,6 +608,8 @@ model DigitalAsset {
   // chronological ordering across the full stone lifecycle timeline.
   capturedAt    DateTime?
   createdBy     String?
+  // true = never shown to any partner or resale buyer (null = follow the deal's visibility).
+  partnerHidden Boolean?
   createdAt     DateTime @default(now())
 
   @@index([gemstoneId])
@@ -1343,4 +1351,268 @@ model Comment {
   createdAt  DateTime @default(now())
 
   @@index([entity, entityId, createdAt])
+}
+
+// ─── Partner deals ──────────────────────────────────────────────────────────
+// Brokers, investors and agents who share in the profit, sale price or a fixed
+// fee on specific stones. Enum-like fields are Strings; the allowed values live
+// in src/lib/enums.ts. Ledger and configuration money is Decimal(20, 2) so
+// cents are exact. Settlements, settlement lines, adjustments and payouts are
+// append-only (database triggers, see scripts/add-partner-deals.ts). Every
+// table has RLS on and anon/authenticated revoked.
+// The spec's PartnerDeal/PartnerAccess -> ShareLink relations (agent re-share)
+// are deliberately not here; they ship with that later stage.
+
+model Partner {
+  id          String   @id @default(cuid())
+  code        String   @unique                  // PTR-0001
+  name        String                            // shown to partner and used as watermark
+  kind        String   @default("BROKER")       // BROKER | INVESTOR | AGENT (label only)
+  company     String?
+  contactName String?
+  email       String?
+  phone       String?
+  country     String?
+  notes       String?                           // INTERNAL, never in any DTO
+  active      Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deals       PartnerDeal[]
+
+  @@index([name])
+  @@index([active])
+}
+
+model PartnerDeal {
+  id                   String   @id @default(cuid())
+  code                 String   @unique          // DEAL-2026-0001
+  partnerId            String
+  partner              Partner  @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  title                String                    // internal
+  partnerTitle         String?                   // partner sees this, else "Your deal"
+  status               String   @default("DRAFT") // DRAFT | ACTIVE | CLOSED | CANCELLED
+  method               String                    // PROFIT_SHARE | SALE_COMMISSION | FIXED_FEE | INVESTMENT
+  scope                String   @default("PER_STONE") // PER_STONE | POOLED
+  earnOn               String   @default("PAYMENT")   // SALE | PAYMENT
+  currency             String   @default("LKR")  // ledger currency, in PARTNER_CURRENCIES (2 minor digits)
+  ratePct              Decimal? @db.Decimal(5, 2) // M1, M2, M4; 0 < x <= 100
+  fixedFee             Decimal? @db.Decimal(20, 2) // M3: per deal stone (PER_STONE) or once (POOLED)
+  invested             Decimal? @db.Decimal(20, 2) // M4 deal total
+  capitalProtected     Boolean  @default(false)  // M4 investor-first on loss
+  poolAcquisitionCost  Decimal? @db.Decimal(20, 2) // allocator input (record only; engine reads per-stone overrides)
+  poolCurrency         String?
+  allocationBasis      String   @default("WEIGHT") // WEIGHT | EQUAL | MANUAL (allocator input record)
+  excludedCostTypes    String   @default("[\"RENT\",\"SALARIES\",\"TAX\"]") // JSON string[] of CostAllocation.type not charged to the partner
+  rateOverrides        String?                   // JSON {"USD":"330.500000"} LKR per 1 unit (MANUAL source); filled with the used rates at the first settlement (frozen)
+  ratesFrozenAt        DateTime?                 // set at the first settlement commit
+  formulaVersion       String   @default("pd-1.0.0")
+  termsVersion         Int      @default(1)
+  termsAmendedAt       DateTime?
+  termsAmendReason     String?                   // INTERNAL
+  visibility           String                    // JSON PartnerVisibility
+  visibilityPreset     String   @default("STANDARD") // FULL | STANDARD | MINIMAL | CUSTOM
+  partnerNote          String?                   // partner-visible, max 500 chars
+  internalNotes        String?                   // INTERNAL
+  resaleEnabled        Boolean  @default(false)  // set true at creation for AGENT
+  allowBrandedResale   Boolean  @default(true)
+  resaleShowPrice      Boolean  @default(false)  // show asking price on resale pages (also needs the askingPrice flag)
+  allowContactOverride Boolean  @default(false)  // partner may type their own contact on neutral links
+  maxShareTtlMinutes   Int      @default(10080)  // 7 days; hard cap 43200
+  maxActiveResaleLinks Int      @default(10)
+  activatedAt          DateTime?
+  closedAt             DateTime?
+  createdById          String?
+  createdByName        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  stones      PartnerDealStone[]
+  settlements PartnerSettlement[]
+  adjustments PartnerAdjustment[]
+  payouts     PartnerPayout[]
+  accesses    PartnerAccess[]
+
+  @@index([partnerId])
+  @@index([status])
+}
+
+model PartnerDealStone {
+  id                  String      @id @default(cuid())
+  dealId              String
+  deal                PartnerDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  roughStoneId        String?     // exactly one of rough/gem (SQL CHECK)
+  roughStone          RoughStone? @relation(fields: [roughStoneId], references: [id], onDelete: Restrict)
+  gemstoneId          String?
+  gemstone            Gemstone?   @relation(fields: [gemstoneId], references: [id], onDelete: Restrict)
+  weightMilli         Int         @default(0) // stone weight in milli-carats FROZEN at attach (rough or gem); 0 = unknown, equal weights used
+  acquisitionOverride Decimal?    @db.Decimal(20, 2) // replaces ROUGH_PURCHASE-type cost; 0 = explicitly free
+  acquisitionCurrency String?
+  acquisitionSource   String?     // MANUAL | POOL_LUMP | PARCEL_TOTAL
+  investedAlloc       Decimal?    @db.Decimal(20, 2) // M4 per-stone principal in deal currency, frozen (both scopes)
+  countSalesFrom      DateTime?   // sales dated before this are ignored (stone already sold when attached)
+  writtenOffAt        DateTime?   // M4: capital on this stone written off
+  writtenOffNote      String?     // INTERNAL
+  addedAt             DateTime    @default(now())
+  addedById           String?
+  addedByName         String?
+  removedAt           DateTime?   // soft remove; re-adding clears it
+  removedReason       String?
+
+  @@unique([dealId, roughStoneId])
+  @@unique([dealId, gemstoneId])
+  @@index([roughStoneId])
+  @@index([gemstoneId])
+}
+
+model PartnerSettlement {
+  id             String      @id @default(cuid())
+  code           String      @unique             // STL-2026-0001
+  dealId         String
+  deal           PartnerDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  seq            Int
+  formulaVersion String
+  termsVersion   Int
+  currency       String
+  asOf           DateTime
+  terms          String                          // JSON terms snapshot
+  inputs         String                          // JSON: EngineInput + gather evidence (INTERNAL, never in a DTO)
+  inputsHash     String                          // sha256 of canonical (sorted-key) inputs JSON
+  result         String                          // JSON EngineResult
+  rates          String                          // JSON RateMap
+  flags          String   @default("[]")         // JSON [{code, severity, ackedByName}]
+  earnedTotal    Decimal  @db.Decimal(20, 2)     // engine total at asOf (informational)
+  positionBefore Decimal  @db.Decimal(20, 2)     // settled+adjustments just before this row (after same-commit adjustments)
+  amount         Decimal  @db.Decimal(20, 2)     // sum(lines) > 0
+  note           String?                         // INTERNAL
+  partnerNote    String?                         // partner-visible (max 280)
+  createdById    String?
+  createdByName  String?
+  createdAt      DateTime @default(now())        // no updatedAt: append-only
+
+  lines   PartnerSettlementLine[]
+  payouts PartnerPayout[]
+
+  @@unique([dealId, seq])
+  @@index([dealId, createdAt])
+}
+
+model PartnerSettlementLine {
+  id             String   @id @default(cuid())
+  settlementId   String
+  settlement     PartnerSettlement @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  dealId         String
+  bucketKey      String                          // PartnerDealStone.id (PER_STONE) or "POOL"
+  cumulative     Decimal  @db.Decimal(20, 2)     // engine bucket amount at asOf
+  creditedBefore Decimal  @db.Decimal(20, 2)     // settled lines + adjustments for this bucket before this row
+  amount         Decimal  @db.Decimal(20, 2)     // cumulative - creditedBefore (> 0)
+  reasons        String                          // JSON array of FIRST | NEW_REALIZATION | COST_CHANGED | PRICE_CHANGED
+  realizationKey String                          // sha256 of sorted "unitKey:orderId:num/den" list
+  createdAt      DateTime @default(now())
+
+  @@index([settlementId])
+  @@index([dealId, bucketKey, createdAt])
+}
+
+model PartnerAdjustment {
+  id             String      @id @default(cuid())
+  code           String      @unique             // ADJ-2026-0001
+  dealId         String
+  deal           PartnerDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  settlementId   String?                         // settlement being restated, if any
+  bucketKey      String?                         // null = deal-level manual
+  currency       String                          // must equal the deal currency (DB trigger)
+  amount         Decimal  @db.Decimal(20, 2)     // signed, never 0
+  reasonCode     String                          // COST_CHANGE | PRICE_CHANGE | FX_CORRECTION | SALE_CANCELLED | NETTING | STONE_REMOVED | STONE_WRITTEN_OFF | FORFEITED_DEPOSIT | CORRECTION | GOODWILL | MANUAL
+  reason         String                          // INTERNAL, required
+  partnerNote    String?                         // partner-visible (max 280)
+  evidence       String   @default("{}")         // JSON {engineNow, creditedBefore, delta, inputsHash, changedLines, orderIds}
+  realizationKey String?                         // set by reconcile; null for manual rows
+  formulaVersion String
+  rates          String   @default("{}")
+  createdById    String?
+  createdByName  String?
+  createdAt      DateTime @default(now())
+
+  @@index([dealId, createdAt])
+  @@index([dealId, bucketKey])
+}
+
+model PartnerPayout {
+  id               String   @id @default(cuid())
+  code             String   @unique              // PAYOUT-2026-0001
+  dealId           String
+  deal             PartnerDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  settlementId     String?                       // latest settlement for traceability; not an allocation
+  settlement       PartnerSettlement? @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  direction        String   @default("PAID")     // PAID (to partner) | RECEIVED (clawback receipt or reversal)
+  currency         String                        // must equal the deal currency (DB trigger)
+  amount           Decimal  @db.Decimal(20, 2)   // always > 0, deal currency
+  paidAt           DateTime
+  method           String?                       // BANK_TRANSFER | CASH | CHEQUE | OTHER (INTERNAL)
+  reference        String?                       // INTERNAL
+  originalAmount   Decimal? @db.Decimal(20, 2)   // informational, if physically paid in another currency
+  originalCurrency String?
+  reversalOfId     String?  @unique              // RECEIVED row reversing a PAID row
+  partnerNote      String?
+  createdById      String?
+  createdByName    String?
+  createdAt        DateTime @default(now())
+
+  @@index([dealId, paidAt])
+}
+
+model PartnerAccess {
+  id                String   @id @default(cuid())
+  dealId            String
+  deal              PartnerDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  label             String?                       // internal, e.g. "Hassan phone"
+  tokenHash         String   @unique              // sha256 hex of the token; token never stored; first 8 hex are the display id (no tokenHint column)
+  passwordHash      String?                       // bcryptjs cost 12
+  passwordSetAt     DateTime?
+  unlockVersion     Int      @default(0)          // bump on password change or "sign out all devices"
+  failedAttempts    Int      @default(0)
+  lastFailedAt      DateTime?
+  lockedUntil       DateTime?
+  expiresAt         DateTime?                     // default now+90d; null only by explicit confirm
+  revokedAt         DateTime?
+  revokedReason     String?
+  revokedByName     String?
+  viewCount         Int      @default(0)
+  firstViewedAt     DateTime?
+  lastViewedAt      DateTime?
+  anomalyNotifiedAt DateTime?
+  createdById       String?
+  createdByName     String?
+  createdAt         DateTime @default(now())
+  logs              PartnerAccessLog[]
+
+  @@index([dealId])
+}
+
+model PartnerAccessLog {
+  id       String   @id @default(cuid())
+  accessId String?                               // null for an unknown token
+  access   PartnerAccess? @relation(fields: [accessId], references: [id], onDelete: SetNull)
+  dealId   String?
+  at       DateTime @default(now())
+  outcome  String   // OK | NOT_FOUND | EXPIRED | REVOKED | INACTIVE | LOCKED | PASSWORD_REQUIRED | BAD_PASSWORD | UNLOCKED | RATE_LIMITED | DOC_OK | DOC_DENIED | RESALE_CREATED | RESALE_DENIED | RESALE_REVOKED | RESALE_VIEW
+  path     String   // route pattern only: "/p/[code]", "/p/[code]/doc", "action:resale", "/s/[code]" (never the token or link code)
+  tokenFp  String?  // first 8 hex of sha256(token), groups repeated probes
+  ipHash   String?  // 16 hex of HMAC(ip /64 for IPv6 + ":" + YYYY-MM)
+  country  String?  // x-vercel-ip-country
+  uaClass  String?  // "mobile/safari", "desktop/chrome", "bot"
+  detail   String?  // short machine codes only, e.g. "stones=3,mode=NEUTRAL"
+
+  @@index([accessId, at(sort: Desc)])
+  @@index([ipHash, at(sort: Desc)])
+  @@index([at])
+}
+
+model PartnerRateLimit {
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@id([key, windowStart])
 }
