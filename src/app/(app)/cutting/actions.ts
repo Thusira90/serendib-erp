@@ -9,7 +9,8 @@ import { codePrefix, nextCode } from "@/lib/ids";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
 import { CUTTING_JOB_STATUSES } from "@/lib/enums";
-import { convertStrict, fxNote, getExchangeRates, round2 } from "@/lib/money";
+import { convertStrict, getExchangeRates, round2 } from "@/lib/money";
+import { cutGemLines, lockRoughStone } from "@/lib/bill-allocation";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
 const dec = (v: FormDataEntryValue | null) => {
@@ -115,19 +116,40 @@ export async function updateCuttingJobStatus(fd: FormData) {
     id: str(fd.get("id")),
     status: str(fd.get("status")),
   });
-  const before = await prisma.cuttingJob.findUniqueOrThrow({ where: { id: parsed.id } });
-  await prisma.cuttingJob.update({
-    where: { id: parsed.id },
-    data: { status: parsed.status },
-  });
-  await writeAudit({
-    entity: "CuttingJob", entityId: parsed.id, entityCode: before.code,
-    action: "STATUS_CHANGE", field: "status",
-    oldValue: before.status, newValue: parsed.status,
-    userId: session.user.id, userName: session.user.name ?? null,
+  if (parsed.status === "COMPLETED") {
+    throw new Error("Use Complete job to record the finished stones; the status cannot be set to COMPLETED by hand.");
+  }
+  await prisma.$transaction(async (tx) => {
+    const before = await tx.cuttingJob.findUniqueOrThrow({
+      where: { id: parsed.id },
+      include: { roughStone: { select: { id: true, code: true, status: true } } },
+    });
+    await tx.cuttingJob.update({
+      where: { id: parsed.id },
+      data: { status: parsed.status },
+    });
+    await writeAudit({
+      entity: "CuttingJob", entityId: parsed.id, entityCode: before.code,
+      action: "STATUS_CHANGE", field: "status",
+      oldValue: before.status, newValue: parsed.status,
+      userId: session.user.id, userName: session.user.name ?? null,
+    }, tx);
+    // The rough's IN_CUTTING status can no longer be edited by hand, so a
+    // rejected job has to hand the rough back or it would be stuck.
+    if (parsed.status === "REJECTED" && before.roughStone.status === "IN_CUTTING") {
+      await tx.roughStone.update({ where: { id: before.roughStone.id }, data: { status: "AVAILABLE" } });
+      await writeAudit({
+        entity: "RoughStone", entityId: before.roughStone.id, entityCode: before.roughStone.code,
+        action: "STATUS_CHANGE", field: "status",
+        oldValue: "IN_CUTTING", newValue: "AVAILABLE",
+        userId: session.user.id, userName: session.user.name ?? null,
+        metadata: { reason: `Cutting job ${before.code} rejected` },
+      }, tx);
+    }
   });
   revalidatePath(`/cutting/${parsed.id}`);
   revalidatePath("/cutting");
+  revalidatePath("/rough");
   revalidatePath("/"); // dashboard: in-cutting count may change
 }
 
@@ -215,6 +237,7 @@ export async function completeCuttingJob(fd: FormData) {
       throw new Error(`Cutting job ${job.code} is already ${job.status}.`);
     }
     const rough = job.roughStone;
+    await lockRoughStone(tx, rough.id);
     // A second cut of the same rough would count its cost twice.
     const alreadyCut = await tx.transformationInput.count({ where: { roughStoneId: rough.id } });
     if (alreadyCut > 0) {
@@ -222,16 +245,12 @@ export async function completeCuttingJob(fd: FormData) {
     }
     const roughWeight = Number(rough.weightCt);
     const roughPurchase = convertStrict(rates, Number(rough.purchasePrice), rough.currency, target);
-    const roughBills = (await tx.costAllocation.findMany({
+    const roughBills = await tx.costAllocation.findMany({
       where: { roughStoneId: rough.id },
       orderBy: { incurredAt: "asc" },
-    })).map((b) => ({
-      type: b.type,
-      description: b.description,
-      note: fxNote(rates, Number(b.amount), b.currency, target),
-      amount: convertStrict(rates, Number(b.amount), b.currency, target),
-    }));
-    const roughCost = roughPurchase + roughBills.reduce((s, b) => s + b.amount, 0);
+    });
+    const roughCost = roughPurchase
+      + roughBills.reduce((s, b) => s + convertStrict(rates, Number(b.amount), b.currency, target), 0);
     if (outputTotalWt > roughWeight + 0.001) {
       throw new Error(`Total output weight (${outputTotalWt.toFixed(2)}ct) exceeds rough weight (${roughWeight.toFixed(2)}ct).`);
     }
@@ -243,26 +262,12 @@ export async function completeCuttingJob(fd: FormData) {
     for (const o of parsed.outputs) {
       const code = await nextCode(codePrefix.gemstone, year, tx);
       const share = outputTotalWt > 0 ? o.weightCt / outputTotalWt : 0;
-      const pct = (share * 100).toFixed(1);
-      // Round each line first so totalCost always equals the sum of its
-      // allocation lines (later bills re-sum those lines).
-      const lines = [
-        {
-          type: "ROUGH_PURCHASE",
-          description: `Allocated share of ${rough.code} purchase (${pct}%)${fxNote(rates, Number(rough.purchasePrice), rough.currency, target)}`,
-          amount: round2(roughPurchase * share),
-        },
-        ...roughBills.map((b) => ({
-          type: b.type,
-          description: `Allocated share of ${b.description ?? b.type} on ${rough.code} (${pct}%)${b.note}`,
-          amount: round2(b.amount * share),
-        })),
-        ...(totalCost > 0 ? [{
-          type: "CUTTING",
-          description: `Allocated share of cutting job ${job.code} (${pct}%)`,
-          amount: round2(totalCost * share),
-        }] : []),
-      ];
+      // Each line is rounded on its own so totalCost always equals the sum of
+      // its allocation lines (later bills re-sum those lines).
+      const lines = cutGemLines(rates, {
+        rough, bills: roughBills, share, target,
+        cutting: { jobCode: job.code, totalCost },
+      });
       const totalGemCost = round2(lines.reduce((s, l) => s + l.amount, 0));
       const costPerCt = o.weightCt > 0 ? round2(totalGemCost / o.weightCt) : 0;
       const gem = await tx.gemstone.create({
@@ -292,6 +297,7 @@ export async function completeCuttingJob(fd: FormData) {
           description: l.description,
           amount: l.amount,
           currency: target,
+          sourceAllocationId: l.sourceAllocationId,
         })),
       });
       gemRows.push({ id: gem.id, code: gem.code, weight: o.weightCt, allocatedCost: totalGemCost, askingPrice: o.askingPrice ?? null });

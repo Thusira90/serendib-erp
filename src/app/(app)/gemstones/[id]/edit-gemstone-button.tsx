@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
-import { GEMSTONE_STATUSES } from "@/lib/enums";
+import { GEMSTONE_STATUSES, GEMSTONE_COMMERCE_STATUSES, manualStatusOptions } from "@/lib/enums";
 import { updateGemstone } from "../edit-actions";
 import {
   CGI_ORIGIN_BANDS, CGI_TREATMENT_BANDS, CGI_COLOR_BANDS, CGI_CLARITY_BANDS, CGI_CUT_BANDS,
@@ -45,6 +45,9 @@ export function EditGemstoneButton({
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // RESERVED / SOLD are set and cleared by the reserve and sell flows only.
+  const statusOptions = manualStatusOptions(GEMSTONE_STATUSES, GEMSTONE_COMMERCE_STATUSES, gem.status);
+  const statusLocked = (GEMSTONE_COMMERCE_STATUSES as readonly string[]).includes(gem.status);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -87,8 +90,13 @@ export function EditGemstoneButton({
           <F label="Polish" cols={1}><Input name="polish" defaultValue={gem.polish ?? ""} /></F>
           <F label="Status" cols={1}>
             <select name="status" defaultValue={gem.status} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-              {GEMSTONE_STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
+              {statusOptions.map((s) => <option key={s} value={s}>{label(s)}</option>)}
             </select>
+            {statusLocked && (
+              <p className="text-[10px] text-muted-foreground">
+                {gem.status === "SOLD" ? "Cancel the sale" : "Release the reservation"} to change this.
+              </p>
+            )}
           </F>
 
           <F label="Location" cols={3}>

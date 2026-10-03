@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
-import { ROUGH_STATUSES } from "@/lib/enums";
+import { ROUGH_STATUSES, ROUGH_SYSTEM_STATUSES, manualStatusOptions } from "@/lib/enums";
 import { updateRoughStone } from "../actions";
 
 const label = (s: string) => s.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
@@ -35,6 +35,9 @@ export function EditRoughButton({
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // IN_CUTTING / CONVERTED belong to the cutting flow; once there, the stone's gems carry cost derived from it.
+  const costLocked = (ROUGH_SYSTEM_STATUSES as readonly string[]).includes(rough.status);
+  const statusOptions = manualStatusOptions(ROUGH_STATUSES, ROUGH_SYSTEM_STATUSES, rough.status);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -53,7 +56,7 @@ export function EditRoughButton({
           <input type="hidden" name="id" value={rough.id} />
           <F label="Gem type *"><Input name="gemType" required defaultValue={rough.gemType} /></F>
           <F label="Variety"><Input name="variety" defaultValue={rough.variety ?? ""} /></F>
-          <F label="Weight (ct) *"><Input name="weightCt" required inputMode="decimal" defaultValue={rough.weightCt} /></F>
+          <F label="Weight (ct) *"><Input name="weightCt" required inputMode="decimal" defaultValue={rough.weightCt} readOnly={costLocked} /></F>
           <F label="Origin"><Input name="origin" defaultValue={rough.origin ?? ""} /></F>
           <F label="Color"><Input name="color" defaultValue={rough.color ?? ""} /></F>
           <F label="Clarity"><Input name="clarity" defaultValue={rough.clarity ?? ""} /></F>
@@ -62,7 +65,7 @@ export function EditRoughButton({
           </F>
           <F label="Status">
             <select name="status" defaultValue={rough.status} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-              {ROUGH_STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
+              {statusOptions.map((s) => <option key={s} value={s}>{label(s)}</option>)}
             </select>
           </F>
           <F label="Location">
@@ -72,6 +75,11 @@ export function EditRoughButton({
             </select>
           </F>
           <F label="Observations" span><Textarea name="observations" rows={2} defaultValue={rough.observations ?? ""} /></F>
+          {costLocked && (
+            <div className="col-span-2 text-xs text-muted-foreground bg-secondary/40 rounded p-2 leading-snug">
+              This rough is {label(rough.status).toLowerCase()}, so its weight, price, currency and status are locked: its finished stones carry cost derived from them.
+            </div>
+          )}
           {/* updateRoughStone requires purchaseDate not to be edited; keep original by not sending it */}
           {error && <div className="col-span-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>}
           <div className="col-span-2 flex justify-end gap-2 pt-2">

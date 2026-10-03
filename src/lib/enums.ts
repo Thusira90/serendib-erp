@@ -21,6 +21,22 @@ export const ROUGH_STATUSES = [
 ] as const;
 export type RoughStatus = (typeof ROUGH_STATUSES)[number];
 
+/** Set only by the cutting flow; a manual edit may neither set nor clear them. */
+export const ROUGH_SYSTEM_STATUSES = ["IN_CUTTING", "CONVERTED"] as const;
+
+/** Set only by reserve / sell flows (release or cancel the sale to leave them). */
+export const GEMSTONE_COMMERCE_STATUSES = ["RESERVED", "SOLD"] as const;
+
+/** Status options a manual edit may offer: always the current value, never a system-owned one. */
+export function manualStatusOptions<T extends string>(
+  all: readonly T[],
+  systemOwned: readonly string[],
+  current: string,
+): T[] {
+  if (systemOwned.includes(current)) return all.filter((s) => s === current);
+  return all.filter((s) => !systemOwned.includes(s));
+}
+
 export const GEMSTONE_STATUSES = [
   "IN_PROGRESS","AVAILABLE","RESERVED","SOLD","ARCHIVED","LOST",
 ] as const;
@@ -149,6 +165,16 @@ export const EXPENSE_CATEGORIES = [
   "SHIPPING","BANK_FEES","TAX","SALARIES","OTHER",
 ] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+/**
+ * Categories that may be filed as a stone bill (and so capitalised into stone
+ * cost). Overhead categories (rent, utilities, salaries, ...) stay general expenses.
+ */
+export const STONE_BILL_CATEGORIES = [
+  "SUPPLIES","EQUIPMENT","PROFESSIONAL_FEES","INSURANCE",
+  "MARKETING","TRAVEL","SHIPPING","OTHER",
+] as const satisfies readonly ExpenseCategory[];
+export type StoneBillCategory = (typeof STONE_BILL_CATEGORIES)[number];
 
 export const EXPENSE_STATUSES = [
   "RECORDED","APPROVED","REIMBURSED","REJECTED",

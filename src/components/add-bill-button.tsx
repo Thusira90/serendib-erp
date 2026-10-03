@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Receipt, ExternalLink } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { EXPENSE_CATEGORIES } from "@/lib/enums";
+import { STONE_BILL_CATEGORIES } from "@/lib/enums";
 import { addStoneBill } from "@/app/(app)/expenses/actions";
 
 const label = (c: string) => c.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
@@ -23,16 +23,18 @@ export function AddBillButton({
   stoneCode: string;
   defaultCurrency?: string;
   /**
-   * Category pre-selected on open. For rough stones a valuation or transport
-   * cost is typical; for cut stones cutting labour / certification / photo.
+   * Category pre-selected on open (must be a stone-bill category, otherwise
+   * the default is used). Transport is typical for a rough, professional fees
+   * (cutting labour, certification) for a cut stone.
    */
   suggestedCategory?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const defaultCat = suggestedCategory
-    ?? (kind === "rough" ? "TRANSPORT" : "CUTTING");
+  const defaultCat = (STONE_BILL_CATEGORIES as readonly string[]).includes(suggestedCategory ?? "")
+    ? suggestedCategory
+    : kind === "rough" ? "SHIPPING" : "PROFESSIONAL_FEES";
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -61,7 +63,7 @@ export function AddBillButton({
           <Field label="Category *">
             <select name="category" defaultValue={defaultCat} required
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-              {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{label(c)}</option>)}
+              {STONE_BILL_CATEGORIES.map((c) => <option key={c} value={c}>{label(c)}</option>)}
             </select>
           </Field>
           <Field label="Bill date">

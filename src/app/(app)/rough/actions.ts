@@ -7,8 +7,9 @@ import { prisma } from "@/lib/db";
 import { requireCapability } from "@/lib/rbac";
 import { codePrefix, nextCode } from "@/lib/ids";
 import { auditDiff, writeAudit } from "@/lib/audit";
-import { ROUGH_STATUSES } from "@/lib/enums";
+import { ROUGH_STATUSES, ROUGH_SYSTEM_STATUSES } from "@/lib/enums";
 import { saveUpload } from "@/lib/uploads";
+import { lockRoughStone } from "@/lib/bill-allocation";
 
 const decimalString = z.union([z.string().min(1), z.number()]).transform((v) => {
   const n = typeof v === "number" ? v : parseFloat(v);
@@ -150,33 +151,66 @@ const updateSchema = createSchema.extend({
   status: z.enum(ROUGH_STATUSES).optional(),
 }).partial().extend({ id: z.string() });
 
+const isSystemStatus = (v: string) => (ROUGH_SYSTEM_STATUSES as readonly string[]).includes(v);
+const label = (v: string) => v.replaceAll("_", " ").toLowerCase();
+
+/**
+ * Edits a rough. Refused: weight / price / currency once the rough is in
+ * cutting or has been cut (its gems carry cost derived from them), and any
+ * manual move into or out of IN_CUTTING / CONVERTED (the cutting flow owns those).
+ */
 export async function updateRoughStone(fd: FormData) {
   const session = await requireCapability("rough:write");
   const raw = fdToObj(fd);
   const parsed = updateSchema.parse(raw);
   const id = parsed.id;
-  const before = await prisma.roughStone.findUniqueOrThrow({ where: { id } });
-
-  const dataUpdate = {
-    gemType: parsed.gemType ?? before.gemType,
-    variety: parsed.variety ?? before.variety,
-    species: parsed.species ?? before.species,
-    origin: parsed.origin ?? before.origin,
-    weightCt: parsed.weightCt ?? Number(before.weightCt),
-    color: parsed.color ?? before.color,
-    clarity: parsed.clarity ?? before.clarity,
-    observations: parsed.observations ?? before.observations,
-    purchasePrice: parsed.purchasePrice ?? Number(before.purchasePrice),
-    currency: parsed.currency ?? before.currency,
-    pricePerCt: (parsed.purchasePrice ?? Number(before.purchasePrice)) > 0 && (parsed.weightCt ?? Number(before.weightCt)) > 0
-      ? (parsed.purchasePrice ?? Number(before.purchasePrice)) / (parsed.weightCt ?? Number(before.weightCt))
-      : before.pricePerCt,
-    status: parsed.status ?? before.status,
-    supplierId: parsed.supplierId ?? before.supplierId,
-    locationId: parsed.locationId === undefined ? before.locationId : parsed.locationId,
-  };
 
   await prisma.$transaction(async (tx) => {
+    // Cutting completion takes the same lock, so the cut check below cannot go stale.
+    await lockRoughStone(tx, id);
+    const before = await tx.roughStone.findUniqueOrThrow({ where: { id } });
+
+    if (parsed.status !== undefined && parsed.status !== before.status) {
+      if (isSystemStatus(parsed.status)) {
+        throw new Error(`Status cannot be set to ${label(parsed.status)} by hand. Start a cutting job on this rough instead.`);
+      }
+      if (isSystemStatus(before.status)) {
+        throw new Error(`${before.code} is ${label(before.status)}; its status is managed by the cutting job and cannot be changed by hand.`);
+      }
+    }
+
+    const cutCount = await tx.transformationInput.count({ where: { roughStoneId: id } });
+    if (isSystemStatus(before.status) || cutCount > 0) {
+      const changesCost =
+        (parsed.weightCt !== undefined && Math.abs(parsed.weightCt - Number(before.weightCt)) > 1e-9) ||
+        (parsed.purchasePrice !== undefined && Math.abs(parsed.purchasePrice - Number(before.purchasePrice)) > 1e-9) ||
+        (parsed.currency !== undefined && parsed.currency !== before.currency);
+      if (changesCost) {
+        throw new Error(
+          `Weight, purchase price and currency cannot be changed on ${before.code}: it is ${cutCount > 0 ? "already cut" : "in cutting"} and its finished stones carry cost derived from them.`,
+        );
+      }
+    }
+
+    const dataUpdate = {
+      gemType: parsed.gemType ?? before.gemType,
+      variety: parsed.variety ?? before.variety,
+      species: parsed.species ?? before.species,
+      origin: parsed.origin ?? before.origin,
+      weightCt: parsed.weightCt ?? Number(before.weightCt),
+      color: parsed.color ?? before.color,
+      clarity: parsed.clarity ?? before.clarity,
+      observations: parsed.observations ?? before.observations,
+      purchasePrice: parsed.purchasePrice ?? Number(before.purchasePrice),
+      currency: parsed.currency ?? before.currency,
+      pricePerCt: (parsed.purchasePrice ?? Number(before.purchasePrice)) > 0 && (parsed.weightCt ?? Number(before.weightCt)) > 0
+        ? (parsed.purchasePrice ?? Number(before.purchasePrice)) / (parsed.weightCt ?? Number(before.weightCt))
+        : before.pricePerCt,
+      status: parsed.status ?? before.status,
+      supplierId: parsed.supplierId ?? before.supplierId,
+      locationId: parsed.locationId === undefined ? before.locationId : parsed.locationId,
+    };
+
     const after = await tx.roughStone.update({ where: { id }, data: dataUpdate });
     await auditDiff(
       { entity: "RoughStone", entityId: id, entityCode: before.code, userId: session.user.id, userName: session.user.name ?? undefined },

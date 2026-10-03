@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireCapability } from "@/lib/rbac";
 import { auditDiff } from "@/lib/audit";
-import { GEMSTONE_STATUSES } from "@/lib/enums";
+import { GEMSTONE_STATUSES, GEMSTONE_COMMERCE_STATUSES } from "@/lib/enums";
 import { recomputeCgiForGemstone } from "@/lib/cgi-service";
 import {
   CGI_ORIGIN_BANDS, CGI_TREATMENT_BANDS, CGI_COLOR_BANDS, CGI_CLARITY_BANDS, CGI_CUT_BANDS,
@@ -59,7 +59,8 @@ const schema = z.object({
 /**
  * Update the frequently-edited fields of a gemstone. Deliberately does NOT
  * touch cost, price history, or status transitions that belong to the
- * commerce actions (reserve / sell / release / changeAskingPrice).
+ * commerce actions (reserve / sell / release / changeAskingPrice): status can
+ * neither be set to RESERVED / SOLD here nor changed away from them.
  */
 export async function updateGemstone(fd: FormData) {
   const session = await requireCapability("gemstone:write");
@@ -95,16 +96,35 @@ export async function updateGemstone(fd: FormData) {
     cgiQualityNotes:  str(fd.get("cgiQualityNotes")),
   });
 
-  const before = await prisma.gemstone.findUniqueOrThrow({ where: { id: parsed.id } });
-
-  // Weight changed → recompute costPerCt from stored totalCost.
-  const nextCostPerCt = parsed.weightCt > 0 ? Number(before.totalCost) / parsed.weightCt : 0;
-  // Price/ct follows too if askingPrice is set.
-  const nextPricePerCt = before.askingPrice != null && parsed.weightCt > 0
-    ? Number(before.askingPrice) / parsed.weightCt
-    : before.pricePerCt;
-
   await prisma.$transaction(async (tx) => {
+    // Reserve / sell claim the row conditionally; holding the lock keeps this
+    // edit from writing back a status that changed since it was read.
+    await tx.$queryRaw`SELECT "id" FROM "Gemstone" WHERE "id" = ${parsed.id} FOR UPDATE`;
+    const before = await tx.gemstone.findUniqueOrThrow({ where: { id: parsed.id } });
+
+    if (parsed.status !== before.status) {
+      if ((GEMSTONE_COMMERCE_STATUSES as readonly string[]).includes(parsed.status)) {
+        throw new Error(
+          parsed.status === "SOLD"
+            ? "Status cannot be set to Sold by hand. Record a sale instead."
+            : "Status cannot be set to Reserved by hand. Reserve the stone for a customer instead.",
+        );
+      }
+      if (before.status === "SOLD") {
+        throw new Error(`${before.code} is sold. Cancel the sale to change its status.`);
+      }
+      if (before.status === "RESERVED") {
+        throw new Error(`${before.code} is reserved. Release the reservation to change its status.`);
+      }
+    }
+
+    // Weight changed → recompute costPerCt from stored totalCost.
+    const nextCostPerCt = parsed.weightCt > 0 ? Number(before.totalCost) / parsed.weightCt : 0;
+    // Price/ct follows too if askingPrice is set.
+    const nextPricePerCt = before.askingPrice != null && parsed.weightCt > 0
+      ? Number(before.askingPrice) / parsed.weightCt
+      : before.pricePerCt;
+
     const after = await tx.gemstone.update({
       where: { id: parsed.id },
       data: {
