@@ -414,6 +414,11 @@ model CostAllocation {
   expenseId    String?  @unique
   expense      Expense? @relation(fields: [expenseId], references: [id])
 
+  // Set on a gem's copy of a rough bill (made at cut time or when a bill is
+  // added to an already-cut rough) and points at the rough's own allocation.
+  // Lets a rejected or corrected bill be traced to and removed from the gems.
+  sourceAllocationId String?
+
   type  String
   description  String?
   amount       Decimal
@@ -423,6 +428,7 @@ model CostAllocation {
 
   @@index([roughStoneId])
   @@index([gemstoneId])
+  @@index([sourceAllocationId])
 }
 
 // ─── Price history (never overwritten) ───────────────────────────────────────
@@ -824,6 +830,9 @@ model SalesOrder {
 
   agreedPrice    Decimal
   currency       String   @default("LKR")
+  // LKR per 1 unit of `currency` on the day of sale (null for LKR / legacy
+  // rows). Reports use it so revenue does not move with later FX swings.
+  fxRateLkr      Decimal?
   taxAmount      Decimal @default(0)
   totalAmount    Decimal   // agreedPrice + taxAmount
 
@@ -854,8 +863,13 @@ model Payment {
   customerId    String
   customer      Customer @relation(fields: [customerId], references: [id])
 
-  amount        Decimal
+  amount        Decimal                       // negative for a refund
   currency      String   @default("LKR")
+  // LKR per 1 unit of `currency` when received (null for LKR / legacy rows).
+  fxRateLkr     Decimal?
+  // The amount expressed in the sales order's currency at receipt time, so
+  // paid-vs-owed never adds amounts in different currencies.
+  orderCurrencyAmount Decimal?
   method  String  @default("BANK_TRANSFER")
   reference     String?
   receivedAt    DateTime @default(now())
@@ -937,6 +951,7 @@ model Expense {
   category      String                       // ExpenseCategory (see src/lib/enums.ts)
   amount        Decimal
   currency      String   @default("LKR")
+  fxRateLkr     Decimal?                     // LKR per 1 unit of `currency` when recorded (null for LKR / legacy)
   vendor        String?
   description   String
   incurredAt    DateTime @default(now())

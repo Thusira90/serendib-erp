@@ -33,6 +33,38 @@ export function toBase(rates: Rates, amount: number, currency: string): number {
   return convert(rates, amount, currency, rates.base) ?? amount;
 }
 
+/**
+ * LKR per 1 unit of `currency`, to be stored on a record when it is created so
+ * later reports use the rate of that day. Null for the base currency (rate 1)
+ * or when no rate is known.
+ */
+export function captureRate(rates: Rates, currency: string): number | null {
+  if (currency === rates.base) return null;
+  const per = rates.perUnit[currency];
+  return typeof per === "number" && per > 0 ? per : null;
+}
+
+/** Like toBase, but prefers the rate stored on the record (when present) over today's rate. */
+export function toBaseAt(rates: Rates, amount: number, currency: string, storedRate?: number | string | null): number {
+  if (currency === rates.base) return amount;
+  const stored = storedRate == null ? NaN : Number(storedRate);
+  if (Number.isFinite(stored) && stored > 0) return amount * stored;
+  return toBase(rates, amount, currency);
+}
+
+/**
+ * A payment's value in its sales order's currency. Uses the amount stored at
+ * receipt time; falls back to a live conversion for older rows without one.
+ */
+export function paymentInOrderCurrency(
+  rates: Rates,
+  p: { amount: unknown; currency: string; orderCurrencyAmount?: unknown },
+  orderCurrency: string,
+): number {
+  if (p.orderCurrencyAmount != null) return Number(p.orderCurrencyAmount);
+  return convert(rates, Number(p.amount), p.currency, orderCurrency) ?? Number(p.amount);
+}
+
 /** Human-readable note recording the rate used when a cost line was converted. */
 export function fxNote(rates: Rates, amount: number, from: string, to: string): string {
   if (from === to) return "";
