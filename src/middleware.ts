@@ -11,6 +11,7 @@ export const PUBLIC_PATHS = [
   "/catalogue",
   "/share", // legacy share links
   "/s", // seller-neutral share links (incl. /s/icon.svg)
+  "/p", // partner deal statements: bearer-token links, the route never calls auth() (a segment match, so /partners and /pickles stay private)
   "/uploads", // local-disk uploads (dev fallback; R2 is served off-site)
   "/_next",
   "/icon.svg",
@@ -19,7 +20,7 @@ export const PUBLIC_PATHS = [
   "/serendib-logo.jpg",
 ] as const;
 
-function isPublic(pathname: string): boolean {
+export function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
