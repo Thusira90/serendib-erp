@@ -138,7 +138,7 @@ function NewCertificateDialog({ gemstoneId, labs }: { gemstoneId: string; labs: 
       <DialogTrigger asChild>
         <Button variant="accent"><PlusCircle className="h-4 w-4" /> Attach certificate</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader><DialogTitle>Attach certificate</DialogTitle></DialogHeader>
         <form
           action={(fd) => start(async () => { await createCertificate(fd); setOpen(false); })}
