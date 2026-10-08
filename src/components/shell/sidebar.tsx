@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Diamond, Gem, GitBranch, Scissors, Users,
   Warehouse, ScrollText, PackageOpen, Building2, Award, Sparkles,
   Users2, Mail, FileText, Lock, Receipt, Plane, BarChart3, Inbox, ReceiptText,
-  Settings, LayoutGrid, Crown, Wallet, BookOpen, Link2,
+  Settings, LayoutGrid, Crown, Wallet, BookOpen, Link2, QrCode,
 } from "lucide-react";
 
 type NavItem = {
@@ -49,6 +49,7 @@ const nav: NavItem[] = [
   { href: "/reports",       label: "Reports",           icon: BarChart3,        needs: "report:read", group: "Financials" },
   { href: "/audit-log",     label: "Audit Log",         icon: ScrollText,       needs: "audit:read", group: "Administration" },
   { href: "/users",         label: "Users",             icon: Users,            needs: "user:manage", group: "Administration" },
+  { href: "/qr",            label: "QR codes",          icon: QrCode,           needs: "settings:read", group: "Administration" },
   { href: "/settings",      label: "Company settings",  icon: Settings,         needs: "settings:read", group: "Administration" },
 ];
 
