@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Receipt, ExternalLink } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { STONE_BILL_CATEGORIES } from "@/lib/enums";
 import { addStoneBill } from "@/app/(app)/expenses/actions";
+import { stoneInOpenPartnerDeal } from "@/app/(app)/partners/actions";
 
 const label = (c: string) => c.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
 
@@ -32,6 +33,15 @@ export function AddBillButton({
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [inPartnerDeal, setInPartnerDeal] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    stoneInOpenPartnerDeal(kind, stoneId)
+      .then((r) => { if (!cancelled) setInPartnerDeal(r.ok && r.inDeal); })
+      .catch(() => { if (!cancelled) setInPartnerDeal(false); });
+    return () => { cancelled = true; };
+  }, [open, kind, stoneId]);
   const defaultCat = (STONE_BILL_CATEGORIES as readonly string[]).includes(suggestedCategory ?? "")
     ? suggestedCategory
     : kind === "rough" ? "SHIPPING" : "PROFESSIONAL_FEES";
@@ -59,6 +69,12 @@ export function AddBillButton({
         >
           <input type="hidden" name="kind" value={kind} />
           <input type="hidden" name="stoneId" value={stoneId} />
+
+          {inPartnerDeal && (
+            <div role="note" className="col-span-full text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              This stone is in a partner deal. Do not file partner commissions or payouts as stone bills; record them on the deal instead.
+            </div>
+          )}
 
           <Field label="Category *">
             <select name="category" defaultValue={defaultCat} required

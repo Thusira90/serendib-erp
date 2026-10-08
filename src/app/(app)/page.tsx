@@ -1,4 +1,4 @@
-import { requireCapability } from "@/lib/rbac";
+import { requireCapability, can } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +65,11 @@ export default async function DashboardPage() {
       where: { status: { notIn: ["CANCELLED", "PAID"] } },
       select: { totalAmount: true, currency: true, fxRateLkr: true, payments: { select: { amount: true, currency: true, orderCurrencyAmount: true } } },
     }),
-    prisma.auditLog.findMany({ take: 8, orderBy: { at: "desc" } }),
+    prisma.auditLog.findMany({
+      take: 8,
+      orderBy: { at: "desc" },
+      where: can(session.user, "partner:read") ? undefined : { NOT: { entity: { startsWith: "Partner", mode: "insensitive" } } },
+    }),
     dashboardAlerts(),
     prisma.salesOrder.findFirst({ orderBy: { saleDate: "desc" }, select: { saleDate: true } }),
     prisma.enquiry.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } }),

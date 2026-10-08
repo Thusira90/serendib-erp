@@ -1,4 +1,4 @@
-import { requireCapability } from "@/lib/rbac";
+import { requireCapability, can } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,8 +7,12 @@ import { formatDateTime } from "@/lib/utils";
 import { ScrollText } from "lucide-react";
 
 export default async function AuditLogPage() {
-  await requireCapability("audit:read");
-  const entries = await prisma.auditLog.findMany({ orderBy: { at: "desc" }, take: 200 });
+  const session = await requireCapability("audit:read");
+  const entries = await prisma.auditLog.findMany({
+    where: can(session.user, "partner:read") ? undefined : { NOT: { entity: { startsWith: "Partner", mode: "insensitive" } } },
+    orderBy: { at: "desc" },
+    take: 200,
+  });
   return (
     <div className="space-y-6">
       <div>

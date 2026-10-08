@@ -22,6 +22,7 @@ import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForRough } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
 import { TimedShareButton } from "@/components/timed-share-button";
+import { PartnerDealsCard } from "@/components/partner-deals-card";
 
 export default async function RoughDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("rough:read");
@@ -126,6 +127,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
           <TabsTrigger value="genealogy">Genealogy</TabsTrigger>
           <TabsTrigger value="cutting">Cutting</TabsTrigger>
           <TabsTrigger value="bills">Bills</TabsTrigger>
+          {can(session.user, "partner:read") && <TabsTrigger value="partners">Partners</TabsTrigger>}
           <TabsTrigger value="media">Media</TabsTrigger>
           <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -243,6 +245,12 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
             defaultCurrency={r.currency}
           />
         </TabsContent>
+
+        {can(session.user, "partner:read") && (
+          <TabsContent value="partners">
+            <PartnerDealsCard kind="ROUGH" stoneId={r.id} user={session.user} />
+          </TabsContent>
+        )}
 
         <TabsContent value="media">
           <Card>

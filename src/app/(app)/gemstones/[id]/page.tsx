@@ -30,6 +30,7 @@ import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
 import { ProvenanceChain } from "@/components/provenance-chain";
 import { getGemstoneProvenance } from "@/lib/provenance";
+import { PartnerDealsCard } from "@/components/partner-deals-card";
 
 export default async function GemstoneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("gemstone:read");
@@ -211,6 +212,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           <TabsTrigger value="bills">Bills</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
           <TabsTrigger value="commerce">Commerce</TabsTrigger>
+          {can(session.user, "partner:read") && <TabsTrigger value="partners">Partners</TabsTrigger>}
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
@@ -458,6 +460,12 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
             canSell={canSell}
           />
         </TabsContent>
+
+        {can(session.user, "partner:read") && (
+          <TabsContent value="partners">
+            <PartnerDealsCard kind="GEM" stoneId={g.id} user={session.user} />
+          </TabsContent>
+        )}
 
         <TabsContent value="matches">
           <MatchingCustomersPanel gemstoneId={g.id} />

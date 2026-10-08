@@ -5,6 +5,7 @@ import { requireCapability } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { codePrefix, nextGlobalCode } from "@/lib/ids";
 import { revalidatePath } from "next/cache";
+import { quickCreatePartner as createPartnerQuick } from "@/app/(app)/partners/actions";
 
 /**
  * Lightweight "create just enough to reference" server actions used by
@@ -52,6 +53,11 @@ export async function quickCreateSupplier(name: string): Promise<{ id: string; n
   });
   revalidatePath("/suppliers");
   return { id: created.id, name: created.name, code: created.code };
+}
+
+/** Returns the row and throws on failure, like quickCreateSupplier (EntityPicker shows the message). */
+export async function quickCreatePartner(name: string): Promise<{ id: string; name: string; code: string }> {
+  return createPartnerQuick(name);
 }
 
 export async function quickCreateLocation(name: string, code?: string): Promise<{ id: string; name: string; code: string }> {

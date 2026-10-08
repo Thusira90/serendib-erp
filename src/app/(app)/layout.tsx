@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
         <div className="print:hidden contents">
-          <Sidebar role={session.user.role} />
+          <Sidebar role={session.user.role} grants={session.user.grants} denies={session.user.denies} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="print:hidden">

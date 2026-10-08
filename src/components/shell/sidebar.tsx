@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Diamond, Gem, GitBranch, Scissors, Users,
   Warehouse, ScrollText, PackageOpen, Building2, Award, Sparkles,
   Users2, Mail, FileText, Lock, Receipt, Plane, BarChart3, Inbox, ReceiptText,
-  Settings, LayoutGrid, Crown, Wallet, BookOpen, Link2,
+  Settings, LayoutGrid, Crown, Wallet, BookOpen, Link2, Handshake,
 } from "lucide-react";
 
 type NavItem = {
@@ -40,6 +40,7 @@ const nav: NavItem[] = [
   { href: "/share-links",   label: "Share links",       icon: Link2,            needs: "collection:read", group: "Sales" },
   { href: "/parcels",       label: "Parcels",           icon: PackageOpen,      needs: "rough:read", group: "Purchasing" },
   { href: "/suppliers",     label: "Suppliers",         icon: Building2,        needs: "supplier:read", group: "Purchasing" },
+  { href: "/partners",      label: "Partners",          icon: Handshake,        needs: "partner:read", group: "Partners" },
   { href: "/expenses",      label: "Expenses",          icon: ReceiptText,      needs: "expense:read", group: "Financials" },
   { href: "/directors",     label: "Directors",         icon: Crown,            needs: "director:read", group: "Financials" },
   { href: "/shareholders",  label: "Shareholders",      icon: Users2,           needs: "shareholder:read", group: "Financials" },
@@ -52,9 +53,10 @@ const nav: NavItem[] = [
   { href: "/settings",      label: "Company settings",  icon: Settings,         needs: "settings:read", group: "Administration" },
 ];
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({ role, grants, denies }: { role: Role; grants?: string[]; denies?: string[] }) {
   const pathname = usePathname();
-  const items = nav.filter((n) => can(role, n.needs));
+  const principal = { role, grants, denies };
+  const items = nav.filter((n) => can(principal, n.needs));
   const grouped = new Map<string, NavItem[]>();
   for (const n of items) {
     const g = n.group ?? "";
