@@ -64,8 +64,8 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
               ? <SingleRoughStone rough={roughs[0]} />
               : <RoughGrid roughs={roughs} shareCode={link.code} opaqueFor={link.brokerMode ? link.id : undefined} />)
           : (singleGem
-              ? <SingleStone gem={singleGem} neutral={link.brokerMode} />
-              : <StoneGrid gems={gems} shareCode={link.code} opaqueFor={link.brokerMode ? link.id : undefined} />)}
+              ? <SingleStone gem={singleGem} neutral={link.brokerMode} showCgi={!link.hideCgi} />
+              : <StoneGrid gems={gems} shareCode={link.code} opaqueFor={link.brokerMode ? link.id : undefined} showCgi={!link.hideCgi} />)}
 
         <ContactFooter contact={contact} isBroker={link.brokerMode} />
         <CopyrightNotice brand={brand} link={link} viewCount={link.viewCount + 1} />

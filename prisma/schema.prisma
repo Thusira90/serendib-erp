@@ -205,6 +205,9 @@ model Gemstone {
   // Ceylon Gem Identity — a 0–100 roll-up of origin confidence, treatment,
   // quality bands, cert strength and provenance traceability. Recomputed
   // via computeCgi() whenever any input field changes. See src/lib/cgi.ts.
+  // false = this stone does not use the Ceylon Gem Identity at all (small stones, say): no badge, score or
+  // breakdown anywhere, internal or public. The stored grading is kept, so it can be switched back on.
+  cgiEnabled        Boolean       @default(true)
   cgiScore          Int?
   cgiBand           String?       // ELITE | PREMIUM | TRADE | COMMERCIAL | ENTRY
   cgiOriginBand     String?       // CgiOriginBand
@@ -1014,6 +1017,9 @@ model ShareLink {
   createdByPhotoUrl String?
 
   // Broker mode — swaps the sharer identity for a third-party broker.
+  // true = leave the Ceylon Gem Identity off this link's pages even for stones that have one.
+  hideCgi           Boolean  @default(false)
+
   brokerMode        Boolean  @default(false)
   brokerName        String?
   brokerCompany     String?

@@ -80,6 +80,18 @@ export function GemstoneIntakeForm({
         <F label="Symmetry"><ComboboxInput name="symmetry" placeholder="Very good" options={v("symmetry")} /></F>
         <F label="Polish"><ComboboxInput name="polish" placeholder="Excellent" options={v("polish")} /></F>
         <F label="Inclusions" wide><Textarea name="inclusions" rows={2} /></F>
+        <F label="Ceylon Gem Identity" wide>
+          <input type="hidden" name="cgiChoice" value="1" />
+          <label className="flex items-start gap-2.5 text-sm cursor-pointer">
+            <input type="checkbox" name="cgiEnabled" defaultChecked className="mt-0.5 h-4 w-4 accent-sgs-teal-500" />
+            <span>
+              Use CGI for this stone
+              <span className="block text-[11px] text-muted-foreground">
+                Untick for small stones that don&apos;t need a Gem Identity. It can be switched on later from the stone&apos;s page.
+              </span>
+            </span>
+          </label>
+        </F>
       </Section>
 
       <Section title="Commercial">

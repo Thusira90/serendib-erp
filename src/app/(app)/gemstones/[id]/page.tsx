@@ -20,6 +20,7 @@ import { QrCard } from "@/components/qr-card";
 import { MoveButton } from "@/components/move-button";
 import { EditGemstoneButton } from "./edit-gemstone-button";
 import { CgiBadge, CgiBreakdownCard } from "@/components/cgi-badge";
+import { CgiSwitchCard } from "./cgi-switch-card";
 import { CommentsThread } from "@/components/comments-thread";
 import { AddToCollectionButton } from "@/components/add-to-collection-button";
 import { ShareStoneButton } from "@/components/share-stone-button";
@@ -198,7 +199,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
                 {g.treatment ? ` · ${g.treatment}` : ""}
                 {g.location ? ` · ${g.location.name}` : ""}
               </div>
-              <div className="mt-2"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>
+              {g.cgiEnabled && <div className="mt-2"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>}
             </div>
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Asking</div>
@@ -225,7 +226,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="certification">Certification{hasCertIssued && " ✓"}</TabsTrigger>
           <TabsTrigger value="photography">Photography{hasPhoto && " ✓"}{videoCount > 0 && ` · ${videoCount} video${videoCount === 1 ? "" : "s"}`}</TabsTrigger>
-          <TabsTrigger value="cgi">CGI{hasCgiMaster && " ✓"}</TabsTrigger>
+          {(g.cgiEnabled || hasCgiAny) && <TabsTrigger value="cgi">CGI{hasCgiMaster && " ✓"}</TabsTrigger>}
           <TabsTrigger value="costing">Costing</TabsTrigger>
           <TabsTrigger value="bills">Bills</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
@@ -268,11 +269,14 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
                 </div>
               </CardContent>
             </Card>
-            <CgiBreakdownCard
-              score={g.cgiScore}
-              band={g.cgiBand}
-              breakdown={g.cgiBreakdown ? safeParseBreakdown(g.cgiBreakdown) : null}
-            />
+            {g.cgiEnabled && (
+              <CgiBreakdownCard
+                score={g.cgiScore}
+                band={g.cgiBand}
+                breakdown={g.cgiBreakdown ? safeParseBreakdown(g.cgiBreakdown) : null}
+              />
+            )}
+            <CgiSwitchCard gemstoneId={g.id} enabled={g.cgiEnabled} canEdit={canEditGem} />
             <QrCard code={g.code} kind="gemstone" label={`${g.gemType}${g.variety ? ` · ${g.variety}` : ""}`} />
             {can(session.user.role, "collection:write") && (
               <AddToCollectionButton

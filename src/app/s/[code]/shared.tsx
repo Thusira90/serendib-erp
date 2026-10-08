@@ -310,7 +310,9 @@ export async function loadShareableMedia(gemstoneId: string) {
  * Used both for scope=GEMSTONE links AND when a viewer clicks a card
  * in a multi-stone share to open its full page.
  */
-export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: boolean }) {
+export function SingleStone({ gem, neutral = false, showCgi = true }: { gem: Gem; neutral?: boolean; showCgi?: boolean }) {
+  // Off for this link, or off for this stone: no CGI chip, breakdown or methodology.
+  const cgiOn = showCgi && gem.cgiEnabled;
   const cgi = gem.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
   // Master CGI first, then photos (primary first), then videos, all in the hero viewer.
   const photos = gem.digitalAssets.filter((a) => !isVideoAsset(a));
@@ -335,10 +337,10 @@ export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: bool
           <div className="text-sm text-muted-foreground mt-1">
             {gem.origin ?? "Origin undisclosed"}{gem.treatment ? ` · ${gem.treatment}` : ""}
           </div>
-          <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="md" /></div>
+          {cgiOn && <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="md" /></div>}
         </div>
 
-        {gem.cgiScore != null && (
+        {cgiOn && gem.cgiScore != null && (
           <>
             <CgiBreakdownCard
               score={gem.cgiScore}
@@ -412,7 +414,7 @@ export function opaqueStoneToken(linkId: string, stoneId: string): string {
   return createHash("sha256").update(`${linkId}:${stoneId}`).digest("base64url").slice(0, 12);
 }
 
-export function StoneGrid({ gems, shareCode, opaqueFor, hrefFor }: { gems: Gem[]; shareCode: string; opaqueFor?: string; hrefFor?: (code: string) => string }) {
+export function StoneGrid({ gems, shareCode, opaqueFor, hrefFor, showCgi = true }: { gems: Gem[]; shareCode: string; opaqueFor?: string; hrefFor?: (code: string) => string; showCgi?: boolean }) {
   if (gems.length === 0) {
     return (
       <div className="rounded-xl border bg-white p-10 text-center text-sm text-muted-foreground">
@@ -449,7 +451,7 @@ export function StoneGrid({ gems, shareCode, opaqueFor, hrefFor }: { gems: Gem[]
               <div className="text-xs text-muted-foreground">
                 {g.origin ?? "—"}{g.treatment ? ` · ${g.treatment}` : ""}
               </div>
-              <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>
+              {showCgi && g.cgiEnabled && <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>}
               {g.askingPrice != null && (
                 <div className="pt-2 border-t text-sm num font-medium">
                   {formatCurrency(Number(g.askingPrice), g.currency)}

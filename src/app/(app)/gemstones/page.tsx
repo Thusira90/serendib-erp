@@ -33,6 +33,7 @@ export default async function GemstoneListPage() {
       heroBadge: parents[0] ?? null,
       cgiScore: g.cgiScore,
       cgiBand: g.cgiBand,
+      cgiEnabled: g.cgiEnabled,
     };
   });
 

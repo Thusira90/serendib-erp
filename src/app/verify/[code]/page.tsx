@@ -82,6 +82,8 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
     ...(show.photos ? shareable.filter((a) => !isVideoAsset(a)) : []),
     ...(show.videos ? shareable.filter(isVideoAsset) : []),
   ];
+  // A stone that does not use CGI shows none of it, whatever the QR settings say.
+  const cgiOn = show.cgi && gem.cgiEnabled;
   const cert = show.certificate ? gem.certificates[0] : undefined;
   const qr = show.scanToVerify ? await renderQrSvg(publicVerifyUrl(gem.code, await publicOrigin())) : null;
   const parentRough = show.provenance ? gem.transformationsAsOutput[0]?.transformation.inputs[0]?.roughStone : undefined;
@@ -154,7 +156,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
               {show.name ? `${gem.gemType}${gem.variety ? ` · ${gem.variety}` : ""}` : "Gemstone"}
             </h1>
             {summary && <div className="text-lg text-muted-foreground mt-1">{summary}</div>}
-            {show.cgi && <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="lg" /></div>}
+            {cgiOn && <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="lg" /></div>}
             {parentRough && (
               <div className="text-sm text-muted-foreground mt-2 italic">
                 Cut and polished by Serendib from our own rough{" "}
@@ -169,7 +171,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
           </div>
         </div>
 
-        {show.cgi && show.cgiBreakdown && gem.cgiScore != null && (
+        {cgiOn && show.cgiBreakdown && gem.cgiScore != null && (
           <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <CgiBreakdownCard
               score={gem.cgiScore}

@@ -24,6 +24,7 @@ const paramsSchema = z.object({
   ttl: z.coerce.number().int().min(1).max(60 * 24 * 30).default(60),
   msg: text(1000),
   broker: text(1),
+  nocgi: text(1),
   name: text(200), phone: text(60), email: text(200),
   bName: text(200), bCompany: text(200), bPhone: text(60), bEmail: text(200),
   open: text(64),
@@ -56,6 +57,7 @@ export default async function SharePreviewPage({ searchParams }: { searchParams:
     createdByPhone: p.phone?.trim() || null,
     createdByEmail: p.email?.trim() || session.user.email || null,
     createdByPhotoUrl: null,
+    hideCgi: p.nocgi === "1",
     brokerMode,
     brokerName: brokerMode ? p.bName?.trim() || null : null,
     brokerCompany: brokerMode ? p.bCompany?.trim() || null : null,
@@ -95,7 +97,7 @@ export default async function SharePreviewPage({ searchParams }: { searchParams:
     } else {
       const gem = await findShareGem(link, p.open);
       body = gem
-        ? <SingleStone gem={{ ...gem, digitalAssets: await loadShareableMedia(gem.id) }} neutral={brokerMode} />
+        ? <SingleStone gem={{ ...gem, digitalAssets: await loadShareableMedia(gem.id) }} neutral={brokerMode} showCgi={!link.hideCgi} />
         : <Notice>That stone is not part of this link.</Notice>;
     }
   } else {
@@ -108,9 +110,9 @@ export default async function SharePreviewPage({ searchParams }: { searchParams:
         ? <SingleRoughStone rough={roughs[0]} />
         : <RoughGrid roughs={roughs} shareCode={link.code} hrefFor={withOpen} />;
     } else if (single && gems[0]) {
-      body = <SingleStone gem={{ ...gems[0], digitalAssets: await loadShareableMedia(gems[0].id) }} neutral={brokerMode} />;
+      body = <SingleStone gem={{ ...gems[0], digitalAssets: await loadShareableMedia(gems[0].id) }} neutral={brokerMode} showCgi={!link.hideCgi} />;
     } else {
-      body = <StoneGrid gems={gems} shareCode={link.code} hrefFor={withOpen} />;
+      body = <StoneGrid gems={gems} shareCode={link.code} hrefFor={withOpen} showCgi={!link.hideCgi} />;
     }
   }
 

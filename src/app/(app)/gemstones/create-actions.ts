@@ -180,6 +180,8 @@ export async function createFinishedGemstone(fd: FormData) {
           ? parsed.askingPrice / parsed.weightCt : undefined,
         status: parsed.status,
         locationId: parsed.locationId,
+        // Ticked by default on the form; an unticked box means this stone does not use CGI.
+        cgiEnabled: fd.get("cgiChoice") ? fd.get("cgiEnabled") === "on" : true,
       },
     });
 

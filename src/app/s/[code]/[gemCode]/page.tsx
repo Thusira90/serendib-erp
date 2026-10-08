@@ -82,7 +82,7 @@ export default async function TimedShareGemPage({
           </div>
         )}
 
-        <SingleStone gem={{ ...gem, digitalAssets: media }} neutral={link.brokerMode} />
+        <SingleStone gem={{ ...gem, digitalAssets: media }} neutral={link.brokerMode} showCgi={!link.hideCgi} />
 
         <ContactFooter contact={contact} isBroker={link.brokerMode} />
         <CopyrightNotice brand={brand} link={link} viewCount={link.viewCount + 1} />
