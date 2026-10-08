@@ -1,9 +1,11 @@
 import { requireCapability } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerForm } from "../customer-form";
+import { customerVocab } from "../customer-vocab";
 
 export default async function NewCustomerPage() {
   await requireCapability("customer:write");
+  const vocab = await customerVocab();
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
@@ -12,7 +14,7 @@ export default async function NewCustomerPage() {
       </div>
       <Card>
         <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-        <CardContent><CustomerForm /></CardContent>
+        <CardContent><CustomerForm vocab={vocab} /></CardContent>
       </Card>
     </div>
   );

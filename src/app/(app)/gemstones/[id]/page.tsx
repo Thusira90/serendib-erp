@@ -26,6 +26,7 @@ import { AddToCollectionButton } from "@/components/add-to-collection-button";
 import { ShareStoneButton } from "@/components/share-stone-button";
 import { TimedShareButton } from "@/components/timed-share-button";
 import { MediaGallery } from "@/components/media-gallery";
+import { TreatmentsPanel } from "@/components/treatments-panel";
 import { isVideoAsset } from "@/lib/media";
 import { StoneCoverMedia } from "@/components/stone-cover-media";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
@@ -232,6 +233,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
           <TabsTrigger value="commerce">Commerce</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
+          {can(session.user, "treatment:read") && <TabsTrigger value="treatments">Treatments</TabsTrigger>}
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
@@ -489,6 +491,17 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
         <TabsContent value="notes">
           <CommentsThread entity="Gemstone" entityId={g.id} entityCode={g.code} revalidate={`/gemstones/${g.id}`} />
         </TabsContent>
+
+        {can(session.user, "treatment:read") && (
+          <TabsContent value="treatments">
+            <TreatmentsPanel
+              kind="GEMSTONE"
+              stoneId={g.id}
+              stoneLabel={`${g.code} · ${g.gemType}${g.variety ? ` · ${g.variety}` : ""} · ${formatCarat(Number(g.weightCt))}`}
+              canWrite={can(session.user, "treatment:write")}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="history">
           <Card>

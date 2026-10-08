@@ -137,6 +137,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               <KV label="Budget range" value={prefs.budgetMin != null || prefs.budgetMax != null ? `${formatCurrency(prefs.budgetMin ?? 0, prefs.currency)} – ${prefs.budgetMax != null ? formatCurrency(prefs.budgetMax, prefs.currency) : "∞"}` : "—"} />
             </CardContent>
           </Card>
+          {prefs.extras.length > 0 && (
+            <Card className="mt-4">
+              <CardHeader><CardTitle>Additional information</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                {prefs.extras.map((x, i) => <KV key={`${x.label}-${i}`} label={x.label} value={x.value} />)}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="enquiries">

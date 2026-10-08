@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MultiComboboxInput } from "@/components/multi-combobox-input";
+import { ExtraInfoField } from "@/components/extra-info-field";
+import { CurrencySelect } from "@/components/ui/currency-input";
 import { createCustomer, updateCustomer } from "./actions";
 
 type Existing = {
@@ -21,14 +24,22 @@ type Existing = {
     colors: string[]; shapes: string[]; treatments: string[];
     minWeightCt: number | null; maxWeightCt: number | null;
     budgetMin: number | null; budgetMax: number | null; currency: string;
+    extras?: Array<{ label: string; value: string }>;
   } | null;
 };
 
-export function CustomerForm({ existing }: { existing?: Existing }) {
+/** Starting suggestions for the extra-information labels; anything else can be typed. */
+const EXTRA_LABELS = [
+  "Preferred contact method", "Language", "Referred by", "Occasion", "Birthday", "Anniversary",
+  "Ring / jewellery size", "Metal preference", "Spouse / partner", "Assistant / contact person",
+  "Best time to call", "Time zone", "Payment preference", "Shipping preference",
+];
+
+export function CustomerForm({ existing, vocab = {} }: { existing?: Existing; vocab?: Record<string, string[]> }) {
+  const opts = (key: string) => vocab[key] ?? [];
   const [pending, start] = useTransition();
   const action = existing ? updateCustomer : createCustomer;
   const p = existing?.preferences ?? { gemTypes: [], varieties: [], origins: [], colors: [], shapes: [], treatments: [], minWeightCt: null, maxWeightCt: null, budgetMin: null, budgetMax: null, currency: "LKR" };
-  const csv = (a: string[]) => a.join(", ");
   const numOrEmpty = (n: number | null) => (n == null ? "" : String(n));
   return (
     <form action={(fd) => start(() => action(fd))} className="space-y-8">
@@ -66,18 +77,22 @@ export function CustomerForm({ existing }: { existing?: Existing }) {
         <Field label="Social profile"><Input name="socialProfile" defaultValue={existing?.socialProfile ?? ""} /></Field>
       </Section>
 
-      <Section title="Preferences (comma separated)">
-        <Field label="Preferred gem types"><Input name="prefGemTypes" defaultValue={csv(p.gemTypes)} placeholder="Sapphire, Ruby" /></Field>
-        <Field label="Varieties"><Input name="prefVarieties" defaultValue={csv(p.varieties)} placeholder="Padparadscha, Blue Sapphire" /></Field>
-        <Field label="Origins"><Input name="prefOrigins" defaultValue={csv(p.origins)} placeholder="Sri Lanka, Mogok" /></Field>
-        <Field label="Colors"><Input name="prefColors" defaultValue={csv(p.colors)} placeholder="royal blue, cornflower" /></Field>
-        <Field label="Shapes"><Input name="prefShapes" defaultValue={csv(p.shapes)} placeholder="Oval, Cushion" /></Field>
-        <Field label="Treatments"><Input name="prefTreatments" defaultValue={csv(p.treatments)} placeholder="Unheated" /></Field>
+      <Section title="Preferences">
+        <Field label="Preferred gem types"><MultiComboboxInput name="prefGemTypes" defaultValue={p.gemTypes} options={opts("gemType")} /></Field>
+        <Field label="Varieties"><MultiComboboxInput name="prefVarieties" defaultValue={p.varieties} options={opts("variety")} /></Field>
+        <Field label="Origins"><MultiComboboxInput name="prefOrigins" defaultValue={p.origins} options={opts("origin")} /></Field>
+        <Field label="Colors"><MultiComboboxInput name="prefColors" defaultValue={p.colors} options={opts("color")} /></Field>
+        <Field label="Shapes"><MultiComboboxInput name="prefShapes" defaultValue={p.shapes} options={opts("shape")} /></Field>
+        <Field label="Treatments"><MultiComboboxInput name="prefTreatments" defaultValue={p.treatments} options={opts("treatment")} /></Field>
         <Field label="Min weight (ct)"><NumberInput name="prefMinWeightCt" defaultValue={numOrEmpty(p.minWeightCt)} /></Field>
         <Field label="Max weight (ct)"><NumberInput name="prefMaxWeightCt" defaultValue={numOrEmpty(p.maxWeightCt)} /></Field>
         <Field label="Budget min"><NumberInput name="prefBudgetMin" defaultValue={numOrEmpty(p.budgetMin)} /></Field>
         <Field label="Budget max"><NumberInput name="prefBudgetMax" defaultValue={numOrEmpty(p.budgetMax)} /></Field>
-        <Field label="Currency"><Input name="prefCurrency" defaultValue={p.currency} /></Field>
+        <Field label="Currency"><CurrencySelect name="prefCurrency" defaultValue={p.currency} /></Field>
+      </Section>
+
+      <Section title="Additional information">
+        <ExtraInfoField name="extrasJson" defaultValue={p.extras ?? []} suggestions={EXTRA_LABELS} />
       </Section>
 
       <Section title="Notes">

@@ -146,6 +146,7 @@ model RoughStone {
 
   // Media
   digitalAssets DigitalAsset[]
+  treatments    Treatment[]
 
   // Bills / expenses filed against this rough (transport, valuation,
   // storage, etc.) — allocated cost lines that follow the rough into
@@ -237,6 +238,7 @@ model Gemstone {
   certificates   Certificate[]
   cgiProjects    CGIProject[]
   digitalAssets  DigitalAsset[]
+  treatments     Treatment[]
 
   // Sales pipeline
   enquiries      Enquiry[]
@@ -438,6 +440,40 @@ model CostAllocation {
   @@index([roughStoneId])
   @@index([gemstoneId])
   @@index([sourceAllocationId])
+}
+
+// ─── Treatments (heating, diffusion, filling, ...) done to a rough or a cut stone ──
+
+// Exactly one of roughStoneId / gemstoneId is set. `type` is free text seeded from
+// src/lib/treatment-types.ts so new kinds can be added on the form. The cost is recorded
+// here for reference; it is not posted into the stone's costing automatically.
+model Treatment {
+  id              String   @id @default(cuid())
+  code            String   @unique          // TRT-2026-00001
+  roughStoneId    String?
+  roughStone      RoughStone? @relation(fields: [roughStoneId], references: [id], onDelete: Cascade)
+  gemstoneId      String?
+  gemstone        Gemstone?   @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+
+  type            String
+  status          String   @default("PLANNED")   // PLANNED | IN_PROGRESS | COMPLETED | CANCELLED
+  providerKind    String?                         // COMPANY | PERSON | IN_HOUSE
+  providerName    String?
+  providerContact String?
+  startDate       DateTime?
+  endDate         DateTime?
+  cost            Decimal  @default(0)
+  currency        String   @default("LKR")
+  weightBeforeCt  Decimal?
+  weightAfterCt   Decimal?
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([roughStoneId])
+  @@index([gemstoneId])
+  @@index([status])
 }
 
 // ─── Price history (never overwritten) ───────────────────────────────────────
