@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           {/* Solid white chip so the real full-colour logo reads cleanly on the gradient */}
           <div className="h-12 w-12 rounded-md bg-white shadow-luxe grid place-items-center overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/serendib-logo.jpg" alt="Serendib Gemstones" className="h-10 w-10 object-contain" />
+            <img src="/serendib-logo.png" alt="Serendib Gemstones" className="h-10 w-10 object-contain" />
           </div>
           <div className="leading-tight">
             <div className="font-serif text-2xl">Serendib</div>

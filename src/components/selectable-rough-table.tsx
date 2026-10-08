@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/status-badge";
@@ -41,6 +42,7 @@ export function SelectableRoughTable({
   sharerEmail: string;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const router = useRouter();
 
   function toggle(code: string) {
     setSelected((prev) => {
@@ -88,7 +90,16 @@ export function SelectableRoughTable({
           {rows.map((r) => {
             const isSel = selected.has(r.code);
             return (
-              <TableRow key={r.id} className={isSel ? "bg-sgs-teal-50/40" : ""}>
+              <TableRow
+                key={r.id}
+                // The whole row opens the stone; the checkbox, label button and code link keep their own actions.
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("a,button,input,label")) return;
+                  if (window.getSelection()?.toString()) return; // the user was selecting text
+                  router.push(`/rough/${r.id}`);
+                }}
+                className={`cursor-pointer ${isSel ? "bg-sgs-teal-50/40" : ""}`}
+              >
                 <TableCell>
                   <button
                     type="button"

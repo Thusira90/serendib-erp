@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -54,14 +55,14 @@ export function GemstoneIntakeForm({
         <F label="Species"><ComboboxInput name="species" placeholder="Corundum" options={v("species")} /></F>
         <F label="Origin"><ComboboxInput name="origin" placeholder="Sri Lanka" options={v("origin")} /></F>
         <F label="Treatment"><ComboboxInput name="treatment" placeholder="Unheated" options={v("treatment")} /></F>
-        <F label="Treatment status"><Input name="treatmentStatus" placeholder="Verified / Untested" /></F>
+        <F label="Treatment status"><ComboboxInput name="treatmentStatus" placeholder="Verified / Untested" options={v("treatmentStatus")} /></F>
       </Section>
 
       <Section title="Physical characteristics">
-        <F label="Weight (ct) *"><Input name="weightCt" required inputMode="decimal" placeholder="8.72" /></F>
-        <F label="Length (mm)"><Input name="lengthMm" inputMode="decimal" /></F>
-        <F label="Width (mm)"><Input name="widthMm" inputMode="decimal" /></F>
-        <F label="Depth (mm)"><Input name="depthMm" inputMode="decimal" /></F>
+        <F label="Weight (ct) *"><NumberInput name="weightCt" required placeholder="8.72" /></F>
+        <F label="Length (mm)"><NumberInput name="lengthMm" /></F>
+        <F label="Width (mm)"><NumberInput name="widthMm" /></F>
+        <F label="Depth (mm)"><NumberInput name="depthMm" /></F>
         <F label="Shape"><ComboboxInput name="shape" placeholder="Oval" options={v("shape")} /></F>
         <F label="Cut"><ComboboxInput name="cut" placeholder="Brilliant / mixed" options={v("cut")} /></F>
         <F label="Faceting style" wide><ComboboxInput name="facetingStyle" placeholder="Ceylon oval" options={v("facetingStyle")} /></F>
@@ -79,6 +80,18 @@ export function GemstoneIntakeForm({
         <F label="Symmetry"><ComboboxInput name="symmetry" placeholder="Very good" options={v("symmetry")} /></F>
         <F label="Polish"><ComboboxInput name="polish" placeholder="Excellent" options={v("polish")} /></F>
         <F label="Inclusions" wide><Textarea name="inclusions" rows={2} /></F>
+        <F label="Ceylon Gem Identity" wide>
+          <input type="hidden" name="cgiChoice" value="1" />
+          <label className="flex items-start gap-2.5 text-sm cursor-pointer">
+            <input type="checkbox" name="cgiEnabled" defaultChecked className="mt-0.5 h-4 w-4 accent-sgs-teal-500" />
+            <span>
+              Use CGI for this stone
+              <span className="block text-[11px] text-muted-foreground">
+                Untick for small stones that don&apos;t need a Gem Identity. It can be switched on later from the stone&apos;s page.
+              </span>
+            </span>
+          </label>
+        </F>
       </Section>
 
       <Section title="Commercial">

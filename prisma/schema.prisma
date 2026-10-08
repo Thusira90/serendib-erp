@@ -146,6 +146,7 @@ model RoughStone {
 
   // Media
   digitalAssets DigitalAsset[]
+  treatments    Treatment[]
 
   // Bills / expenses filed against this rough (transport, valuation,
   // storage, etc.) — allocated cost lines that follow the rough into
@@ -205,6 +206,9 @@ model Gemstone {
   // Ceylon Gem Identity — a 0–100 roll-up of origin confidence, treatment,
   // quality bands, cert strength and provenance traceability. Recomputed
   // via computeCgi() whenever any input field changes. See src/lib/cgi.ts.
+  // false = this stone does not use the Ceylon Gem Identity at all (small stones, say): no badge, score or
+  // breakdown anywhere, internal or public. The stored grading is kept, so it can be switched back on.
+  cgiEnabled        Boolean       @default(true)
   cgiScore          Int?
   cgiBand           String?       // ELITE | PREMIUM | TRADE | COMMERCIAL | ENTRY
   cgiOriginBand     String?       // CgiOriginBand
@@ -234,6 +238,7 @@ model Gemstone {
   certificates   Certificate[]
   cgiProjects    CGIProject[]
   digitalAssets  DigitalAsset[]
+  treatments     Treatment[]
 
   // Sales pipeline
   enquiries      Enquiry[]
@@ -435,6 +440,40 @@ model CostAllocation {
   @@index([roughStoneId])
   @@index([gemstoneId])
   @@index([sourceAllocationId])
+}
+
+// ─── Treatments (heating, diffusion, filling, ...) done to a rough or a cut stone ──
+
+// Exactly one of roughStoneId / gemstoneId is set. `type` is free text seeded from
+// src/lib/treatment-types.ts so new kinds can be added on the form. The cost is recorded
+// here for reference; it is not posted into the stone's costing automatically.
+model Treatment {
+  id              String   @id @default(cuid())
+  code            String   @unique          // TRT-2026-00001
+  roughStoneId    String?
+  roughStone      RoughStone? @relation(fields: [roughStoneId], references: [id], onDelete: Cascade)
+  gemstoneId      String?
+  gemstone        Gemstone?   @relation(fields: [gemstoneId], references: [id], onDelete: Cascade)
+
+  type            String
+  status          String   @default("PLANNED")   // PLANNED | IN_PROGRESS | COMPLETED | CANCELLED
+  providerKind    String?                         // COMPANY | PERSON | IN_HOUSE
+  providerName    String?
+  providerContact String?
+  startDate       DateTime?
+  endDate         DateTime?
+  cost            Decimal  @default(0)
+  currency        String   @default("LKR")
+  weightBeforeCt  Decimal?
+  weightAfterCt   Decimal?
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([roughStoneId])
+  @@index([gemstoneId])
+  @@index([status])
 }
 
 // ─── Price history (never overwritten) ───────────────────────────────────────
@@ -1014,6 +1053,9 @@ model ShareLink {
   createdByPhotoUrl String?
 
   // Broker mode — swaps the sharer identity for a third-party broker.
+  // true = leave the Ceylon Gem Identity off this link's pages even for stones that have one.
+  hideCgi           Boolean  @default(false)
+
   brokerMode        Boolean  @default(false)
   brokerName        String?
   brokerCompany     String?
@@ -1032,6 +1074,15 @@ model ShareLink {
 }
 
 // ─── Company settings (singleton — id = "singleton") ────────────────────────
+
+// What a QR scan shows the public, per stone kind ("ROUGH" | "GEMSTONE"). `fields` is JSON
+// { fieldKey: boolean }; see src/lib/qr-fields.ts. Reads fall back to defaults when absent.
+model QrProfile {
+  kind      String   @id
+  fields    String
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
 
 model CompanySettings {
   id                 String   @id @default("singleton")

@@ -3,8 +3,10 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ComboboxInput } from "@/components/combobox-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { GEMSTONE_STATUSES, GEMSTONE_COMMERCE_STATUSES, manualStatusOptions } from "@/lib/enums";
@@ -37,11 +39,13 @@ type GemExisting = {
 };
 
 export function EditGemstoneButton({
-  gem, locations,
+  gem, locations, vocab,
 }: {
   gem: GemExisting;
   locations: { id: string; code: string; name: string }[];
+  vocab: Record<string, string[]>;
 }) {
+  const v = (key: string) => vocab[`gemstone.${key}`] ?? [];
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -65,29 +69,29 @@ export function EditGemstoneButton({
         >
           <input type="hidden" name="id" value={gem.id} />
 
-          <F label="Gem type *" cols={1}><Input name="gemType" required defaultValue={gem.gemType} /></F>
-          <F label="Variety" cols={1}><Input name="variety" defaultValue={gem.variety ?? ""} /></F>
-          <F label="Species" cols={1}><Input name="species" defaultValue={gem.species ?? ""} /></F>
+          <F label="Gem type *" cols={1}><ComboboxInput name="gemType" required defaultValue={gem.gemType} options={v("gemType")} /></F>
+          <F label="Variety" cols={1}><ComboboxInput name="variety" defaultValue={gem.variety} options={v("variety")} /></F>
+          <F label="Species" cols={1}><ComboboxInput name="species" defaultValue={gem.species} options={v("species")} /></F>
 
-          <F label="Origin" cols={1}><Input name="origin" defaultValue={gem.origin ?? ""} /></F>
-          <F label="Treatment" cols={1}><Input name="treatment" defaultValue={gem.treatment ?? ""} /></F>
-          <F label="Treatment status" cols={1}><Input name="treatmentStatus" defaultValue={gem.treatmentStatus ?? ""} /></F>
+          <F label="Origin" cols={1}><ComboboxInput name="origin" defaultValue={gem.origin} options={v("origin")} /></F>
+          <F label="Treatment" cols={1}><ComboboxInput name="treatment" defaultValue={gem.treatment} options={v("treatment")} /></F>
+          <F label="Treatment status" cols={1}><ComboboxInput name="treatmentStatus" defaultValue={gem.treatmentStatus} options={v("treatmentStatus")} /></F>
 
-          <F label="Weight (ct) *" cols={1}><Input name="weightCt" required inputMode="decimal" defaultValue={gem.weightCt} /></F>
-          <F label="Length (mm)" cols={1}><Input name="lengthMm" inputMode="decimal" defaultValue={gem.lengthMm ?? ""} /></F>
-          <F label="Width (mm)" cols={1}><Input name="widthMm" inputMode="decimal" defaultValue={gem.widthMm ?? ""} /></F>
-          <F label="Depth (mm)" cols={1}><Input name="depthMm" inputMode="decimal" defaultValue={gem.depthMm ?? ""} /></F>
+          <F label="Weight (ct) *" cols={1}><NumberInput name="weightCt" required defaultValue={gem.weightCt} /></F>
+          <F label="Length (mm)" cols={1}><NumberInput name="lengthMm" defaultValue={gem.lengthMm ?? ""} /></F>
+          <F label="Width (mm)" cols={1}><NumberInput name="widthMm" defaultValue={gem.widthMm ?? ""} /></F>
+          <F label="Depth (mm)" cols={1}><NumberInput name="depthMm" defaultValue={gem.depthMm ?? ""} /></F>
 
-          <F label="Shape" cols={1}><Input name="shape" defaultValue={gem.shape ?? ""} /></F>
-          <F label="Cut" cols={1}><Input name="cut" defaultValue={gem.cut ?? ""} /></F>
-          <F label="Faceting style" cols={1}><Input name="facetingStyle" defaultValue={gem.facetingStyle ?? ""} /></F>
+          <F label="Shape" cols={1}><ComboboxInput name="shape" defaultValue={gem.shape} options={v("shape")} /></F>
+          <F label="Cut" cols={1}><ComboboxInput name="cut" defaultValue={gem.cut} options={v("cut")} /></F>
+          <F label="Faceting style" cols={1}><ComboboxInput name="facetingStyle" defaultValue={gem.facetingStyle} options={v("facetingStyle")} /></F>
 
-          <F label="Clarity" cols={1}><Input name="clarity" defaultValue={gem.clarity ?? ""} /></F>
-          <F label="Luster" cols={1}><Input name="luster" defaultValue={gem.luster ?? ""} /></F>
-          <F label="Fluorescence" cols={1}><Input name="fluorescence" defaultValue={gem.fluorescence ?? ""} /></F>
+          <F label="Clarity" cols={1}><ComboboxInput name="clarity" defaultValue={gem.clarity} options={v("clarity")} /></F>
+          <F label="Luster" cols={1}><ComboboxInput name="luster" defaultValue={gem.luster} options={v("luster")} /></F>
+          <F label="Fluorescence" cols={1}><ComboboxInput name="fluorescence" defaultValue={gem.fluorescence} options={v("fluorescence")} /></F>
 
-          <F label="Symmetry" cols={1}><Input name="symmetry" defaultValue={gem.symmetry ?? ""} /></F>
-          <F label="Polish" cols={1}><Input name="polish" defaultValue={gem.polish ?? ""} /></F>
+          <F label="Symmetry" cols={1}><ComboboxInput name="symmetry" defaultValue={gem.symmetry} options={v("symmetry")} /></F>
+          <F label="Polish" cols={1}><ComboboxInput name="polish" defaultValue={gem.polish} options={v("polish")} /></F>
           <F label="Status" cols={1}>
             <select name="status" defaultValue={gem.status} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
               {statusOptions.map((s) => <option key={s} value={s}>{label(s)}</option>)}

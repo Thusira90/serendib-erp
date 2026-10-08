@@ -36,6 +36,8 @@ export type GemCard = {
   heroBadge: string | null;
   cgiScore: number | null;
   cgiBand: string | null;
+  /** false = this stone does not use the Ceylon Gem Identity, so no CGI chip at all. */
+  cgiEnabled: boolean;
 };
 
 export function SelectableGemGrid({
@@ -120,7 +122,7 @@ export function SelectableGemGrid({
                   ) : (
                     <div className="text-[10px] text-muted-foreground italic">Direct acquisition</div>
                   )}
-                  <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>
+                  {g.cgiEnabled && <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Asking</span>
                     <span className="num font-medium">{g.askingPrice ? formatCurrency(g.askingPrice, g.currency) : "—"}</span>

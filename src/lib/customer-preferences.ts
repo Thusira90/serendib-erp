@@ -12,6 +12,8 @@ export const customerPreferencesSchema = z.object({
   budgetMin: z.number().nullable().default(null),
   budgetMax: z.number().nullable().default(null),
   currency: z.string().default("LKR"),
+  // Free-form "label: value" details about the customer (language, birthday, referred by, ...).
+  extras: z.array(z.object({ label: z.string().max(80), value: z.string().max(500) })).max(40).default([]),
 });
 
 export type CustomerPreferences = z.infer<typeof customerPreferencesSchema>;
@@ -24,6 +26,20 @@ export function parsePreferences(v: unknown): CustomerPreferences {
 
 function safeJson(s: string) {
   try { return JSON.parse(s); } catch { return null; }
+}
+
+/** Parse the posted JSON for the extra-information rows; anything malformed is dropped. */
+export function parseExtras(input: FormDataEntryValue | null): Array<{ label: string; value: string }> {
+  if (typeof input !== "string" || !input.trim()) return [];
+  try {
+    const raw = JSON.parse(input);
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((r): r is { label: string; value: string } => typeof r?.label === "string" && typeof r?.value === "string")
+      .map((r) => ({ label: r.label.trim().slice(0, 80), value: r.value.trim().slice(0, 500) }))
+      .filter((r) => r.label && r.value)
+      .slice(0, 40);
+  } catch { return []; }
 }
 
 export function splitCsv(input: FormDataEntryValue | null): string[] {

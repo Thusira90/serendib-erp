@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Clock3, Copy, Check, MessageCircle, Mail, Link2, Users } from "lucide-react";
+import { Clock3, Copy, Check, MessageCircle, Mail, Link2, Users, Eye } from "lucide-react";
 import { createShareLink } from "@/app/(app)/share-links/actions";
 
 type Scope = "CATALOGUE" | "GEMSTONE" | "GEMSTONES" | "COLLECTION" | "ROUGH" | "ROUGHS";
@@ -55,7 +55,12 @@ export function TimedShareButton({
   const [ttlMinutes, setTtlMinutes] = useState<number>(60);
   const [customHours, setCustomHours] = useState<string>("");
   const [broker, setBroker] = useState(false);
+  // Rough stones have no CGI; for everything else the link can leave it out.
+  const [includeCgi, setIncludeCgi] = useState(true);
+  const hasCgiChoice = scope !== "ROUGH" && scope !== "ROUGHS";
   const [generated, setGenerated] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState("Take a look at this — let me know what catches your eye.");
@@ -78,6 +83,32 @@ export function TimedShareButton({
     return null;
   }
 
+  // The preview renders the recipient's page from these draft settings; no link is created or counted.
+  function buildPreviewUrl(fd: FormData): string {
+    const q = new URLSearchParams();
+    const put = (k: string, v: FormDataEntryValue | string | null) => {
+      if (typeof v === "string" && v.trim()) q.set(k, v.trim());
+    };
+    q.set("scope", scope);
+    put("payload", payloadJson());
+    q.set("ttl", String(effectiveMinutes));
+    put("msg", msg);
+    if (broker) q.set("broker", "1");
+    if (hasCgiChoice && !includeCgi) q.set("nocgi", "1");
+    put("name", fd.get("createdByName"));
+    put("phone", fd.get("createdByPhone"));
+    put("email", fd.get("createdByEmail"));
+    put("bName", fd.get("brokerName"));
+    put("bCompany", fd.get("brokerCompany"));
+    put("bPhone", fd.get("brokerPhone"));
+    put("bEmail", fd.get("brokerEmail"));
+    return `/share-preview?${q.toString()}`;
+  }
+
+  function openPreview(url: string) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   async function copyLink() {
     if (!generated) return;
     try {
@@ -89,9 +120,11 @@ export function TimedShareButton({
 
   function reset() {
     setGenerated(null);
+    setPreviewUrl(null);
     setCopied(false);
     setError(null);
     setBroker(false);
+    setIncludeCgi(true);
     setTtlMinutes(60);
     setCustomHours("");
   }
@@ -120,6 +153,7 @@ export function TimedShareButton({
 
         {!generated ? (
           <form
+            ref={formRef}
             action={(fd) => start(async () => {
               setError(null);
               try {
@@ -128,7 +162,10 @@ export function TimedShareButton({
                 fd.set("ttlMinutes", String(effectiveMinutes));
                 fd.set("message", msg);
                 fd.set("brokerMode", broker ? "on" : "off");
+                fd.set("hideCgi", hasCgiChoice && !includeCgi ? "on" : "off");
+                const draftPreview = buildPreviewUrl(fd);
                 const { code } = await createShareLink(fd);
+                setPreviewUrl(draftPreview);
                 const origin = typeof window !== "undefined" ? window.location.origin : "";
                 setGenerated(`${origin}/s/${code}`);
               } catch (e) {
@@ -188,6 +225,23 @@ export function TimedShareButton({
               <Textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={2} />
             </div>
 
+            {hasCgiChoice && (
+              <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeCgi}
+                  onChange={(e) => setIncludeCgi(e.target.checked)}
+                  className="mt-0.5 h-4 w-4"
+                />
+                <span>
+                  <span className="block text-sm font-medium">Include Ceylon Gem Identity (CGI)</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    Untick to leave the CGI score, badge and breakdown off this link, even for stones that have one.
+                  </span>
+                </span>
+              </label>
+            )}
+
             <div className="space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -242,6 +296,13 @@ export function TimedShareButton({
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => formRef.current && openPreview(buildPreviewUrl(new FormData(formRef.current)))}
+              >
+                <Eye className="h-4 w-4" /> Preview
+              </Button>
               <Button disabled={pending}>
                 {pending ? "Generating…" : `Generate link (expires in ${
                   effectiveMinutes < 60 ? `${effectiveMinutes} min`
@@ -294,7 +355,12 @@ export function TimedShareButton({
                 <Mail className="h-4 w-4" /> Email
               </Button>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {previewUrl && (
+                <Button variant="outline" onClick={() => openPreview(previewUrl)}>
+                  <Eye className="h-4 w-4" /> Preview
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => setOpen(false)}>Done</Button>
             </div>
           </div>

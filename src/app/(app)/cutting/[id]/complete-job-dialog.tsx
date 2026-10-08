@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencySelect } from "@/components/ui/currency-input";
@@ -71,9 +72,9 @@ export function CompleteJobDialog({
 
           <section className="grid grid-cols-4 gap-3">
             <F label="Actual cut"><Input name="actualCut" defaultValue={defaultPlannedCut ?? ""} /></F>
-            <F label="Cutting cost"><Input name="cuttingCost" inputMode="decimal" defaultValue={defaultCuttingCost || ""} /></F>
-            <F label="Labour cost"><Input name="laborCost" inputMode="decimal" defaultValue={defaultLaborCost || ""} /></F>
-            <F label="Machine cost"><Input name="machineCost" inputMode="decimal" defaultValue={defaultMachineCost || ""} /></F>
+            <F label="Cutting cost"><NumberInput name="cuttingCost" defaultValue={defaultCuttingCost || ""} /></F>
+            <F label="Labour cost"><NumberInput name="laborCost" defaultValue={defaultLaborCost || ""} /></F>
+            <F label="Machine cost"><NumberInput name="machineCost" defaultValue={defaultMachineCost || ""} /></F>
             <F label="Currency (all costs)"><CurrencySelect name="currency" defaultValue={defaultCurrency} /></F>
             <F label="Notes" span><Textarea name="notes" rows={2} /></F>
           </section>
@@ -103,10 +104,10 @@ export function CompleteJobDialog({
 
                   <F label="Type" cols={2}><Input value={r.gemType} onChange={(e) => setRow(i, { gemType: e.target.value })} /></F>
                   <F label="Variety" cols={2}><Input value={r.variety} onChange={(e) => setRow(i, { variety: e.target.value })} /></F>
-                  <F label="Weight (ct)" cols={2}><Input inputMode="decimal" value={r.weightCt} onChange={(e) => setRow(i, { weightCt: e.target.value })} /></F>
+                  <F label="Weight (ct)" cols={2}><NumberInput value={r.weightCt} onValueChange={(v) => setRow(i, { weightCt: v })} /></F>
                   <F label="Shape" cols={2}><Input value={r.shape} onChange={(e) => setRow(i, { shape: e.target.value })} /></F>
                   <F label="Cut" cols={1}><Input value={r.cut} onChange={(e) => setRow(i, { cut: e.target.value })} /></F>
-                  <F label="Asking" cols={2}><Input inputMode="decimal" value={r.askingPrice} onChange={(e) => setRow(i, { askingPrice: e.target.value })} /></F>
+                  <F label="Asking" cols={2}><NumberInput value={r.askingPrice} onValueChange={(v) => setRow(i, { askingPrice: v })} /></F>
                   <div className="col-span-1 flex justify-end">
                     <Button type="button" size="icon" variant="ghost" onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))} disabled={rows.length === 1}>
                       <Trash2 className="h-4 w-4" />

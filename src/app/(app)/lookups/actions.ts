@@ -77,5 +77,23 @@ export async function quickCreateLocation(name: string, code?: string): Promise<
   return { id: created.id, name: created.name, code: created.code };
 }
 
+export async function quickCreateLaboratory(name: string): Promise<{ id: string; name: string; code: string }> {
+  const session = await requireCapability("certificate:write");
+  const clean = name.trim();
+  if (!clean) throw new Error("Laboratory name required");
+  // A short code from the name (GIA, SSEF, "Gem Lab Sri Lanka" -> GEM-LAB-SRI-LANKA), made unique with a number if taken.
+  const base = clean.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "LAB";
+  let code = base;
+  for (let n = 2; await prisma.laboratory.findUnique({ where: { code } }); n++) code = `${base}-${n}`;
+  const created = await prisma.laboratory.create({ data: { code, name: clean } });
+  await writeAudit({
+    entity: "Laboratory", entityId: created.id, entityCode: created.code,
+    action: "CREATE", userId: session.user.id, userName: session.user.name ?? null,
+    newValue: `Laboratory ${created.name} quick-added from the certificate form.`,
+  });
+  revalidatePath("/certificates");
+  return { id: created.id, name: created.name, code: created.code };
+}
+
 // Parcels require supplier + totals up-front, so they can't be quick-created
 // from a stone form — users create them through the full /parcels/new flow.

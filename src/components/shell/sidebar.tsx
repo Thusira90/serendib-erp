@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Diamond, Gem, GitBranch, Scissors, Users,
   Warehouse, ScrollText, PackageOpen, Building2, Award, Sparkles,
   Users2, Mail, FileText, Lock, Receipt, Plane, BarChart3, Inbox, ReceiptText,
-  Settings, LayoutGrid, Crown, Wallet, BookOpen, Link2, Handshake,
+  Settings, LayoutGrid, Crown, Wallet, BookOpen, Link2, Handshake, QrCode, Flame,
 } from "lucide-react";
 
 type NavItem = {
@@ -28,6 +28,7 @@ const nav: NavItem[] = [
   { href: "/genealogy",     label: "Genealogy",         icon: GitBranch,        needs: "genealogy:read", group: "Inventory" },
   { href: "/locations",     label: "Locations",         icon: Warehouse,        needs: "location:read", group: "Inventory" },
   { href: "/cutting",       label: "Cutting Jobs",      icon: Scissors,         needs: "cutting:read", group: "Operations" },
+  { href: "/treatments",    label: "Treatments",        icon: Flame,            needs: "treatment:read", group: "Operations" },
   { href: "/certificates",  label: "Certification",     icon: Award,            needs: "certificate:read", group: "Operations" },
   { href: "/cgi",           label: "CGI & Media",       icon: Sparkles,         needs: "cgi:read", group: "Operations" },
   { href: "/customers",     label: "Customers",         icon: Users2,           needs: "customer:read", group: "Sales" },
@@ -50,6 +51,7 @@ const nav: NavItem[] = [
   { href: "/reports",       label: "Reports",           icon: BarChart3,        needs: "report:read", group: "Financials" },
   { href: "/audit-log",     label: "Audit Log",         icon: ScrollText,       needs: "audit:read", group: "Administration" },
   { href: "/users",         label: "Users",             icon: Users,            needs: "user:manage", group: "Administration" },
+  { href: "/qr",            label: "QR codes",          icon: QrCode,           needs: "settings:read", group: "Administration" },
   { href: "/settings",      label: "Company settings",  icon: Settings,         needs: "settings:read", group: "Administration" },
 ];
 

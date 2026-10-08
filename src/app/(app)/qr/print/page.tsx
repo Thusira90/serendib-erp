@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAuth } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
+import { publicOrigin } from "@/lib/public-url";
 import { formatCarat } from "@/lib/utils";
 import { SgsMark } from "@/components/brand/logo";
 import { PrintTrigger } from "./print-trigger";
@@ -17,9 +18,8 @@ import { PrintTrigger } from "./print-trigger";
  *                             sheet   = N labels on an A4 grid (default
  *                             when codes has more than one entry)
  *
- * Rough labels encode the internal /rough/<code> URL; gemstone labels
- * encode the public /verify/<code> URL so customers can scan the sticker
- * on the box and see the stone straight away.
+ * Every label encodes the full public /verify/<code> address, so anyone can
+ * scan the sticker and see the stone (never its price or cost).
  */
 export default async function QrPrintPage({
   searchParams,
@@ -40,6 +40,7 @@ export default async function QrPrintPage({
 
   const layout = sp.layout ?? (codes.length > 1 ? "sheet" : "sticker");
 
+  const origin = await publicOrigin();
   const items = await Promise.all(codes.map(async (code) => {
     let name = code;
     let weight = "";
@@ -66,8 +67,8 @@ export default async function QrPrintPage({
       origin = g.origin;
       treatment = g.treatment;
       fromRough = g.transformationsAsOutput[0]?.transformation.inputs[0]?.roughStone.code ?? null;
-      cgiScore = g.cgiScore;
-      cgiBand = g.cgiBand;
+      cgiScore = g.cgiEnabled ? g.cgiScore : null;
+      cgiBand = g.cgiEnabled ? g.cgiBand : null;
     } else {
       const r = await prisma.roughStone.findUnique({ where: { code } });
       if (!r) return null;
@@ -76,7 +77,7 @@ export default async function QrPrintPage({
       origin = r.origin;
       treatment = r.treatment;
     }
-    const url = kind === "gemstone" ? publicVerifyUrl(code) : `/rough/${code}`;
+    const url = publicVerifyUrl(code, origin);
     // A single QR is generated per label; CSS in the layout scales it into
     // whichever slot (sticker or sheet cell) it lands in.
     const svg = await renderQrSvg(url, { size: 240, margin: 1 });
@@ -105,7 +106,7 @@ export default async function QrPrintPage({
       ) : (
         <div className="mx-auto max-w-[210mm]">
           <div className="print:hidden mb-4 text-sm text-muted-foreground">
-            {valid.length} label{valid.length === 1 ? "" : "s"} · A4 sheet · {kind === "gemstone" ? "public verify link" : "internal record"}
+            {valid.length} label{valid.length === 1 ? "" : "s"} · A4 sheet · public verify link
           </div>
           <div className="grid grid-cols-3 gap-2 print:gap-1">
             {valid.map((it) => <SheetCell key={it.code} {...it} />)}

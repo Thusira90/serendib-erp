@@ -8,6 +8,8 @@ import type { getCompanySettings } from "@/lib/company-settings";
 import { ShieldCheck, Clock3, MessageCircle, Mail, User as UserIcon, Gem } from "lucide-react";
 import { SgsLogo } from "@/components/brand/logo";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
+import { StoneMediaViewer, type ViewerItem } from "@/components/stone-media-viewer";
+import { isVideoAsset } from "@/lib/media";
 
 /**
  * Shared parts of the /s/<code> customer-facing view. Both the index
@@ -211,7 +213,7 @@ export function CopyrightNotice({
 /* ------------------------------ Stone views ------------------------------ */
 
 export type Gem = Awaited<ReturnType<typeof prisma.gemstone.findMany>>[number] & {
-  digitalAssets: { url: string }[];
+  digitalAssets: { url: string; contentType?: string | null; kind?: string | null }[];
   cgiProjects: { versions: { renderUrl: string | null; isMaster: boolean }[] }[];
   certificates: { laboratory: { name: string }; certificateNumber: string | null }[];
 };
@@ -226,13 +228,99 @@ export function isRoughScope(scope: string): boolean {
 }
 
 /**
+ * What the share index page lists: cover photos only, since a catalogue link
+ * can cover hundreds of stones. Shared with the in-app preview.
+ */
+export async function loadShareContents(link: NonNullable<ShareLinkRecord>) {
+  const isRough = isRoughScope(link.scope);
+  const [gems, roughs] = await Promise.all([
+    isRough
+      ? Promise.resolve([])
+      : prisma.gemstone.findMany({
+          where: gemsWhereForLink(link),
+          include: {
+            digitalAssets: {
+              where: { isPrimary: true, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
+              take: 1,
+            },
+            cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
+            certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        }),
+    isRough
+      ? prisma.roughStone.findMany({
+          where: roughsWhereForLink(link),
+          include: {
+            digitalAssets: {
+              where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE"] } },
+              orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+              take: 5,
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        })
+      : Promise.resolve([]),
+  ]);
+  return { gems, roughs };
+}
+
+/** One stone of a link's scope for its detail page; null when it is not part of the link. */
+export function findShareGem(link: NonNullable<ShareLinkRecord>, code: string) {
+  return prisma.gemstone.findFirst({
+    where: { AND: [{ code }, gemsWhereForLink(link)] },
+    include: {
+      cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
+      certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
+    },
+  });
+}
+
+export function findShareRough(link: NonNullable<ShareLinkRecord>, code: string) {
+  return prisma.roughStone.findFirst({
+    where: { AND: [{ code }, roughsWhereForLink(link)] },
+    include: {
+      digitalAssets: {
+        where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE"] } },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        take: 5,
+      },
+    },
+  });
+}
+
+/**
+ * Photos and videos a share page may show for one stone, primary first. The
+ * stone grids only need one cover photo, so they do not use this.
+ */
+export async function loadShareableMedia(gemstoneId: string) {
+  const assets = await prisma.digitalAsset.findMany({
+    where: { gemstoneId, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    take: 24,
+  });
+  // Media an admin marked never-for-buyers stays off the page.
+  return assets.filter((a) => a.partnerHidden !== true);
+}
+
+/**
  * Full-fat single-stone profile — mirrors the internal detail page.
  * Used both for scope=GEMSTONE links AND when a viewer clicks a card
  * in a multi-stone share to open its full page.
  */
-export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: boolean }) {
+export function SingleStone({ gem, neutral = false, showCgi = true }: { gem: Gem; neutral?: boolean; showCgi?: boolean }) {
+  // Off for this link, or off for this stone: no CGI chip, breakdown or methodology.
+  const cgiOn = showCgi && gem.cgiEnabled;
   const cgi = gem.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-  const hero = cgi?.renderUrl ?? gem.digitalAssets[0]?.url;
+  // Master CGI first, then photos (primary first), then videos, all in the hero viewer.
+  const photos = gem.digitalAssets.filter((a) => !isVideoAsset(a));
+  const videos = gem.digitalAssets.filter(isVideoAsset);
+  const media: ViewerItem[] = [
+    ...(cgi?.renderUrl ? [{ url: cgi.renderUrl, kind: "CGI_RENDER" }] : []),
+    ...[...photos, ...videos].filter((a) => a.url !== cgi?.renderUrl),
+  ];
   const cert = gem.certificates[0];
   const dims = [gem.lengthMm, gem.widthMm, gem.depthMm]
     .filter((v) => v != null)
@@ -241,12 +329,7 @@ export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: bool
 
   return (
     <div className="rounded-2xl overflow-hidden bg-white border shadow-luxe">
-      <div className="aspect-[16/10] bg-sgs-gradient relative">
-        {hero && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero} alt={gem.gemType} className="absolute inset-0 h-full w-full object-cover" />
-        )}
-      </div>
+      <StoneMediaViewer items={media} alt={gem.gemType} />
       <div className="p-8 space-y-6">
         <div>
           <div className="text-[10px] uppercase tracking-[0.25em] text-sgs-purple-500">{gem.gemType}{gem.variety ? ` · ${gem.variety}` : ""}</div>
@@ -254,10 +337,10 @@ export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: bool
           <div className="text-sm text-muted-foreground mt-1">
             {gem.origin ?? "Origin undisclosed"}{gem.treatment ? ` · ${gem.treatment}` : ""}
           </div>
-          <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="md" /></div>
+          {cgiOn && <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="md" /></div>}
         </div>
 
-        {gem.cgiScore != null && (
+        {cgiOn && gem.cgiScore != null && (
           <>
             <CgiBreakdownCard
               score={gem.cgiScore}
@@ -331,7 +414,7 @@ export function opaqueStoneToken(linkId: string, stoneId: string): string {
   return createHash("sha256").update(`${linkId}:${stoneId}`).digest("base64url").slice(0, 12);
 }
 
-export function StoneGrid({ gems, shareCode, opaqueFor }: { gems: Gem[]; shareCode: string; opaqueFor?: string }) {
+export function StoneGrid({ gems, shareCode, opaqueFor, hrefFor, showCgi = true }: { gems: Gem[]; shareCode: string; opaqueFor?: string; hrefFor?: (code: string) => string; showCgi?: boolean }) {
   if (gems.length === 0) {
     return (
       <div className="rounded-xl border bg-white p-10 text-center text-sm text-muted-foreground">
@@ -347,7 +430,7 @@ export function StoneGrid({ gems, shareCode, opaqueFor }: { gems: Gem[]; shareCo
         return (
           <Link
             key={g.id}
-            href={`/s/${shareCode}/${opaqueFor ? opaqueStoneToken(opaqueFor, g.id) : encodeURIComponent(g.code)}`}
+            href={hrefFor ? hrefFor(g.code) : `/s/${shareCode}/${opaqueFor ? opaqueStoneToken(opaqueFor, g.id) : encodeURIComponent(g.code)}`}
             className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
           >
             <div className="aspect-square bg-sgs-gradient relative">
@@ -368,7 +451,7 @@ export function StoneGrid({ gems, shareCode, opaqueFor }: { gems: Gem[]; shareCo
               <div className="text-xs text-muted-foreground">
                 {g.origin ?? "—"}{g.treatment ? ` · ${g.treatment}` : ""}
               </div>
-              <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>
+              {showCgi && g.cgiEnabled && <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>}
               {g.askingPrice != null && (
                 <div className="pt-2 border-t text-sm num font-medium">
                   {formatCurrency(Number(g.askingPrice), g.currency)}
@@ -577,7 +660,7 @@ export function SingleRoughStone({ rough }: { rough: Rough }) {
 }
 
 /** Grid of rough cards; each links to /s/<code>/r/<roughCode>. */
-export function RoughGrid({ roughs, shareCode, opaqueFor }: { roughs: Rough[]; shareCode: string; opaqueFor?: string }) {
+export function RoughGrid({ roughs, shareCode, opaqueFor, hrefFor }: { roughs: Rough[]; shareCode: string; opaqueFor?: string; hrefFor?: (code: string) => string }) {
   if (roughs.length === 0) {
     return (
       <div className="rounded-xl border bg-white p-10 text-center text-sm text-muted-foreground">
@@ -592,7 +675,7 @@ export function RoughGrid({ roughs, shareCode, opaqueFor }: { roughs: Rough[]; s
         return (
           <Link
             key={r.id}
-            href={`/s/${shareCode}/r/${opaqueFor ? opaqueStoneToken(opaqueFor, r.id) : encodeURIComponent(r.code)}`}
+            href={hrefFor ? hrefFor(r.code) : `/s/${shareCode}/r/${opaqueFor ? opaqueStoneToken(opaqueFor, r.id) : encodeURIComponent(r.code)}`}
             className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
           >
             <div className="aspect-square bg-sgs-gradient relative">

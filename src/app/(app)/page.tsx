@@ -236,7 +236,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ColumnChart data={monthly} formatValue={compactCurrency("LKR")} />
-            <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+            <div className="mt-4 grid grid-cols-[1fr_1fr_1.7fr] gap-4 text-sm">
               <Metric label="Rough weight"       value={formatCarat(Number(roughAgg._sum.weightCt ?? 0))} />
               <Metric label="Finished weight"    value={formatCarat(Number(gemAgg._sum.weightCt ?? 0))} />
               <Metric label="Asking value"       value={formatCurrency(Number(gemAgg._sum.askingPrice ?? 0))} accent />

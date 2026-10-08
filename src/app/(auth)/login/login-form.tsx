@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +12,25 @@ import { Eye, EyeOff } from "lucide-react";
 // Seeded demo accounts are a development convenience only.
 const DEMO = process.env.NODE_ENV !== "production";
 
+// Only the email is remembered, on this device. The password is left to the browser's password manager.
+const REMEMBER_KEY = "serendib.rememberedEmail";
+
 export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?: string }) {
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(error ?? null);
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBER_KEY);
+      if (saved && emailRef.current) {
+        emailRef.current.value = saved;
+        setRemember(true);
+      }
+    } catch { /* storage blocked: nothing to remember */ }
+  }, []);
 
   return (
     <Card className="w-full max-w-md">
@@ -31,6 +46,10 @@ export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
+            try {
+              if (remember) localStorage.setItem(REMEMBER_KEY, String(fd.get("email") ?? ""));
+              else localStorage.removeItem(REMEMBER_KEY);
+            } catch { /* storage blocked */ }
             start(async () => {
               setMessage(null);
               const res = await signInAction(fd, callbackUrl ?? "/");
@@ -40,7 +59,7 @@ export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?
         >
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required placeholder="you@serendib.lk" defaultValue={DEMO ? "admin@serendib.lk" : undefined} autoComplete="username" />
+            <Input ref={emailRef} id="email" name="email" type="email" required placeholder="you@serendib.lk" autoComplete="username" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
@@ -50,7 +69,6 @@ export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?
                 name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                defaultValue={DEMO ? "password123" : undefined}
                 autoComplete="current-password"
                 className="pr-10"
               />
@@ -66,6 +84,15 @@ export function LoginForm({ callbackUrl, error }: { callbackUrl?: string; error?
               </button>
             </div>
           </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-4 w-4 rounded border-input accent-sgs-teal-500"
+            />
+            Remember me on this device
+          </label>
           {message && (
             <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
               {message}

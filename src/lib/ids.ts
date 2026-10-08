@@ -28,6 +28,7 @@ export const codePrefix = {
   gemstone: "SGS-G",
   parcel: "PARCEL",
   cuttingJob: "CJ",
+  treatment: "TRT",
   transformation: "TX",
   certificate: "CERT",
   cgi: "CGI",

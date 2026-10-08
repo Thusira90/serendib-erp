@@ -5,7 +5,7 @@ import { getCompanySettings } from "@/lib/company-settings";
 import { ArrowLeft } from "lucide-react";
 import {
   resolveBrand, resolveContact, Watermark, BrandHeader, ContactFooter, CopyrightNotice,
-  SingleRoughStone, roughsWhereForLink, shareMetadata, opaqueStoneToken,
+  SingleRoughStone, roughsWhereForLink, shareMetadata, opaqueStoneToken, findShareRough,
 } from "../../shared";
 import { ExpiredView } from "../../expired";
 
@@ -45,21 +45,7 @@ export default async function TimedShareRoughPage({
 
   // Validate the requested rough is actually part of this link's scope,
   // so a leaked URL can't enumerate the rest of the vault.
-  const rough = await prisma.roughStone.findFirst({
-    where: {
-      AND: [
-        { code: requestedCode },
-        roughsWhereForLink(link),
-      ],
-    },
-    include: {
-      digitalAssets: {
-        where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE"] } },
-        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-        take: 5,
-      },
-    },
-  });
+  const rough = await findShareRough(link, requestedCode);
   if (!rough) return notFound();
 
   // Awaited so serverless does not drop the write when the response finishes.

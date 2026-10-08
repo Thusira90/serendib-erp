@@ -2,10 +2,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
-import { Award, ArrowLeft, Gem } from "lucide-react";
+import { Award, ArrowLeft } from "lucide-react";
 import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
+import { publicOrigin } from "@/lib/public-url";
 import { Badge } from "@/components/ui/badge";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
+import { StoneMediaViewer } from "@/components/stone-media-viewer";
+import { isVideoAsset } from "@/lib/media";
 
 export const metadata = { title: "Gemstone — Serendib Gemstones" };
 // Public page — cache 60s so repeat views don't hit the DB.
@@ -19,21 +22,23 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
       certificates: { where: { status: "ISSUED" }, orderBy: { issueDate: "desc" }, include: { laboratory: true } },
       cgiProjects: { include: { versions: { where: { isMaster: true } } } },
       digitalAssets: {
-        where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
+        where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
         orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
       },
     },
   });
   if (!g || g.status !== "AVAILABLE") return notFound();
 
+  // Media an admin marked never-for-buyers stays off the page. Master CGI first, then photos, then videos.
+  const shareable = g.digitalAssets.filter((a) => a.partnerHidden !== true);
   const master = g.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-  const heroImg = master?.renderUrl ?? g.digitalAssets[0]?.url;
-  const gallery = [
-    ...(master?.renderUrl ? [{ url: master.renderUrl, caption: "Master CGI" }] : []),
-    ...g.digitalAssets.map((a) => ({ url: a.url, caption: a.caption ?? a.kind.replaceAll("_", " ") })),
+  const media = [
+    ...(master?.renderUrl ? [{ url: master.renderUrl, kind: "CGI_RENDER" }] : []),
+    ...shareable.filter((a) => !isVideoAsset(a)),
+    ...shareable.filter(isVideoAsset),
   ];
   const cert = g.certificates[0];
-  const qr = await renderQrSvg(publicVerifyUrl(g.code), { size: 160 });
+  const qr = await renderQrSvg(publicVerifyUrl(g.code, await publicOrigin()), { size: 160 });
 
   return (
     <div className="space-y-8">
@@ -45,25 +50,8 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-8">
-        <div className="space-y-3">
-          <div className="rounded-xl overflow-hidden border bg-white shadow-luxe">
-            <div className="aspect-square bg-sgs-gradient relative">
-              {heroImg ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImg} alt={g.code} className="h-full w-full object-cover" />
-              ) : (
-                <div className="h-full w-full grid place-items-center text-white/70"><Gem className="h-24 w-24" /></div>
-              )}
-            </div>
-          </div>
-          {gallery.length > 1 && (
-            <div className="grid grid-cols-4 gap-2">
-              {gallery.slice(0, 8).map((a, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={a.url} alt={a.caption} className="aspect-square object-cover rounded-md border" />
-              ))}
-            </div>
-          )}
+        <div className="rounded-xl overflow-hidden border bg-white shadow-luxe self-start">
+          <StoneMediaViewer items={media} alt={g.gemType} aspect="aspect-square" />
         </div>
 
         <div className="space-y-6">
@@ -74,7 +62,7 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
             <div className="text-sm mt-2">
               {[g.origin, g.treatment].filter(Boolean).join(" · ") || "—"}
             </div>
-            <div className="mt-3"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>
+            {g.cgiEnabled && <div className="mt-3"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>}
           </div>
 
           {g.askingPrice != null && (
@@ -125,7 +113,7 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
         </div>
       </div>
 
-      {g.cgiScore != null && (
+      {g.cgiEnabled && g.cgiScore != null && (
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CgiBreakdownCard
             score={g.cgiScore}

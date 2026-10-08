@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -104,7 +105,7 @@ export function AddBillButton({
           </Field>
 
           <Field label="Receipt or invoice (PDF or image)" span>
-            <Input name="receiptFile" type="file" accept="application/pdf,image/*" />
+            <MediaUploadField name="receiptFile" accept="application/pdf,image/*" multiple={false} buttonLabel="Upload receipt" />
           </Field>
 
           <Field label="Notes" span>

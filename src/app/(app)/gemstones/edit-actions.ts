@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireCapability } from "@/lib/rbac";
-import { auditDiff } from "@/lib/audit";
+import { auditDiff, writeAudit } from "@/lib/audit";
 import { GEMSTONE_STATUSES, GEMSTONE_COMMERCE_STATUSES } from "@/lib/enums";
 import { recomputeCgiForGemstone } from "@/lib/cgi-service";
 import {
@@ -181,4 +181,27 @@ export async function updateGemstone(fd: FormData) {
   revalidatePath(`/gemstones/${parsed.id}`);
   revalidatePath("/gemstones");
   revalidatePath("/"); // dashboard: status change can shift AVAILABLE count
+}
+
+/**
+ * Switch the Ceylon Gem Identity on or off for one stone. Off hides every CGI
+ * badge, score and breakdown for it (internal and public); the grading itself
+ * is kept, so turning it back on restores everything.
+ */
+export async function setCgiEnabled(gemstoneId: string, enabled: boolean) {
+  const session = await requireCapability("gemstone:write");
+  const gem = await prisma.gemstone.findUniqueOrThrow({ where: { id: gemstoneId }, select: { id: true, code: true, cgiEnabled: true } });
+  if (gem.cgiEnabled === enabled) return;
+  await prisma.$transaction(async (tx) => {
+    await tx.gemstone.update({ where: { id: gemstoneId }, data: { cgiEnabled: enabled } });
+    await writeAudit({
+      entity: "Gemstone", entityId: gem.id, entityCode: gem.code,
+      action: enabled ? "CGI_ON" : "CGI_OFF", userId: session.user.id, userName: session.user.name ?? null,
+      newValue: `Ceylon Gem Identity turned ${enabled ? "on" : "off"} for ${gem.code}.`,
+    }, tx);
+  });
+  revalidatePath(`/gemstones/${gemstoneId}`);
+  revalidatePath("/gemstones");
+  revalidatePath(`/verify/${gem.code}`);
+  revalidatePath("/catalogue");
 }

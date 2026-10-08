@@ -18,6 +18,9 @@ import { MoveButton } from "@/components/move-button";
 import { EditRoughButton } from "./edit-rough-button";
 import { CommentsThread } from "@/components/comments-thread";
 import { MediaGallery } from "@/components/media-gallery";
+import { TreatmentsPanel } from "@/components/treatments-panel";
+import { isVideoAsset } from "@/lib/media";
+import { StoneCoverMedia } from "@/components/stone-cover-media";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForRough } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
@@ -42,6 +45,10 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
     },
   });
   if (!r) return notFound();
+  // Cover: the primary still if marked, else the first still; videos only stand in when there is no still.
+  const assets = r.digitalAssets;
+  const stills = assets.filter((x) => !isVideoAsset(x));
+  const coverStill = stills.find((x) => x.isPrimary) ?? stills[0];
   const [genealogy, audit, cutters, locations, lifecycle] = await Promise.all([
     buildRoughGenealogy(r.id),
     prisma.auditLog.findMany({
@@ -87,39 +94,55 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      <header className="flex items-start justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 text-xs flex-wrap">
-            <Badge variant="teal"><Diamond className="h-3 w-3 mr-1" /> Rough</Badge>
-            <span className="font-mono">{r.code}</span>
-            <StatusBadge status={r.status} kind="rough" />
-            {(() => {
-              const missing = [
-                !r.supplierId && !r.parcelId ? "supplier or parcel" : null,
-                !r.origin ? "origin" : null,
-                !r.mineSource ? "mine/source" : null,
-                !r.locationId ? "location" : null,
-              ].filter(Boolean) as string[];
-              if (missing.length === 0) return null;
-              return (
-                <Badge variant="warning" title={`Missing: ${missing.join(", ")}`}>
-                  Provenance incomplete · {missing.length} field{missing.length === 1 ? "" : "s"}
-                </Badge>
-              );
-            })()}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        <div className="rounded-lg overflow-hidden bg-sgs-gradient text-white p-6 flex flex-col relative min-h-[280px]">
+          {/* The stone's photo, or its video (muted, looping) when there is no photo. */}
+          <StoneCoverMedia still={coverStill?.url} video={assets.find(isVideoAsset)?.url} alt={r.code} />
+          <div className="relative">
+            <Diamond className="h-8 w-8 opacity-90 drop-shadow" />
           </div>
-          <h1 className="font-serif text-4xl mt-2">{r.gemType}{r.variety ? ` · ${r.variety}` : ""}</h1>
-          <div className="text-sm text-muted-foreground mt-1">
-            {formatCarat(Number(r.weightCt))} · {r.origin ?? "Origin unknown"}
-            {r.supplier ? ` · ${r.supplier.name}` : ""}
+          <div className="mt-auto relative">
+            <div className="text-[10px] uppercase tracking-widest opacity-80">{r.gemType}{r.variety ? ` · ${r.variety}` : ""}</div>
+            <div className="font-serif text-5xl mt-1 num">{formatCarat(Number(r.weightCt))}</div>
+            <div className="text-xs opacity-85 mt-1 font-mono">{r.code}</div>
+            <div className="mt-3"><StatusBadge status={r.status} kind="rough" /></div>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Purchase price</div>
-          <div className="font-serif text-3xl num">{formatCurrency(Number(r.purchasePrice), r.currency)}</div>
-          {r.pricePerCt && <div className="text-xs text-muted-foreground">{formatCurrency(Number(r.pricePerCt), r.currency)} / ct</div>}
-        </div>
-      </header>
+
+          <header className="flex items-start justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-3 text-xs flex-wrap">
+                <Badge variant="teal"><Diamond className="h-3 w-3 mr-1" /> Rough</Badge>
+                <span className="font-mono">{r.code}</span>
+                <StatusBadge status={r.status} kind="rough" />
+                {(() => {
+                  const missing = [
+                    !r.supplierId && !r.parcelId ? "supplier or parcel" : null,
+                    !r.origin ? "origin" : null,
+                    !r.mineSource ? "mine/source" : null,
+                    !r.locationId ? "location" : null,
+                  ].filter(Boolean) as string[];
+                  if (missing.length === 0) return null;
+                  return (
+                    <Badge variant="warning" title={`Missing: ${missing.join(", ")}`}>
+                      Provenance incomplete · {missing.length} field{missing.length === 1 ? "" : "s"}
+                    </Badge>
+                  );
+                })()}
+              </div>
+              <h1 className="font-serif text-4xl mt-2">{r.gemType}{r.variety ? ` · ${r.variety}` : ""}</h1>
+              <div className="text-sm text-muted-foreground mt-1">
+                {formatCarat(Number(r.weightCt))} · {r.origin ?? "Origin unknown"}
+                {r.supplier ? ` · ${r.supplier.name}` : ""}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Purchase price</div>
+              <div className="font-serif text-3xl num">{formatCurrency(Number(r.purchasePrice), r.currency)}</div>
+              {r.pricePerCt && <div className="text-xs text-muted-foreground">{formatCurrency(Number(r.pricePerCt), r.currency)} / ct</div>}
+            </div>
+          </header>
+      </div>
 
       <Tabs defaultValue="overview">
         <TabsList>
@@ -130,6 +153,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
           {can(session.user, "partner:read") && <TabsTrigger value="partners">Partners</TabsTrigger>}
           <TabsTrigger value="media">Media</TabsTrigger>
           <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
+          {can(session.user, "treatment:read") && <TabsTrigger value="treatments">Treatments</TabsTrigger>}
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
@@ -291,6 +315,17 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
         <TabsContent value="notes">
           <CommentsThread entity="RoughStone" entityId={r.id} entityCode={r.code} revalidate={`/rough/${r.id}`} />
         </TabsContent>
+
+        {can(session.user, "treatment:read") && (
+          <TabsContent value="treatments">
+            <TreatmentsPanel
+              kind="ROUGH"
+              stoneId={r.id}
+              stoneLabel={`${r.code} · ${r.gemType}${r.variety ? ` · ${r.variety}` : ""} · ${formatCarat(Number(r.weightCt))}`}
+              canWrite={can(session.user, "treatment:write")}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="history">
           <Card>

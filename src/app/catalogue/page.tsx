@@ -126,7 +126,7 @@ export default async function CataloguePage({ searchParams }: { searchParams: Pr
                   <div className="text-xs text-muted-foreground">
                     {[g.origin, g.treatment].filter(Boolean).join(" · ") || "—"}
                   </div>
-                  <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>
+                  {g.cgiEnabled && <div><CgiBadge score={g.cgiScore} band={g.cgiBand} size="sm" /></div>}
                   {cert && (
                     <div className="text-[10px] text-sgs-teal-700 border-t pt-2">
                       {cert.laboratory.name} certificate

@@ -7,6 +7,7 @@ import { codePrefix, nextCode } from "@/lib/ids";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
 import { saveUpload } from "@/lib/uploads";
+import { isVideoAsset } from "@/lib/media";
 import type { AssetKind, MediaStage } from "@/lib/enums";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
@@ -138,10 +139,10 @@ export async function uploadPhoto(fd: FormData) {
   if (!gemstoneId && !roughStoneId && !cuttingJobId) {
     throw new Error("Must attach media to a rough stone, cutting job, or gemstone.");
   }
-  const kind = (str(fd.get("kind")) as AssetKind) ?? "FINISHED_PHOTO";
+  const requestedKind = (str(fd.get("kind")) as AssetKind) ?? "FINISHED_PHOTO";
   const stage = str(fd.get("stage")) as MediaStage | null;
   const caption = str(fd.get("caption"));
-  const isPrimary = str(fd.get("isPrimary")) === "on";
+  const wantsPrimary = str(fd.get("isPrimary")) === "on";
   const capturedAtRaw = str(fd.get("capturedAt"));
   const capturedAt = capturedAtRaw ? new Date(capturedAtRaw) : null;
   const file = fd.get("file") as File | null;
@@ -150,6 +151,12 @@ export async function uploadPhoto(fd: FormData) {
   const externalUrl = str(fd.get("url"));
   const url = saved?.url ?? externalUrl;
   if (!url) throw new Error("Provide a file or URL.");
+
+  // A video filed under a photo kind would be picked up as a cover photo and
+  // rendered as a broken image, so the upload decides the kind, not the dropdown.
+  const isVideo = isVideoAsset({ contentType: saved?.contentType, url });
+  const kind: AssetKind = isVideo ? "VIDEO" : requestedKind;
+  const isPrimary = wantsPrimary && !isVideo;
 
   await prisma.$transaction(async (tx) => {
     if (isPrimary && (gemstoneId || roughStoneId)) {

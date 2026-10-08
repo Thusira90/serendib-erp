@@ -24,6 +24,8 @@ export type Capability =
   | "cutting:read"
   | "cutting:write"
   | "cutting:plan"
+  | "treatment:read"
+  | "treatment:write"
   | "genealogy:read"
   | "location:read"
   | "location:write"
@@ -77,7 +79,7 @@ export type Capability =
 
 const ADMIN_BASE: Capability[] = [
   "rough:read","rough:write","gemstone:read","gemstone:write",
-  "cutting:read","cutting:write","cutting:plan","genealogy:read",
+  "cutting:read","cutting:write","cutting:plan","treatment:read","treatment:write","genealogy:read",
   "location:read","location:write","audit:read","dashboard:read",
   "supplier:read","supplier:write","financials:read",
   "certificate:read","certificate:write","cgi:read","cgi:write",
@@ -103,7 +105,7 @@ const matrix: Record<Role, Set<Capability>> = {
   // authority stays with SUPER_ADMIN so the owner keeps control.
   ADMINISTRATOR: new Set<Capability>(ADMIN_BASE),
   MANAGEMENT: new Set<Capability>([
-    "rough:read","gemstone:read","cutting:read","genealogy:read",
+    "rough:read","gemstone:read","cutting:read","treatment:read","genealogy:read",
     "location:read","audit:read","dashboard:read","supplier:read","financials:read",
     "certificate:read","cgi:read","media:read","price:write",
     "customer:read","enquiry:read","quotation:read","reservation:read",
@@ -120,9 +122,11 @@ const matrix: Record<Role, Set<Capability>> = {
     "rough:read","gemstone:read","gemstone:write",
     "genealogy:read","dashboard:read",
     "certificate:read","certificate:write","media:read","media:write",
+    "treatment:read","treatment:write",
   ]),
   CUTTER: new Set<Capability>([
     "rough:read","cutting:read","cutting:write","cutting:plan","gemstone:write",
+    "treatment:read","treatment:write",
     "genealogy:read","dashboard:read","media:read","media:write",
   ]),
   CGI_MEDIA: new Set<Capability>([
@@ -185,7 +189,7 @@ export function can(who: Role | Principal | undefined | null, cap: Capability): 
 /** Human-readable groups for the per-user permissions UI. Order matters. */
 export const PERMISSION_GROUPS: Array<{ label: string; caps: Capability[]; note?: string }> = [
   { label: "Inventory",  caps: ["rough:read","rough:write","gemstone:read","gemstone:write","location:read","location:write","genealogy:read","supplier:read","supplier:write"] },
-  { label: "Operations", caps: ["cutting:read","cutting:write","cutting:plan","certificate:read","certificate:write","cgi:read","cgi:write","media:read","media:write"] },
+  { label: "Operations", caps: ["cutting:read","cutting:write","cutting:plan","treatment:read","treatment:write","certificate:read","certificate:write","cgi:read","cgi:write","media:read","media:write"] },
   { label: "Sales & CRM", caps: ["customer:read","customer:write","enquiry:read","enquiry:write","quotation:read","quotation:write","reservation:read","reservation:write","sale:read","sale:write","payment:read","payment:write","shipment:read","shipment:write","collection:read","collection:write"] },
   { label: "Finance & Accounting", caps: ["financials:read","expense:read","expense:write","cost:write","price:write","accounting:read","accounting:write","period:manage","director:read","director:write","shareholder:read","shareholder:write","capital:read","capital:write"] },
   {
@@ -217,7 +221,7 @@ export const PERMISSION_PRESETS: Array<{ label: string; description: string; cap
   {
     label: "Read only (all)",
     description: "See everything, edit nothing. Good for auditors or observers.",
-    caps: (["rough:read","gemstone:read","cutting:read","genealogy:read","location:read","dashboard:read","supplier:read","financials:read","certificate:read","cgi:read","media:read","customer:read","enquiry:read","quotation:read","reservation:read","sale:read","payment:read","shipment:read","report:read","expense:read","settings:read","collection:read","director:read","shareholder:read","capital:read","accounting:read","audit:read","partner:read"] as Capability[]),
+    caps: (["rough:read","gemstone:read","cutting:read","treatment:read","genealogy:read","location:read","dashboard:read","supplier:read","financials:read","certificate:read","cgi:read","media:read","customer:read","enquiry:read","quotation:read","reservation:read","sale:read","payment:read","shipment:read","report:read","expense:read","settings:read","collection:read","director:read","shareholder:read","capital:read","accounting:read","audit:read","partner:read"] as Capability[]),
   },
 ];
 

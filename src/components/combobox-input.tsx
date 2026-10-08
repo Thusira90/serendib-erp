@@ -35,10 +35,13 @@ export function ComboboxInput({
   const [value, setValue] = useState<string>(defaultValue ?? "");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
+  // Only narrow the list once the user types; opening a filled field should still show every option.
+  const [typed, setTyped] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const norm = value.trim().toLowerCase();
+  const norm = typed ? value.trim().toLowerCase() : "";
+  const exactNorm = value.trim().toLowerCase();
   const filtered = useMemo(() => {
     const uniq = Array.from(new Set(options.filter(Boolean)));
     if (!norm) return uniq.slice(0, 40);
@@ -51,8 +54,8 @@ export function ComboboxInput({
     return hits;
   }, [options, norm]);
 
-  const exactMatch = filtered.some((o) => o.toLowerCase() === norm);
-  const showAddNew = allowCustom && norm.length > 0 && !exactMatch;
+  const exactMatch = options.some((o) => o.trim().toLowerCase() === exactNorm);
+  const showAddNew = allowCustom && exactNorm.length > 0 && !exactMatch;
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -72,6 +75,7 @@ export function ComboboxInput({
 
   function commit(text: string) {
     setValue(text);
+    setTyped(false);
     setOpen(false);
     inputRef.current?.focus();
   }
@@ -86,8 +90,9 @@ export function ComboboxInput({
           placeholder={placeholder}
           value={value}
           autoComplete="off"
-          onChange={(e) => { setValue(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
+          onChange={(e) => { setValue(e.target.value); setTyped(true); setOpen(true); }}
+          // Not on focus: a dialog auto-focuses its first field, which should not pop a list open by itself.
+          onClick={() => { setTyped(false); setOpen(true); }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); setHighlight((h) => Math.min(h + 1, rows.length - 1)); }
             else if (e.key === "ArrowUp") { e.preventDefault(); setHighlight((h) => Math.max(h - 1, 0)); }
@@ -99,7 +104,7 @@ export function ComboboxInput({
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => { setOpen((o) => !o); inputRef.current?.focus(); }}
+          onClick={() => { setTyped(false); setOpen((o) => !o); inputRef.current?.focus(); }}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
           <ChevronDown className="h-4 w-4" />

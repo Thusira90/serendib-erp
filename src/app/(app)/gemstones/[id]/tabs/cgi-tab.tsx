@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -150,9 +151,9 @@ function NewVersionDialog({ projectId, projectCode }: { projectId: string; proje
           className="space-y-3"
         >
           <input type="hidden" name="projectId" value={projectId} />
-          <Field label="Render (image)"><Input name="renderFile" type="file" accept="image/*" /></Field>
-          <Field label="Thumbnail (optional)"><Input name="thumbnailFile" type="file" accept="image/*" /></Field>
-          <Field label="360° animation (optional)"><Input name="animationFile" type="file" accept="video/*,image/gif" /></Field>
+          <Field label="Render (image)"><MediaUploadField name="renderFile" accept="image/*" multiple={false} buttonLabel="Upload render" /></Field>
+          <Field label="Thumbnail (optional)"><MediaUploadField name="thumbnailFile" accept="image/*" multiple={false} buttonLabel="Upload thumbnail" /></Field>
+          <Field label="360° animation (optional)"><MediaUploadField name="animationFile" accept="video/*,image/gif" multiple={false} buttonLabel="Upload 360° video" /></Field>
           <Field label="Model URL (external)"><Input name="modelUrl" placeholder="https://…" /></Field>
           <Field label="Notes"><Textarea name="notes" rows={2} /></Field>
           <div className="flex justify-end gap-2">

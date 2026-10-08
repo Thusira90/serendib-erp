@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -120,7 +121,7 @@ export function ConvertToSaleButton({
             </div>
             <div className="space-y-1.5">
               <Label>Tax</Label>
-              <Input name="taxAmount" inputMode="decimal" defaultValue={0} />
+              <NumberInput name="taxAmount" defaultValue={0} />
             </div>
             <div className="space-y-1.5">
               <Label>Sale date</Label>

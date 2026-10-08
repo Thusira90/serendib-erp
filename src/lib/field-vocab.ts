@@ -70,6 +70,13 @@ export const SEED_VOCAB: Record<string, string[]> = {
     "Unheated","No Heat","Heated","Heated (traditional)","Beryllium",
     "Diffusion","Fracture-filled","Oil","Clarity Enhanced","Irradiated",
   ],
+  "treatmentStatus": ["Untreated","Treated","Verified","Untested","Pending lab report","Confirmed by lab"],
+  "treatmentType": [
+    "Heat treatment","Low-temperature heating","Heat with flux (flux healing)","Beryllium diffusion",
+    "Lattice diffusion","Surface diffusion","Fracture filling (glass)","Oiling / resin filling",
+    "Irradiation","Dyeing","Bleaching","Coating","Laser drilling","Waxing / impregnation",
+  ],
+  "providerName": [],
   "surface": ["Smooth","Rough","Etched","Frosted","Fractured","Chipped"],
   "fractures": ["None","Minor","Moderate","Extensive","Healed","Open"],
 
@@ -85,7 +92,7 @@ export const SEED_VOCAB: Record<string, string[]> = {
 
 type ModelName =
   | "roughStone" | "gemstone" | "customer" | "supplier" | "parcel"
-  | "cuttingJob" | "certificate" | "expense";
+  | "cuttingJob" | "certificate" | "expense" | "treatment";
 
 /**
  * Return distinct non-null values for the given (model, field) pairs,
@@ -110,7 +117,8 @@ export async function getFieldVocabulary(
 
     try {
       const rows = (await delegate.findMany({
-        where: { [field]: { not: null } },
+        // No null filter: Prisma rejects `not: null` on required columns (gemType, type, ...), which used to
+        // send those fields straight to the fallback list. Null rows are dropped just below.
         select: { [field]: true },
         distinct: [field],
         take: 500,

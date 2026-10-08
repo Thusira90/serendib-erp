@@ -20,17 +20,22 @@ import { QrCard } from "@/components/qr-card";
 import { MoveButton } from "@/components/move-button";
 import { EditGemstoneButton } from "./edit-gemstone-button";
 import { CgiBadge, CgiBreakdownCard } from "@/components/cgi-badge";
+import { CgiSwitchCard } from "./cgi-switch-card";
 import { CommentsThread } from "@/components/comments-thread";
 import { AddToCollectionButton } from "@/components/add-to-collection-button";
 import { ShareStoneButton } from "@/components/share-stone-button";
 import { TimedShareButton } from "@/components/timed-share-button";
 import { MediaGallery } from "@/components/media-gallery";
+import { TreatmentsPanel } from "@/components/treatments-panel";
+import { isVideoAsset } from "@/lib/media";
+import { StoneCoverMedia } from "@/components/stone-cover-media";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
 import { ProvenanceChain } from "@/components/provenance-chain";
 import { getGemstoneProvenance } from "@/lib/provenance";
 import { PartnerDealsCard } from "@/components/partner-deals-card";
+import { getFieldVocabulary } from "@/lib/field-vocab";
 
 export default async function GemstoneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("gemstone:read");
@@ -54,7 +59,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   });
   if (!g) return notFound();
 
-  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships, lifecycle, provenance] = await Promise.all([
+  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships, lifecycle, provenance, vocab] = await Promise.all([
     buildGemstoneGenealogy(g.id),
     prisma.auditLog.findMany({ where: { entity: "Gemstone", entityId: g.id }, orderBy: { at: "desc" }, take: 30 }),
     prisma.laboratory.findMany({ orderBy: { name: "asc" } }),
@@ -68,6 +73,22 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
     prisma.collectionItem.findMany({ where: { gemstoneId: g.id }, select: { collectionId: true } }),
     buildLifecycleForGemstone(g.id),
     getGemstoneProvenance(g.id),
+    getFieldVocabulary([
+      { model: "gemstone", field: "gemType" },
+      { model: "gemstone", field: "variety" },
+      { model: "gemstone", field: "species" },
+      { model: "gemstone", field: "origin" },
+      { model: "gemstone", field: "treatment" },
+      { model: "gemstone", field: "treatmentStatus" },
+      { model: "gemstone", field: "shape" },
+      { model: "gemstone", field: "cut" },
+      { model: "gemstone", field: "facetingStyle" },
+      { model: "gemstone", field: "clarity" },
+      { model: "gemstone", field: "luster" },
+      { model: "gemstone", field: "fluorescence" },
+      { model: "gemstone", field: "symmetry" },
+      { model: "gemstone", field: "polish" },
+    ]),
   ]);
   const membershipSet = new Set(itemMemberships.map((m) => m.collectionId));
   const collectionsForPicker = activeCollections.map((c) => ({ ...c, already: membershipSet.has(c.id) }));
@@ -91,14 +112,15 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   // Digital-readiness state derived from actual records.
   const hasCertIssued = g.certificates.some((c) => c.status === "ISSUED");
   const hasCertAny = g.certificates.length > 0;
-  const hasPhoto = g.digitalAssets.some((a) => ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind));
+  // Stills only: a video filed under a photo kind must not count as a photo or become the cover image.
+  const stills = g.digitalAssets.filter((a) => !isVideoAsset(a) && ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind));
+  const videoCount = g.digitalAssets.filter(isVideoAsset).length;
+  const hasPhoto = stills.length > 0;
   const hasCgiMaster = g.cgiProjects.some((p) => p.versions.some((v) => v.isMaster));
   const hasCgiAny = g.cgiProjects.length > 0;
   const hasPricing = g.askingPrice != null;
 
-  const primaryPhoto = g.digitalAssets.find(
-    (a) => a.isPrimary && ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind)
-  ) ?? g.digitalAssets.find((a) => ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind));
+  const primaryPhoto = stills.find((a) => a.isPrimary) ?? stills[0];
 
   return (
     <div className="space-y-6">
@@ -142,6 +164,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
               cgiQualityNotes:  g.cgiQualityNotes,
             }}
             locations={locations}
+            vocab={vocab}
           />
         )}
         </div>
@@ -149,12 +172,10 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         <div className="rounded-lg overflow-hidden bg-sgs-gradient text-white p-6 flex flex-col relative">
-          {primaryPhoto?.url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={primaryPhoto.url} alt={g.code} className="absolute inset-0 h-full w-full object-cover mix-blend-luminosity opacity-60" />
-          )}
+          {/* Full-colour photo, or the stone's video when there is no photo; the shade only sits behind the text. */}
+          <StoneCoverMedia still={primaryPhoto?.url} video={g.digitalAssets.find(isVideoAsset)?.url} alt={g.code} />
           <div className="relative">
-            <Gem className="h-8 w-8 opacity-90" />
+            <Gem className="h-8 w-8 opacity-90 drop-shadow" />
           </div>
           <div className="mt-auto relative">
             <div className="text-[10px] uppercase tracking-widest opacity-80">{g.gemType}{g.variety ? ` · ${g.variety}` : ""}</div>
@@ -180,7 +201,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
                 {g.treatment ? ` · ${g.treatment}` : ""}
                 {g.location ? ` · ${g.location.name}` : ""}
               </div>
-              <div className="mt-2"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>
+              {g.cgiEnabled && <div className="mt-2"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>}
             </div>
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Asking</div>
@@ -189,7 +210,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 2xl:grid-cols-4 gap-3">
             <MiniStat icon={<Coins className="h-4 w-4" />} label="True cost" value={formatCurrency(Number(g.totalCost), g.currency)} />
             <MiniStat icon={<TrendingUp className="h-4 w-4" />} label="Est. margin" value={margin != null ? formatCurrency(margin, g.currency) : "—"} accent={margin != null && margin >= 0} />
             <MiniStat icon={<Layers className="h-4 w-4" />} label="Cost / ct" value={formatCurrency(Number(g.costPerCt), g.currency)} />
@@ -206,14 +227,15 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="certification">Certification{hasCertIssued && " ✓"}</TabsTrigger>
-          <TabsTrigger value="photography">Photography{hasPhoto && " ✓"}</TabsTrigger>
-          <TabsTrigger value="cgi">CGI{hasCgiMaster && " ✓"}</TabsTrigger>
+          <TabsTrigger value="photography">Photography{hasPhoto && " ✓"}{videoCount > 0 && ` · ${videoCount} video${videoCount === 1 ? "" : "s"}`}</TabsTrigger>
+          {(g.cgiEnabled || hasCgiAny) && <TabsTrigger value="cgi">CGI{hasCgiMaster && " ✓"}</TabsTrigger>}
           <TabsTrigger value="costing">Costing</TabsTrigger>
           <TabsTrigger value="bills">Bills</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
           <TabsTrigger value="commerce">Commerce</TabsTrigger>
           {can(session.user, "partner:read") && <TabsTrigger value="partners">Partners</TabsTrigger>}
           <TabsTrigger value="matches">Matches</TabsTrigger>
+          {can(session.user, "treatment:read") && <TabsTrigger value="treatments">Treatments</TabsTrigger>}
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
@@ -251,11 +273,14 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
                 </div>
               </CardContent>
             </Card>
-            <CgiBreakdownCard
-              score={g.cgiScore}
-              band={g.cgiBand}
-              breakdown={g.cgiBreakdown ? safeParseBreakdown(g.cgiBreakdown) : null}
-            />
+            {g.cgiEnabled && (
+              <CgiBreakdownCard
+                score={g.cgiScore}
+                band={g.cgiBand}
+                breakdown={g.cgiBreakdown ? safeParseBreakdown(g.cgiBreakdown) : null}
+              />
+            )}
+            <CgiSwitchCard gemstoneId={g.id} enabled={g.cgiEnabled} canEdit={canEditGem} />
             <QrCard code={g.code} kind="gemstone" label={`${g.gemType}${g.variety ? ` · ${g.variety}` : ""}`} />
             {can(session.user.role, "collection:write") && (
               <AddToCollectionButton
@@ -475,6 +500,17 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           <CommentsThread entity="Gemstone" entityId={g.id} entityCode={g.code} revalidate={`/gemstones/${g.id}`} />
         </TabsContent>
 
+        {can(session.user, "treatment:read") && (
+          <TabsContent value="treatments">
+            <TreatmentsPanel
+              kind="GEMSTONE"
+              stoneId={g.id}
+              stoneLabel={`${g.code} · ${g.gemType}${g.variety ? ` · ${g.variety}` : ""} · ${formatCarat(Number(g.weightCt))}`}
+              canWrite={can(session.user, "treatment:write")}
+            />
+          </TabsContent>
+        )}
+
         <TabsContent value="history">
           <Card>
             <CardHeader><CardTitle>Audit trail</CardTitle></CardHeader>
@@ -498,7 +534,7 @@ function MiniStat({ icon, label, value, accent = false }: { icon: React.ReactNod
   return (
     <div className="rounded-md border bg-card p-3">
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">{icon} {label}</div>
-      <div className={`font-serif text-xl mt-0.5 num ${accent ? "text-sgs-purple-600" : ""}`}>{value}</div>
+      <div className={`font-serif text-lg mt-0.5 num whitespace-nowrap ${accent ? "text-sgs-purple-600" : ""}`}>{value}</div>
     </div>
   );
 }
