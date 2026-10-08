@@ -1033,6 +1033,15 @@ model ShareLink {
 
 // ─── Company settings (singleton — id = "singleton") ────────────────────────
 
+// What a QR scan shows the public, per stone kind ("ROUGH" | "GEMSTONE"). `fields` is JSON
+// { fieldKey: boolean }; see src/lib/qr-fields.ts. Reads fall back to defaults when absent.
+model QrProfile {
+  kind      String   @id
+  fields    String
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
 model CompanySettings {
   id                 String   @id @default("singleton")
   legalName          String   @default("Serendib Gemstones (Pvt) Ltd")

@@ -26,6 +26,7 @@ import { ShareStoneButton } from "@/components/share-stone-button";
 import { TimedShareButton } from "@/components/timed-share-button";
 import { MediaGallery } from "@/components/media-gallery";
 import { isVideoAsset } from "@/lib/media";
+import { StoneCoverMedia } from "@/components/stone-cover-media";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
@@ -168,12 +169,8 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         <div className="rounded-lg overflow-hidden bg-sgs-gradient text-white p-6 flex flex-col relative">
-          {primaryPhoto?.url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={primaryPhoto.url} alt={g.code} className="absolute inset-0 h-full w-full object-cover" />
-          )}
-          {/* Full-colour photo; the shade only sits behind the text at the bottom so it stays readable. */}
-          {primaryPhoto?.url && <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />}
+          {/* Full-colour photo, or the stone's video when there is no photo; the shade only sits behind the text. */}
+          <StoneCoverMedia still={primaryPhoto?.url} video={g.digitalAssets.find(isVideoAsset)?.url} alt={g.code} />
           <div className="relative">
             <Gem className="h-8 w-8 opacity-90 drop-shadow" />
           </div>
