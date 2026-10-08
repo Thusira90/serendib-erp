@@ -27,7 +27,7 @@ import { ShareStoneButton } from "@/components/share-stone-button";
 import { TimedShareButton } from "@/components/timed-share-button";
 import { MediaGallery } from "@/components/media-gallery";
 import { TreatmentsPanel } from "@/components/treatments-panel";
-import { isVideoAsset } from "@/lib/media";
+import { isVideoAsset, pickCover } from "@/lib/media";
 import { StoneCoverMedia } from "@/components/stone-cover-media";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
@@ -121,6 +121,8 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   const hasPricing = g.askingPrice != null;
 
   const primaryPhoto = stills.find((a) => a.isPrimary) ?? stills[0];
+  // The card shows the chosen cover (photo or video); otherwise the first photo, then a video.
+  const cover = pickCover(g.digitalAssets.filter((a) => isVideoAsset(a) || ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind)));
 
   return (
     <div className="space-y-6">
@@ -173,7 +175,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         <div className="rounded-lg overflow-hidden bg-sgs-gradient text-white p-6 flex flex-col relative">
           {/* Full-colour photo, or the stone's video when there is no photo; the shade only sits behind the text. */}
-          <StoneCoverMedia still={primaryPhoto?.url} video={g.digitalAssets.find(isVideoAsset)?.url} alt={g.code} />
+          <StoneCoverMedia still={cover && !isVideoAsset(cover) ? cover.url : null} video={cover && isVideoAsset(cover) ? cover.url : null} alt={g.code} />
           <div className="relative">
             <Gem className="h-8 w-8 opacity-90 drop-shadow" />
           </div>

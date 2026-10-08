@@ -19,7 +19,7 @@ import { EditRoughButton } from "./edit-rough-button";
 import { CommentsThread } from "@/components/comments-thread";
 import { MediaGallery } from "@/components/media-gallery";
 import { TreatmentsPanel } from "@/components/treatments-panel";
-import { isVideoAsset } from "@/lib/media";
+import { isVideoAsset, pickCover } from "@/lib/media";
 import { StoneCoverMedia } from "@/components/stone-cover-media";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForRough } from "@/lib/stone-lifecycle";
@@ -49,6 +49,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
   const assets = r.digitalAssets;
   const stills = assets.filter((x) => !isVideoAsset(x));
   const coverStill = stills.find((x) => x.isPrimary) ?? stills[0];
+  const cover = pickCover(assets.filter((a) => isVideoAsset(a) || ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind)));
   const [genealogy, audit, cutters, locations, lifecycle] = await Promise.all([
     buildRoughGenealogy(r.id),
     prisma.auditLog.findMany({
@@ -97,7 +98,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         <div className="rounded-lg overflow-hidden bg-sgs-gradient text-white p-6 flex flex-col relative min-h-[280px]">
           {/* The stone's photo, or its video (muted, looping) when there is no photo. */}
-          <StoneCoverMedia still={coverStill?.url} video={assets.find(isVideoAsset)?.url} alt={r.code} />
+          <StoneCoverMedia still={cover && !isVideoAsset(cover) ? cover.url : null} video={cover && isVideoAsset(cover) ? cover.url : null} alt={r.code} />
           <div className="relative">
             <Diamond className="h-8 w-8 opacity-90 drop-shadow" />
           </div>

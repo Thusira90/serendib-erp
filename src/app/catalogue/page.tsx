@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { formatCarat, formatCurrency } from "@/lib/utils";
 import { Gem } from "lucide-react";
 import { CgiBadge } from "@/components/cgi-badge";
+import { pickCover } from "@/lib/media";
+import { StoneThumb } from "@/components/stone-thumb";
 
 export const metadata = { title: "Catalogue — Serendib Gemstones" };
 
@@ -52,8 +54,9 @@ export default async function CataloguePage({ searchParams }: { searchParams: Pr
     },
     include: {
       digitalAssets: {
-        where: { isPrimary: true, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
-        take: 1,
+        where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        take: 8,
       },
       cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
       certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
@@ -97,18 +100,14 @@ export default async function CataloguePage({ searchParams }: { searchParams: Pr
         )}
         {gems.map((g) => {
           const cgi = g.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-          const heroImg = cgi?.renderUrl ?? g.digitalAssets[0]?.url;
+          const cover = pickCover(g.digitalAssets);
+          const hero = cover?.isPrimary || !cgi?.renderUrl ? cover : { url: cgi.renderUrl };
           const cert = g.certificates[0];
           return (
             <Link key={g.id} href={`/catalogue/${g.code}`}>
               <div className="bg-white border rounded-xl overflow-hidden shadow-luxe hover:shadow-luxe-lg transition-shadow">
-                <div className="aspect-square bg-sgs-gradient relative">
-                  {heroImg ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={heroImg} alt={g.code} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full grid place-items-center text-white/70"><Gem className="h-14 w-14" /></div>
-                  )}
+                <div className="aspect-square bg-secondary relative">
+                  <StoneThumb cover={hero} alt={g.code} />
                 </div>
                 <div className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
