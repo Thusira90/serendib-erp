@@ -174,15 +174,49 @@ function UploadDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // Each file goes up as its own request: one request carrying them all would hit the
+  // form-size and serverless body limits as soon as a video is among them.
+  function submit(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    const files = fd.getAll("file").filter((f): f is File => f instanceof File && f.size > 0);
+    start(async () => {
+      setError(null);
+      let done = 0;
+      try {
+        if (files.length === 0) {
+          await uploadPhoto(fd);
+        } else {
+          for (const file of files) {
+            setProgress({ done, total: files.length });
+            const one = new FormData();
+            for (const [key, value] of fd.entries()) if (key !== "file") one.append(key, value);
+            one.set("file", file);
+            if (done > 0) one.delete("isPrimary"); // only the first file can be the primary
+            await uploadPhoto(one);
+            done++;
+          }
+        }
+        setOpen(false);
+      } catch (e) {
+        setError(files.length > 1 ? `${done} of ${files.length} uploaded. ${(e as Error).message}` : (e as Error).message);
+      } finally {
+        setProgress(null);
+      }
+    });
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setError(null); }}>
       <DialogTrigger asChild>
         <Button variant="accent" size="sm"><PlusCircle className="h-4 w-4" /> Upload media</Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle><Camera className="inline h-4 w-4 mr-2" /> Upload photo or video</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle><Camera className="inline h-4 w-4 mr-2" /> Upload photos or videos</DialogTitle></DialogHeader>
         <form
-          action={(fd) => start(async () => { await uploadPhoto(fd); setOpen(false); })}
+          onSubmit={(e) => { e.preventDefault(); submit(e.currentTarget); }}
           className="space-y-3"
         >
           {target.kind === "gem"     && <input type="hidden" name="gemstoneId"   value={target.id} />}
@@ -208,11 +242,11 @@ function UploadDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>File (photo or video)</Label>
-            <MediaUploadField name="file" accept="image/*,video/*" multiple={false} buttonLabel="Upload photo or video" />
+            <Label>Files (photos or videos, as many as you like)</Label>
+            <MediaUploadField name="file" accept="image/*,video/*" buttonLabel="Upload photos or videos" />
           </div>
           <div className="space-y-1.5">
-            <Label>…or external URL</Label>
+            <Label>…or external URL (one link)</Label>
             <Input name="url" placeholder="https://…" />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -223,16 +257,19 @@ function UploadDialog({
             </div>
             <label className="flex items-end gap-2 text-sm pb-2">
               <input type="checkbox" name="isPrimary" />
-              <span>Primary for this kind</span>
+              <span>Primary for this kind <span className="text-muted-foreground">(first file only)</span></span>
             </label>
           </div>
           <div className="space-y-1.5">
             <Label>Caption</Label>
             <Textarea name="caption" rows={2} placeholder="Day 3 — cabochon roughed out." />
           </div>
+          {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button disabled={pending}>{pending ? "Uploading…" : "Upload"}</Button>
+            <Button disabled={pending}>
+              {pending ? (progress && progress.total > 1 ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…` : "Uploading…") : "Upload"}
+            </Button>
           </div>
         </form>
       </DialogContent>

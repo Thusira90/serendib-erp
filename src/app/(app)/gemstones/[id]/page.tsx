@@ -170,10 +170,12 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
         <div className="rounded-lg overflow-hidden bg-sgs-gradient text-white p-6 flex flex-col relative">
           {primaryPhoto?.url && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={primaryPhoto.url} alt={g.code} className="absolute inset-0 h-full w-full object-cover mix-blend-luminosity opacity-60" />
+            <img src={primaryPhoto.url} alt={g.code} className="absolute inset-0 h-full w-full object-cover" />
           )}
+          {/* Full-colour photo; the shade only sits behind the text at the bottom so it stays readable. */}
+          {primaryPhoto?.url && <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />}
           <div className="relative">
-            <Gem className="h-8 w-8 opacity-90" />
+            <Gem className="h-8 w-8 opacity-90 drop-shadow" />
           </div>
           <div className="mt-auto relative">
             <div className="text-[10px] uppercase tracking-widest opacity-80">{g.gemType}{g.variety ? ` · ${g.variety}` : ""}</div>
