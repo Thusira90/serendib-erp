@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Upload, FileText, Download } from "lucide-react";
 
 export type ImportResult = {
@@ -36,7 +37,6 @@ export function CsvImportDialog({
   const [pending, start] = useTransition();
   const [csv, setCsv] = useState("");
   const [result, setResult] = useState<ImportResult | null>(null);
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -76,16 +76,12 @@ export function CsvImportDialog({
 
           <div className="space-y-2">
             <label className="text-xs font-medium">Upload .csv</label>
-            <input
-              ref={fileRef}
-              type="file"
+            <MediaUploadField
+              name="csvFile"
               accept=".csv,text/csv"
-              className="block text-xs"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (!f) return;
-                setCsv(await f.text());
-              }}
+              multiple={false}
+              buttonLabel="Choose CSV file"
+              onFiles={async ([f]) => { if (f) setCsv(await f.text()); }}
             />
           </div>
 

@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
@@ -92,15 +93,15 @@ export function ManualJournalForm({ accounts, defaultCurrency = "LKR" }: { accou
               </div>
               <div className="col-span-2 space-y-1">
                 <Label className="text-[10px]">Debit</Label>
-                <Input inputMode="decimal" value={r.debit}
-                  onChange={(e) => setRow(i, { debit: e.target.value, credit: e.target.value ? "" : r.credit })}
+                <NumberInput value={r.debit}
+                  onValueChange={(v) => setRow(i, { debit: v, credit: v ? "" : r.credit })}
                   placeholder="0.00"
                 />
               </div>
               <div className="col-span-2 space-y-1">
                 <Label className="text-[10px]">Credit</Label>
-                <Input inputMode="decimal" value={r.credit}
-                  onChange={(e) => setRow(i, { credit: e.target.value, debit: e.target.value ? "" : r.debit })}
+                <NumberInput value={r.credit}
+                  onValueChange={(v) => setRow(i, { credit: v, debit: v ? "" : r.debit })}
                   placeholder="0.00"
                 />
               </div>

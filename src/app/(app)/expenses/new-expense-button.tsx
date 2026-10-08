@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -52,7 +53,7 @@ export function NewExpenseButton({ defaultCurrency = "LKR" }: { defaultCurrency?
               <Input name="relatedCode" placeholder="Code (e.g. SGS-G-…)" className="col-span-2" />
             </div>
           </Field>
-          <Field label="Receipt (image or PDF)" span><Input name="receiptFile" type="file" accept="application/pdf,image/*" /></Field>
+          <Field label="Receipt (image or PDF)" span><MediaUploadField name="receiptFile" accept="application/pdf,image/*" multiple={false} buttonLabel="Upload receipt" /></Field>
           <Field label="Notes" span><Textarea name="notes" rows={2} /></Field>
           <div className="col-span-full flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

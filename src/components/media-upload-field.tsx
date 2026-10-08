@@ -15,18 +15,26 @@ export function MediaUploadField({
   name,
   accept = "image/*,video/*",
   helper,
-  buttonLabel = "Upload files",
+  multiple = true,
+  buttonLabel,
+  onFiles,
 }: {
   name: string;
   accept?: string;
   helper?: React.ReactNode;
+  /** false = a single file; choosing another replaces it. */
+  multiple?: boolean;
   buttonLabel?: string;
+  /** Called with the current selection whenever it changes (e.g. to read a CSV). */
+  onFiles?: (files: File[]) => void;
 }) {
+  buttonLabel ??= multiple ? "Upload files" : "Choose file";
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
 
   const sync = (arr: File[]) => {
     setFiles(arr);
+    onFiles?.(arr);
     if (!inputRef.current) return;
     const dt = new DataTransfer();
     arr.forEach((f) => dt.items.add(f));
@@ -39,10 +47,10 @@ export function MediaUploadField({
         ref={inputRef}
         name={name}
         type="file"
-        multiple
+        multiple={multiple}
         accept={accept}
         className="sr-only"
-        onChange={(e) => sync(Array.from(e.target.files ?? []))}
+        onChange={(e) => sync(Array.from(e.target.files ?? []).slice(0, multiple ? undefined : 1))}
       />
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -54,7 +62,7 @@ export function MediaUploadField({
           {buttonLabel}
         </button>
         <span className="text-xs text-muted-foreground">
-          {files.length === 0 ? "No files chosen" : `${files.length} file${files.length === 1 ? "" : "s"} chosen`}
+          {files.length === 0 ? (multiple ? "No files chosen" : "No file chosen") : `${files.length} file${files.length === 1 ? "" : "s"} chosen`}
         </span>
       </div>
 

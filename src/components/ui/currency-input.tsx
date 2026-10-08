@@ -5,6 +5,7 @@ import { CURRENCIES, BASE_CURRENCY } from "@/lib/enums";
 import { useExchangeRates } from "@/lib/use-exchange-rates";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { NumberInput } from "@/components/ui/number-input";
 
 /**
  * Amount + currency picker + live-rate hint.
@@ -97,20 +98,16 @@ export function CurrencyInput({
   return (
     <div className={cn("space-y-1", className)}>
       <div className="flex items-stretch">
-        <input
-          type="text"
-          inputMode="decimal"
+        <NumberInput
           id={amountId}
           name={amountName}
           required={required}
           placeholder={placeholder}
           value={amount}
+          decimals={2}
           disabled={disabled}
-          onChange={(e) => setAmount(e.target.value)}
-          className={cn(
-            "flex w-full rounded-md rounded-r-none border border-input bg-background px-3 py-1 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-            heightCls,
-          )}
+          onValueChange={setAmount}
+          className={cn("rounded-r-none", heightCls)}
         />
         <select
           name={currencyName}

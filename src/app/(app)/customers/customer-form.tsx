@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createCustomer, updateCustomer } from "./actions";
@@ -72,10 +73,10 @@ export function CustomerForm({ existing }: { existing?: Existing }) {
         <Field label="Colors"><Input name="prefColors" defaultValue={csv(p.colors)} placeholder="royal blue, cornflower" /></Field>
         <Field label="Shapes"><Input name="prefShapes" defaultValue={csv(p.shapes)} placeholder="Oval, Cushion" /></Field>
         <Field label="Treatments"><Input name="prefTreatments" defaultValue={csv(p.treatments)} placeholder="Unheated" /></Field>
-        <Field label="Min weight (ct)"><Input name="prefMinWeightCt" inputMode="decimal" defaultValue={numOrEmpty(p.minWeightCt)} /></Field>
-        <Field label="Max weight (ct)"><Input name="prefMaxWeightCt" inputMode="decimal" defaultValue={numOrEmpty(p.maxWeightCt)} /></Field>
-        <Field label="Budget min"><Input name="prefBudgetMin" inputMode="decimal" defaultValue={numOrEmpty(p.budgetMin)} /></Field>
-        <Field label="Budget max"><Input name="prefBudgetMax" inputMode="decimal" defaultValue={numOrEmpty(p.budgetMax)} /></Field>
+        <Field label="Min weight (ct)"><NumberInput name="prefMinWeightCt" defaultValue={numOrEmpty(p.minWeightCt)} /></Field>
+        <Field label="Max weight (ct)"><NumberInput name="prefMaxWeightCt" defaultValue={numOrEmpty(p.maxWeightCt)} /></Field>
+        <Field label="Budget min"><NumberInput name="prefBudgetMin" defaultValue={numOrEmpty(p.budgetMin)} /></Field>
+        <Field label="Budget max"><NumberInput name="prefBudgetMax" defaultValue={numOrEmpty(p.budgetMax)} /></Field>
         <Field label="Currency"><Input name="prefCurrency" defaultValue={p.currency} /></Field>
       </Section>
 

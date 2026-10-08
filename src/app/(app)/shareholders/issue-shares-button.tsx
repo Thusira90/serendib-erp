@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -80,12 +82,12 @@ export function IssueSharesButton({
               </select>
             </Field>
             <Field label="Number of shares *">
-              <Input name="numberOfShares" required inputMode="decimal" value={shares}
-                onChange={(e) => setShares(e.target.value)} placeholder="1000" />
+              <NumberInput name="numberOfShares" required value={shares}
+                onValueChange={(v) => setShares(v)} placeholder="1000" />
             </Field>
             <Field label={`Price per share (${cls?.currency ?? "LKR"}) *`}>
-              <Input name="pricePerShare" required inputMode="decimal" value={price}
-                onChange={(e) => setPrice(e.target.value)} placeholder={String(cls?.faceValue ?? "")} />
+              <NumberInput name="pricePerShare" required value={price}
+                onValueChange={(v) => setPrice(v)} placeholder={String(cls?.faceValue ?? "")} />
             </Field>
             <Field label="Total value" >
               <div className="h-9 rounded-md border border-input bg-secondary/30 px-3 flex items-center text-sm num">
@@ -99,7 +101,7 @@ export function IssueSharesButton({
               <Input name="reference" placeholder="Board resolution 2026/03" />
             </Field>
             <Field label="Supporting document (PDF or image)" span>
-              <Input name="documentFile" type="file" accept="application/pdf,image/*" />
+              <MediaUploadField name="documentFile" accept="application/pdf,image/*" multiple={false} buttonLabel="Upload document" />
             </Field>
             <Field label="Notes" span><Textarea name="notes" rows={2} /></Field>
 
