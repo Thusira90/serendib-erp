@@ -70,6 +70,7 @@ export const SEED_VOCAB: Record<string, string[]> = {
     "Unheated","No Heat","Heated","Heated (traditional)","Beryllium",
     "Diffusion","Fracture-filled","Oil","Clarity Enhanced","Irradiated",
   ],
+  "treatmentStatus": ["Untreated","Treated","Verified","Untested","Pending lab report","Confirmed by lab"],
   "surface": ["Smooth","Rough","Etched","Frosted","Fractured","Chipped"],
   "fractures": ["None","Minor","Moderate","Extensive","Healed","Open"],
 

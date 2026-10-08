@@ -54,7 +54,7 @@ export function GemstoneIntakeForm({
         <F label="Species"><ComboboxInput name="species" placeholder="Corundum" options={v("species")} /></F>
         <F label="Origin"><ComboboxInput name="origin" placeholder="Sri Lanka" options={v("origin")} /></F>
         <F label="Treatment"><ComboboxInput name="treatment" placeholder="Unheated" options={v("treatment")} /></F>
-        <F label="Treatment status"><Input name="treatmentStatus" placeholder="Verified / Untested" /></F>
+        <F label="Treatment status"><ComboboxInput name="treatmentStatus" placeholder="Verified / Untested" options={v("treatmentStatus")} /></F>
       </Section>
 
       <Section title="Physical characteristics">

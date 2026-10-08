@@ -31,6 +31,7 @@ import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
 import { ProvenanceChain } from "@/components/provenance-chain";
 import { getGemstoneProvenance } from "@/lib/provenance";
+import { getFieldVocabulary } from "@/lib/field-vocab";
 
 export default async function GemstoneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCapability("gemstone:read");
@@ -54,7 +55,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   });
   if (!g) return notFound();
 
-  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships, lifecycle, provenance] = await Promise.all([
+  const [genealogy, audit, labs, customers, locations, activeCollections, itemMemberships, lifecycle, provenance, vocab] = await Promise.all([
     buildGemstoneGenealogy(g.id),
     prisma.auditLog.findMany({ where: { entity: "Gemstone", entityId: g.id }, orderBy: { at: "desc" }, take: 30 }),
     prisma.laboratory.findMany({ orderBy: { name: "asc" } }),
@@ -68,6 +69,22 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
     prisma.collectionItem.findMany({ where: { gemstoneId: g.id }, select: { collectionId: true } }),
     buildLifecycleForGemstone(g.id),
     getGemstoneProvenance(g.id),
+    getFieldVocabulary([
+      { model: "gemstone", field: "gemType" },
+      { model: "gemstone", field: "variety" },
+      { model: "gemstone", field: "species" },
+      { model: "gemstone", field: "origin" },
+      { model: "gemstone", field: "treatment" },
+      { model: "gemstone", field: "treatmentStatus" },
+      { model: "gemstone", field: "shape" },
+      { model: "gemstone", field: "cut" },
+      { model: "gemstone", field: "facetingStyle" },
+      { model: "gemstone", field: "clarity" },
+      { model: "gemstone", field: "luster" },
+      { model: "gemstone", field: "fluorescence" },
+      { model: "gemstone", field: "symmetry" },
+      { model: "gemstone", field: "polish" },
+    ]),
   ]);
   const membershipSet = new Set(itemMemberships.map((m) => m.collectionId));
   const collectionsForPicker = activeCollections.map((c) => ({ ...c, already: membershipSet.has(c.id) }));
@@ -143,6 +160,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
               cgiQualityNotes:  g.cgiQualityNotes,
             }}
             locations={locations}
+            vocab={vocab}
           />
         )}
         </div>

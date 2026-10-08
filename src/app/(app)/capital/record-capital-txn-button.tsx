@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -123,7 +124,7 @@ export function RecordCapitalTxnButton({
           </Field>
           <Field label="Reference"><Input name="reference" placeholder="Board res. / bank ref" /></Field>
           <Field label="Receipt (image or PDF)">
-            <Input name="receiptFile" type="file" accept="application/pdf,image/*" />
+            <MediaUploadField name="receiptFile" accept="application/pdf,image/*" multiple={false} buttonLabel="Upload receipt" />
           </Field>
           <Field label="Notes" span><Textarea name="notes" rows={2} /></Field>
 

@@ -17,6 +17,7 @@ export default async function NewGemstonePage() {
       { model: "gemstone", field: "species" },
       { model: "gemstone", field: "origin" },
       { model: "gemstone", field: "treatment" },
+      { model: "gemstone", field: "treatmentStatus" },
       { model: "gemstone", field: "shape" },
       { model: "gemstone", field: "cut" },
       { model: "gemstone", field: "facetingStyle" },

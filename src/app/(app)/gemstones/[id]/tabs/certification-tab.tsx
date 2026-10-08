@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -179,8 +180,8 @@ function NewCertificateDialog({ gemstoneId, labs }: { gemstoneId: string; labs: 
             <CurrencyInput amountName="laboratoryFees" currencyName="currency" defaultCurrency="LKR" />
           </Field>
           <Field label="Comments" span><Textarea name="comments" rows={2} /></Field>
-          <Field label="Certificate PDF (optional)"><Input name="documentFile" type="file" accept="application/pdf,image/*" /></Field>
-          <Field label="Certificate image (optional)"><Input name="imageFile" type="file" accept="image/*" /></Field>
+          <Field label="Certificate PDF (optional)"><MediaUploadField name="documentFile" accept="application/pdf,image/*" multiple={false} buttonLabel="Upload PDF or image" /></Field>
+          <Field label="Certificate image (optional)"><MediaUploadField name="imageFile" accept="image/*" multiple={false} buttonLabel="Upload image" /></Field>
           <div className="col-span-full flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button disabled={pending}>{pending ? "Saving…" : "Save certificate"}</Button>

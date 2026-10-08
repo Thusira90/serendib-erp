@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -96,7 +97,7 @@ export function TransferSharesButton({
             </Field>
             <Field label="Reference" span><Input name="reference" placeholder="Transfer form ref" /></Field>
             <Field label="Supporting document" span>
-              <Input name="documentFile" type="file" accept="application/pdf,image/*" />
+              <MediaUploadField name="documentFile" accept="application/pdf,image/*" multiple={false} buttonLabel="Upload document" />
             </Field>
             <Field label="Notes" span><Textarea name="notes" rows={2} /></Field>
             <div className="col-span-full flex justify-end gap-2 pt-2">

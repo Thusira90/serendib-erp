@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -208,7 +209,7 @@ function UploadDialog({
           </div>
           <div className="space-y-1.5">
             <Label>File (photo or video)</Label>
-            <Input name="file" type="file" accept="image/*,video/*" />
+            <MediaUploadField name="file" accept="image/*,video/*" multiple={false} buttonLabel="Upload photo or video" />
           </div>
           <div className="space-y-1.5">
             <Label>…or external URL</Label>
