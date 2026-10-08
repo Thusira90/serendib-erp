@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -56,7 +57,7 @@ export function EditRoughButton({
           <input type="hidden" name="id" value={rough.id} />
           <F label="Gem type *"><Input name="gemType" required defaultValue={rough.gemType} /></F>
           <F label="Variety"><Input name="variety" defaultValue={rough.variety ?? ""} /></F>
-          <F label="Weight (ct) *"><Input name="weightCt" required inputMode="decimal" defaultValue={rough.weightCt} readOnly={costLocked} /></F>
+          <F label="Weight (ct) *"><NumberInput name="weightCt" required defaultValue={rough.weightCt} readOnly={costLocked} /></F>
           <F label="Origin"><Input name="origin" defaultValue={rough.origin ?? ""} /></F>
           <F label="Color"><Input name="color" defaultValue={rough.color ?? ""} /></F>
           <F label="Clarity"><Input name="clarity" defaultValue={rough.clarity ?? ""} /></F>

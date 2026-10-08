@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencySelect } from "@/components/ui/currency-input";
@@ -36,9 +37,9 @@ export function PrepareShipmentButton({
             <Field label="Destination" span><Input name="destination" defaultValue={defaultDestination} /></Field>
             <Field label="Destination country"><Input name="destCountry" defaultValue={defaultCountry} /></Field>
             <Field label="Currency (all amounts)"><CurrencySelect name="currency" defaultValue={defaultCurrency} /></Field>
-            <Field label="Shipping cost"><Input name="shippingCost" inputMode="decimal" /></Field>
-            <Field label="Insurance cost"><Input name="insuranceCost" inputMode="decimal" /></Field>
-            <Field label="Declared value" span><Input name="declaredValue" inputMode="decimal" defaultValue={defaultDeclaredValue} /></Field>
+            <Field label="Shipping cost"><NumberInput name="shippingCost" /></Field>
+            <Field label="Insurance cost"><NumberInput name="insuranceCost" /></Field>
+            <Field label="Declared value" span><NumberInput name="declaredValue" defaultValue={defaultDeclaredValue} /></Field>
             <Field label="Notes" span><Textarea name="notes" rows={2} /></Field>
           </div>
           <div className="flex justify-end gap-2">

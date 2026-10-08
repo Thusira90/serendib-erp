@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { MediaUploadField } from "@/components/media-upload-field";
+import { EntityPicker } from "@/components/entity-picker";
+import { quickCreateLaboratory } from "@/app/(app)/lookups/actions";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -133,23 +136,36 @@ function StatusMenu({ id, current }: { id: string; current: string }) {
 function NewCertificateDialog({ gemstoneId, labs }: { gemstoneId: string; labs: Lab[] }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setError(null); }}>
       <DialogTrigger asChild>
         <Button variant="accent"><PlusCircle className="h-4 w-4" /> Attach certificate</Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl">
         <DialogHeader><DialogTitle>Attach certificate</DialogTitle></DialogHeader>
         <form
-          action={(fd) => start(async () => { await createCertificate(fd); setOpen(false); })}
+          action={(fd) => start(async () => {
+            setError(null);
+            if (!fd.get("laboratoryId")) { setError("Choose a laboratory, or add a new one."); return; }
+            try { await createCertificate(fd); setOpen(false); }
+            catch (e) { setError((e as Error).message); }
+          })}
           className="grid grid-cols-1 md:grid-cols-2 gap-3"
         >
           <input type="hidden" name="gemstoneId" value={gemstoneId} />
           <Field label="Laboratory *" span>
-            <select name="laboratoryId" required className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">— Select —</option>
-              {labs.map((l) => <option key={l.id} value={l.id}>{l.name}{l.country ? ` · ${l.country}` : ""}</option>)}
-            </select>
+            <EntityPicker
+              name="laboratoryId"
+              emptyLabel="— Select a laboratory —"
+              options={labs.map((l) => ({ id: l.id, label: l.name, hint: l.country ?? l.code }))}
+              onQuickCreate={async (nm) => {
+                const r = await quickCreateLaboratory(nm);
+                return { id: r.id, label: r.name, hint: r.code };
+              }}
+              createLabel="Add laboratory"
+              createPlaceholder="Laboratory name"
+            />
           </Field>
           <Field label="Certificate number"><Input name="certificateNumber" placeholder="17264-3921" /></Field>
           <Field label="Type">
@@ -174,7 +190,7 @@ function NewCertificateDialog({ gemstoneId, labs }: { gemstoneId: string; labs: 
           <Field label="Issue date"><Input name="issueDate" type="date" /></Field>
           <Field label="Origin determination"><Input name="originDetermination" placeholder="Sri Lanka (Ceylon)" /></Field>
           <Field label="Treatment determination"><Input name="treatmentDetermination" placeholder="No indications of heat" /></Field>
-          <Field label="Weight (ct)"><Input name="weightCt" inputMode="decimal" /></Field>
+          <Field label="Weight (ct)"><NumberInput name="weightCt" /></Field>
           <Field label="Color grade"><Input name="colorGrade" placeholder="vivid blue" /></Field>
           <Field label="Lab fees" span>
             <CurrencyInput amountName="laboratoryFees" currencyName="currency" defaultCurrency="LKR" />
@@ -182,6 +198,7 @@ function NewCertificateDialog({ gemstoneId, labs }: { gemstoneId: string; labs: 
           <Field label="Comments" span><Textarea name="comments" rows={2} /></Field>
           <Field label="Certificate PDF (optional)"><MediaUploadField name="documentFile" accept="application/pdf,image/*" multiple={false} buttonLabel="Upload PDF or image" /></Field>
           <Field label="Certificate image (optional)"><MediaUploadField name="imageFile" accept="image/*" multiple={false} buttonLabel="Upload image" /></Field>
+          {error && <div className="col-span-full text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>}
           <div className="col-span-full flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button disabled={pending}>{pending ? "Saving…" : "Save certificate"}</Button>

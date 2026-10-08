@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ComboboxInput } from "@/components/combobox-input";
@@ -76,10 +77,10 @@ export function EditGemstoneButton({
           <F label="Treatment" cols={1}><ComboboxInput name="treatment" defaultValue={gem.treatment} options={v("treatment")} /></F>
           <F label="Treatment status" cols={1}><ComboboxInput name="treatmentStatus" defaultValue={gem.treatmentStatus} options={v("treatmentStatus")} /></F>
 
-          <F label="Weight (ct) *" cols={1}><Input name="weightCt" required inputMode="decimal" defaultValue={gem.weightCt} /></F>
-          <F label="Length (mm)" cols={1}><Input name="lengthMm" inputMode="decimal" defaultValue={gem.lengthMm ?? ""} /></F>
-          <F label="Width (mm)" cols={1}><Input name="widthMm" inputMode="decimal" defaultValue={gem.widthMm ?? ""} /></F>
-          <F label="Depth (mm)" cols={1}><Input name="depthMm" inputMode="decimal" defaultValue={gem.depthMm ?? ""} /></F>
+          <F label="Weight (ct) *" cols={1}><NumberInput name="weightCt" required defaultValue={gem.weightCt} /></F>
+          <F label="Length (mm)" cols={1}><NumberInput name="lengthMm" defaultValue={gem.lengthMm ?? ""} /></F>
+          <F label="Width (mm)" cols={1}><NumberInput name="widthMm" defaultValue={gem.widthMm ?? ""} /></F>
+          <F label="Depth (mm)" cols={1}><NumberInput name="depthMm" defaultValue={gem.depthMm ?? ""} /></F>
 
           <F label="Shape" cols={1}><ComboboxInput name="shape" defaultValue={gem.shape} options={v("shape")} /></F>
           <F label="Cut" cols={1}><ComboboxInput name="cut" defaultValue={gem.cut} options={v("cut")} /></F>

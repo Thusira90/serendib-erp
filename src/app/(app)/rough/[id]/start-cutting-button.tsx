@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -45,8 +46,8 @@ export function StartCuttingButton({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>Planned cut</Label><Input name="plannedCut" defaultValue={defaultShape ?? ""} placeholder="Oval" /></div>
             <div className="space-y-1.5"><Label>Expected completion</Label><Input name="expectedCompletion" type="date" /></div>
-            <div className="space-y-1.5"><Label>Target weight (ct)</Label><Input name="targetWeightCt" inputMode="decimal" /></div>
-            <div className="space-y-1.5"><Label>Expected yield %</Label><Input name="expectedYieldPct" inputMode="decimal" placeholder="35" /></div>
+            <div className="space-y-1.5"><Label>Target weight (ct)</Label><NumberInput name="targetWeightCt" /></div>
+            <div className="space-y-1.5"><Label>Expected yield %</Label><NumberInput name="expectedYieldPct" placeholder="35" /></div>
           </div>
           <div className="space-y-1.5"><Label>Notes</Label><Textarea name="notes" rows={2} /></div>
           {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>}

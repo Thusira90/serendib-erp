@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { MediaUploadField } from "@/components/media-upload-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,11 +74,11 @@ export function TransferSharesButton({
               </select>
             </Field>
             <Field label="Number of shares *">
-              <Input name="numberOfShares" required inputMode="decimal"
+              <NumberInput name="numberOfShares" required
                 placeholder={currentLot ? `Max ${currentLot.numberOfShares}` : ""} />
             </Field>
             <Field label={`Price per share`}>
-              <Input name="pricePerShare" required inputMode="decimal" placeholder="0" />
+              <NumberInput name="pricePerShare" required placeholder="0" />
             </Field>
             <Field label="Transaction date">
               <Input name="transactionDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} />

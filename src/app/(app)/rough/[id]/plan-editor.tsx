@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -84,9 +85,9 @@ function NewPlanDialog({ roughStoneId, defaultName }: { roughStoneId: string; de
           <div className="space-y-1.5"><Label>Name *</Label><Input name="name" required defaultValue={defaultName} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>Proposed shape</Label><Input name="proposedShape" placeholder="Oval" /></div>
-            <div className="space-y-1.5"><Label>Expected weight (ct)</Label><Input name="expectedWeightCt" inputMode="decimal" /></div>
-            <div className="space-y-1.5"><Label>Expected yield %</Label><Input name="expectedYieldPct" inputMode="decimal" placeholder="33.5" /></div>
-            <div className="space-y-1.5"><Label>Expected value</Label><Input name="expectedValue" inputMode="decimal" /></div>
+            <div className="space-y-1.5"><Label>Expected weight (ct)</Label><NumberInput name="expectedWeightCt" /></div>
+            <div className="space-y-1.5"><Label>Expected yield %</Label><NumberInput name="expectedYieldPct" placeholder="33.5" /></div>
+            <div className="space-y-1.5"><Label>Expected value</Label><NumberInput name="expectedValue" /></div>
           </div>
           <div className="space-y-1.5"><Label>Cutter recommendation</Label><Textarea name="cutterRecommendation" rows={2} /></div>
           <div className="space-y-1.5"><Label>Risk assessment</Label><Textarea name="riskAssessment" rows={2} /></div>

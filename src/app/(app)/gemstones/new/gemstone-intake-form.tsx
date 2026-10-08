@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -58,10 +59,10 @@ export function GemstoneIntakeForm({
       </Section>
 
       <Section title="Physical characteristics">
-        <F label="Weight (ct) *"><Input name="weightCt" required inputMode="decimal" placeholder="8.72" /></F>
-        <F label="Length (mm)"><Input name="lengthMm" inputMode="decimal" /></F>
-        <F label="Width (mm)"><Input name="widthMm" inputMode="decimal" /></F>
-        <F label="Depth (mm)"><Input name="depthMm" inputMode="decimal" /></F>
+        <F label="Weight (ct) *"><NumberInput name="weightCt" required placeholder="8.72" /></F>
+        <F label="Length (mm)"><NumberInput name="lengthMm" /></F>
+        <F label="Width (mm)"><NumberInput name="widthMm" /></F>
+        <F label="Depth (mm)"><NumberInput name="depthMm" /></F>
         <F label="Shape"><ComboboxInput name="shape" placeholder="Oval" options={v("shape")} /></F>
         <F label="Cut"><ComboboxInput name="cut" placeholder="Brilliant / mixed" options={v("cut")} /></F>
         <F label="Faceting style" wide><ComboboxInput name="facetingStyle" placeholder="Ceylon oval" options={v("facetingStyle")} /></F>

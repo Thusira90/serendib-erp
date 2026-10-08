@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createRoughStone } from "./actions";
@@ -41,10 +42,10 @@ export function RoughForm({
       </Section>
 
       <Section title="Physical characteristics">
-        <Field label="Weight (ct) *"><Input name="weightCt" required inputMode="decimal" placeholder="25.4" /></Field>
-        <Field label="Length (mm)"><Input name="lengthMm" inputMode="decimal" /></Field>
-        <Field label="Width (mm)"><Input name="widthMm" inputMode="decimal" /></Field>
-        <Field label="Height (mm)"><Input name="heightMm" inputMode="decimal" /></Field>
+        <Field label="Weight (ct) *"><NumberInput name="weightCt" required placeholder="25.4" /></Field>
+        <Field label="Length (mm)"><NumberInput name="lengthMm" /></Field>
+        <Field label="Width (mm)"><NumberInput name="widthMm" /></Field>
+        <Field label="Height (mm)"><NumberInput name="heightMm" /></Field>
         <Field label="Shape"><ComboboxInput name="shape" placeholder="Cushion" options={v("shape")} /></Field>
         <Field label="Color"><ComboboxInput name="color" placeholder="Royal Blue" options={v("color")} /></Field>
         <Field label="Transparency"><ComboboxInput name="transparency" options={v("transparency")} /></Field>

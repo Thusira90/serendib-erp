@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -47,8 +48,8 @@ export function NewEnquiryButton({
           <Field label="Preferred treatment"><Input name="preferredTreatment" /></Field>
           <Field label="Preferred shape"><Input name="preferredShape" /></Field>
           <Field label="Quantity"><Input name="quantity" type="number" defaultValue={1} min={1} /></Field>
-          <Field label="Min weight (ct)"><Input name="minWeightCt" inputMode="decimal" /></Field>
-          <Field label="Max weight (ct)"><Input name="maxWeightCt" inputMode="decimal" /></Field>
+          <Field label="Min weight (ct)"><NumberInput name="minWeightCt" /></Field>
+          <Field label="Max weight (ct)"><NumberInput name="maxWeightCt" /></Field>
           <Field label="Budget min" span>
             <CurrencyInput
               amountName="budgetMin"

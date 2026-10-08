@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
@@ -118,10 +119,10 @@ export function ParcelIntakeForm({
 
               <F label="Type *" cols={2}><Input required value={r.gemType} onChange={(e) => setRow(i, { gemType: e.target.value })} /></F>
               <F label="Variety" cols={2}><Input value={r.variety} onChange={(e) => setRow(i, { variety: e.target.value })} /></F>
-              <F label="Weight (ct) *" cols={2}><Input required inputMode="decimal" value={r.weightCt} onChange={(e) => setRow(i, { weightCt: e.target.value })} /></F>
+              <F label="Weight (ct) *" cols={2}><NumberInput required value={r.weightCt} onValueChange={(v) => setRow(i, { weightCt: v })} /></F>
               <F label="Shape" cols={2}><Input value={r.shape} onChange={(e) => setRow(i, { shape: e.target.value })} /></F>
               <F label="Color" cols={1}><Input value={r.color} onChange={(e) => setRow(i, { color: e.target.value })} /></F>
-              <F label="Price (opt)" cols={2}><Input inputMode="decimal" value={r.purchasePrice} onChange={(e) => setRow(i, { purchasePrice: e.target.value })} /></F>
+              <F label="Price (opt)" cols={2}><NumberInput value={r.purchasePrice} onValueChange={(v) => setRow(i, { purchasePrice: v })} /></F>
               <div className="col-span-1 flex justify-end">
                 <Button type="button" size="icon" variant="ghost"
                   onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))}
