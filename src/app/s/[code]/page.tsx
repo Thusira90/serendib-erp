@@ -4,7 +4,7 @@ import { getCompanySettings } from "@/lib/company-settings";
 import {
   resolveBrand, resolveContact, Watermark, BrandHeader, ContactFooter, CopyrightNotice,
   SingleStone, StoneGrid, SingleRoughStone, RoughGrid,
-  titleForScope, gemsWhereForLink, roughsWhereForLink, isRoughScope, shareMetadata,
+  titleForScope, gemsWhereForLink, roughsWhereForLink, isRoughScope, shareMetadata, loadShareableMedia,
 } from "./shared";
 import { ExpiredView } from "./expired";
 
@@ -76,6 +76,10 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
   const count = isRough ? roughs.length : gems.length;
   const isSingle = (link.scope === "GEMSTONE" && gems.length === 1)
                  || (link.scope === "ROUGH" && roughs.length === 1);
+  // The grid cards only need a cover photo; the full single-stone page also shows videos and further photos.
+  const singleGem = !isRough && isSingle && gems[0]
+    ? { ...gems[0], digitalAssets: await loadShareableMedia(gems[0].id) }
+    : null;
   const heroTitle = titleForScope(link.scope, count, brand.titleFallback);
 
   return (
@@ -89,8 +93,8 @@ export default async function TimedSharePage({ params }: { params: Promise<{ cod
           ? (isSingle && roughs[0]
               ? <SingleRoughStone rough={roughs[0]} />
               : <RoughGrid roughs={roughs} shareCode={link.code} opaqueFor={link.brokerMode ? link.id : undefined} />)
-          : (isSingle && gems[0]
-              ? <SingleStone gem={gems[0]} neutral={link.brokerMode} />
+          : (singleGem
+              ? <SingleStone gem={singleGem} neutral={link.brokerMode} />
               : <StoneGrid gems={gems} shareCode={link.code} opaqueFor={link.brokerMode ? link.id : undefined} />)}
 
         <ContactFooter contact={contact} isBroker={link.brokerMode} />

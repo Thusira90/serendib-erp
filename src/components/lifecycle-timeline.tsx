@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { MEDIA_STAGE_LABEL, type MediaStage } from "@/lib/enums";
 import type { LifecycleAsset } from "@/lib/stone-lifecycle";
+import { isVideoAsset } from "@/lib/media";
 import { Diamond, Scissors, Gem } from "lucide-react";
 
 const SOURCE_STYLE = {
@@ -26,7 +27,7 @@ export function LifecycleTimeline({ items }: { items: LifecycleAsset[] }) {
       {items.map((a) => {
         const s = SOURCE_STYLE[a.source.kind];
         const Icon = s.icon;
-        const isVideo = a.contentType?.startsWith("video/");
+        const isVideo = isVideoAsset(a);
         return (
           <li key={a.id} className="relative">
             <span className={`absolute -left-[35px] top-1 flex h-6 w-6 items-center justify-center rounded-full ${s.accent} text-white shadow`}>
@@ -48,7 +49,7 @@ export function LifecycleTimeline({ items }: { items: LifecycleAsset[] }) {
               <div className="aspect-video bg-secondary/40">
                 {isVideo ? (
                   // eslint-disable-next-line jsx-a11y/media-has-caption
-                  <video src={a.url} className="h-full w-full object-cover" muted />
+                  <video src={a.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={a.url} alt={a.caption ?? a.kind} className="h-full w-full object-cover" />

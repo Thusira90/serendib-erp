@@ -6,6 +6,8 @@ import { Award, ArrowLeft, Gem } from "lucide-react";
 import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
 import { Badge } from "@/components/ui/badge";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
+import { StoneMediaGallery } from "@/components/stone-media-gallery";
+import { isVideoAsset } from "@/lib/media";
 
 export const metadata = { title: "Gemstone — Serendib Gemstones" };
 // Public page — cache 60s so repeat views don't hit the DB.
@@ -19,18 +21,22 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
       certificates: { where: { status: "ISSUED" }, orderBy: { issueDate: "desc" }, include: { laboratory: true } },
       cgiProjects: { include: { versions: { where: { isMaster: true } } } },
       digitalAssets: {
-        where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
+        where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
         orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
       },
     },
   });
   if (!g || g.status !== "AVAILABLE") return notFound();
 
+  // Media an admin marked never-for-buyers stays off the page; videos get their own player section.
+  const shareable = g.digitalAssets.filter((a) => a.partnerHidden !== true);
+  const photos = shareable.filter((a) => !isVideoAsset(a));
+  const videos = shareable.filter(isVideoAsset);
   const master = g.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-  const heroImg = master?.renderUrl ?? g.digitalAssets[0]?.url;
+  const heroImg = master?.renderUrl ?? photos[0]?.url;
   const gallery = [
     ...(master?.renderUrl ? [{ url: master.renderUrl, caption: "Master CGI" }] : []),
-    ...g.digitalAssets.map((a) => ({ url: a.url, caption: a.caption ?? a.kind.replaceAll("_", " ") })),
+    ...photos.map((a) => ({ url: a.url, caption: a.caption ?? a.kind.replaceAll("_", " ") })),
   ];
   const cert = g.certificates[0];
   const qr = await renderQrSvg(publicVerifyUrl(g.code), { size: 160 });
@@ -64,6 +70,7 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
               ))}
             </div>
           )}
+          <StoneMediaGallery items={videos} alt={g.gemType} title="Videos" />
         </div>
 
         <div className="space-y-6">

@@ -8,6 +8,8 @@ import type { getCompanySettings } from "@/lib/company-settings";
 import { ShieldCheck, Clock3, MessageCircle, Mail, User as UserIcon, Gem } from "lucide-react";
 import { SgsLogo } from "@/components/brand/logo";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
+import { StoneMediaGallery } from "@/components/stone-media-gallery";
+import { isVideoAsset } from "@/lib/media";
 
 /**
  * Shared parts of the /s/<code> customer-facing view. Both the index
@@ -211,7 +213,7 @@ export function CopyrightNotice({
 /* ------------------------------ Stone views ------------------------------ */
 
 export type Gem = Awaited<ReturnType<typeof prisma.gemstone.findMany>>[number] & {
-  digitalAssets: { url: string }[];
+  digitalAssets: { url: string; contentType?: string | null; kind?: string | null }[];
   cgiProjects: { versions: { renderUrl: string | null; isMaster: boolean }[] }[];
   certificates: { laboratory: { name: string }; certificateNumber: string | null }[];
 };
@@ -226,13 +228,31 @@ export function isRoughScope(scope: string): boolean {
 }
 
 /**
+ * Photos and videos a share page may show for one stone, primary first. The
+ * stone grids only need one cover photo, so they do not use this.
+ */
+export async function loadShareableMedia(gemstoneId: string) {
+  const assets = await prisma.digitalAsset.findMany({
+    where: { gemstoneId, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    take: 24,
+  });
+  // Media an admin marked never-for-buyers stays off the page.
+  return assets.filter((a) => a.partnerHidden !== true);
+}
+
+/**
  * Full-fat single-stone profile — mirrors the internal detail page.
  * Used both for scope=GEMSTONE links AND when a viewer clicks a card
  * in a multi-stone share to open its full page.
  */
 export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: boolean }) {
   const cgi = gem.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-  const hero = cgi?.renderUrl ?? gem.digitalAssets[0]?.url;
+  // The hero is always a still; videos (and any further photos) go in the gallery below it.
+  const photos = gem.digitalAssets.filter((a) => !isVideoAsset(a));
+  const videos = gem.digitalAssets.filter(isVideoAsset);
+  const hero = cgi?.renderUrl ?? photos[0]?.url;
+  const gallery = [...photos.filter((a) => a.url !== hero), ...videos];
   const cert = gem.certificates[0];
   const dims = [gem.lengthMm, gem.widthMm, gem.depthMm]
     .filter((v) => v != null)
@@ -256,6 +276,8 @@ export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: bool
           </div>
           <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="md" /></div>
         </div>
+
+        <StoneMediaGallery items={gallery} alt={gem.gemType} title="Photos & videos" />
 
         {gem.cgiScore != null && (
           <>
