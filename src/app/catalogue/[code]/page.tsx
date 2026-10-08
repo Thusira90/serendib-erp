@@ -2,11 +2,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
-import { Award, ArrowLeft, Gem } from "lucide-react";
+import { Award, ArrowLeft } from "lucide-react";
 import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
 import { Badge } from "@/components/ui/badge";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
-import { StoneMediaGallery } from "@/components/stone-media-gallery";
+import { StoneMediaViewer } from "@/components/stone-media-viewer";
 import { isVideoAsset } from "@/lib/media";
 
 export const metadata = { title: "Gemstone — Serendib Gemstones" };
@@ -28,15 +28,13 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
   });
   if (!g || g.status !== "AVAILABLE") return notFound();
 
-  // Media an admin marked never-for-buyers stays off the page; videos get their own player section.
+  // Media an admin marked never-for-buyers stays off the page. Master CGI first, then photos, then videos.
   const shareable = g.digitalAssets.filter((a) => a.partnerHidden !== true);
-  const photos = shareable.filter((a) => !isVideoAsset(a));
-  const videos = shareable.filter(isVideoAsset);
   const master = g.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-  const heroImg = master?.renderUrl ?? photos[0]?.url;
-  const gallery = [
-    ...(master?.renderUrl ? [{ url: master.renderUrl, caption: "Master CGI" }] : []),
-    ...photos.map((a) => ({ url: a.url, caption: a.caption ?? a.kind.replaceAll("_", " ") })),
+  const media = [
+    ...(master?.renderUrl ? [{ url: master.renderUrl, kind: "CGI_RENDER" }] : []),
+    ...shareable.filter((a) => !isVideoAsset(a)),
+    ...shareable.filter(isVideoAsset),
   ];
   const cert = g.certificates[0];
   const qr = await renderQrSvg(publicVerifyUrl(g.code), { size: 160 });
@@ -51,26 +49,8 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-8">
-        <div className="space-y-3">
-          <div className="rounded-xl overflow-hidden border bg-white shadow-luxe">
-            <div className="aspect-square bg-sgs-gradient relative">
-              {heroImg ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImg} alt={g.code} className="h-full w-full object-cover" />
-              ) : (
-                <div className="h-full w-full grid place-items-center text-white/70"><Gem className="h-24 w-24" /></div>
-              )}
-            </div>
-          </div>
-          {gallery.length > 1 && (
-            <div className="grid grid-cols-4 gap-2">
-              {gallery.slice(0, 8).map((a, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={a.url} alt={a.caption} className="aspect-square object-cover rounded-md border" />
-              ))}
-            </div>
-          )}
-          <StoneMediaGallery items={videos} alt={g.gemType} title="Videos" />
+        <div className="rounded-xl overflow-hidden border bg-white shadow-luxe self-start">
+          <StoneMediaViewer items={media} alt={g.gemType} aspect="aspect-square" />
         </div>
 
         <div className="space-y-6">

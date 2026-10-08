@@ -8,7 +8,7 @@ import type { getCompanySettings } from "@/lib/company-settings";
 import { ShieldCheck, Clock3, MessageCircle, Mail, User as UserIcon, Gem } from "lucide-react";
 import { SgsLogo } from "@/components/brand/logo";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
-import { StoneMediaGallery } from "@/components/stone-media-gallery";
+import { StoneMediaViewer, type ViewerItem } from "@/components/stone-media-viewer";
 import { isVideoAsset } from "@/lib/media";
 
 /**
@@ -312,11 +312,13 @@ export async function loadShareableMedia(gemstoneId: string) {
  */
 export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: boolean }) {
   const cgi = gem.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-  // The hero is always a still; videos (and any further photos) go in the gallery below it.
+  // Master CGI first, then photos (primary first), then videos, all in the hero viewer.
   const photos = gem.digitalAssets.filter((a) => !isVideoAsset(a));
   const videos = gem.digitalAssets.filter(isVideoAsset);
-  const hero = cgi?.renderUrl ?? photos[0]?.url;
-  const gallery = [...photos.filter((a) => a.url !== hero), ...videos];
+  const media: ViewerItem[] = [
+    ...(cgi?.renderUrl ? [{ url: cgi.renderUrl, kind: "CGI_RENDER" }] : []),
+    ...[...photos, ...videos].filter((a) => a.url !== cgi?.renderUrl),
+  ];
   const cert = gem.certificates[0];
   const dims = [gem.lengthMm, gem.widthMm, gem.depthMm]
     .filter((v) => v != null)
@@ -325,12 +327,7 @@ export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: bool
 
   return (
     <div className="rounded-2xl overflow-hidden bg-white border shadow-luxe">
-      <div className="aspect-[16/10] bg-sgs-gradient relative">
-        {hero && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero} alt={gem.gemType} className="absolute inset-0 h-full w-full object-cover" />
-        )}
-      </div>
+      <StoneMediaViewer items={media} alt={gem.gemType} />
       <div className="p-8 space-y-6">
         <div>
           <div className="text-[10px] uppercase tracking-[0.25em] text-sgs-purple-500">{gem.gemType}{gem.variety ? ` · ${gem.variety}` : ""}</div>
@@ -340,8 +337,6 @@ export function SingleStone({ gem, neutral = false }: { gem: Gem; neutral?: bool
           </div>
           <div className="mt-3"><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="md" /></div>
         </div>
-
-        <StoneMediaGallery items={gallery} alt={gem.gemType} title="Photos & videos" />
 
         {gem.cgiScore != null && (
           <>

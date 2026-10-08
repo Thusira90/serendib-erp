@@ -210,3 +210,10 @@
     margin: 15mm 12mm;
   }
 }
+
+/* Share-page videos always play without sound: hide the mute button and volume slider. */
+video.sgs-muted-video::-webkit-media-controls-mute-button,
+video.sgs-muted-video::-webkit-media-controls-volume-slider,
+video.sgs-muted-video::-webkit-media-controls-volume-control-container {
+  display: none !important;
+}
