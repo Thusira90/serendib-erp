@@ -37,6 +37,8 @@ const createSchema = z.object({
   createdByPhone: z.string().nullable(),
   createdByEmail: z.string().nullable(),
 
+  // Leave the Ceylon Gem Identity off this link's pages even for stones that have one.
+  hideCgi: z.boolean().default(false),
   brokerMode: z.boolean().default(false),
   brokerName: z.string().nullable(),
   brokerCompany: z.string().nullable(),
@@ -59,6 +61,7 @@ export async function createShareLink(fd: FormData): Promise<{ code: string }> {
     createdByName: str(fd.get("createdByName")) ?? session.user.name ?? "",
     createdByPhone: str(fd.get("createdByPhone")),
     createdByEmail: str(fd.get("createdByEmail")) ?? session.user.email ?? null,
+    hideCgi: str(fd.get("hideCgi")) === "on" || str(fd.get("hideCgi")) === "true",
     brokerMode: str(fd.get("brokerMode")) === "on" || str(fd.get("brokerMode")) === "true",
     brokerName: str(fd.get("brokerName")),
     brokerCompany: str(fd.get("brokerCompany")),
@@ -103,6 +106,7 @@ export async function createShareLink(fd: FormData): Promise<{ code: string }> {
       createdByName: parsed.createdByName,
       createdByPhone: parsed.createdByPhone,
       createdByEmail: parsed.createdByEmail,
+      hideCgi: parsed.hideCgi,
       brokerMode: parsed.brokerMode,
       brokerName: parsed.brokerMode ? parsed.brokerName : null,
       brokerCompany: parsed.brokerMode ? parsed.brokerCompany : null,
@@ -113,7 +117,7 @@ export async function createShareLink(fd: FormData): Promise<{ code: string }> {
   await writeAudit({
     entity: "ShareLink", entityId: link.id, entityCode: link.code,
     action: "CREATE", userId: session.user.id, userName: session.user.name ?? null,
-    newValue: `${parsed.scope} link · expires ${expiresAt.toISOString()}${parsed.brokerMode ? " · broker mode" : ""}`,
+    newValue: `${parsed.scope} link · expires ${expiresAt.toISOString()}${parsed.brokerMode ? " · broker mode" : ""}${parsed.hideCgi ? " · CGI hidden" : ""}`,
     metadata: { scope: parsed.scope, ttlMinutes: parsed.ttlMinutes },
   });
   revalidatePath("/share-links");

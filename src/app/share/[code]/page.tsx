@@ -140,7 +140,7 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
                     {gem.clarity && <><span>Clarity</span><span className="text-foreground">{gem.clarity}</span></>}
                   </div>
 
-                  <div><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="sm" /></div>
+                  {gem.cgiEnabled && <div><CgiBadge score={gem.cgiScore} band={gem.cgiBand} size="sm" /></div>}
 
                   <div className="flex flex-wrap gap-2 text-[11px]">
                     {cert && (
@@ -199,7 +199,7 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
         </div>
       )}
 
-      {collection.items.some((i) => i.gemstone.cgiScore != null) && (
+      {collection.items.some((i) => i.gemstone.cgiEnabled && i.gemstone.cgiScore != null) && (
         <section className="pt-4">
           <CgiMethodologyCard />
         </section>

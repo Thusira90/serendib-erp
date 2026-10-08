@@ -55,6 +55,9 @@ export function TimedShareButton({
   const [ttlMinutes, setTtlMinutes] = useState<number>(60);
   const [customHours, setCustomHours] = useState<string>("");
   const [broker, setBroker] = useState(false);
+  // Rough stones have no CGI; for everything else the link can leave it out.
+  const [includeCgi, setIncludeCgi] = useState(true);
+  const hasCgiChoice = scope !== "ROUGH" && scope !== "ROUGHS";
   const [generated, setGenerated] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -91,6 +94,7 @@ export function TimedShareButton({
     q.set("ttl", String(effectiveMinutes));
     put("msg", msg);
     if (broker) q.set("broker", "1");
+    if (hasCgiChoice && !includeCgi) q.set("nocgi", "1");
     put("name", fd.get("createdByName"));
     put("phone", fd.get("createdByPhone"));
     put("email", fd.get("createdByEmail"));
@@ -120,6 +124,7 @@ export function TimedShareButton({
     setCopied(false);
     setError(null);
     setBroker(false);
+    setIncludeCgi(true);
     setTtlMinutes(60);
     setCustomHours("");
   }
@@ -157,6 +162,7 @@ export function TimedShareButton({
                 fd.set("ttlMinutes", String(effectiveMinutes));
                 fd.set("message", msg);
                 fd.set("brokerMode", broker ? "on" : "off");
+                fd.set("hideCgi", hasCgiChoice && !includeCgi ? "on" : "off");
                 const draftPreview = buildPreviewUrl(fd);
                 const { code } = await createShareLink(fd);
                 setPreviewUrl(draftPreview);
@@ -218,6 +224,23 @@ export function TimedShareButton({
               <Label>Message to include</Label>
               <Textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={2} />
             </div>
+
+            {hasCgiChoice && (
+              <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeCgi}
+                  onChange={(e) => setIncludeCgi(e.target.checked)}
+                  className="mt-0.5 h-4 w-4"
+                />
+                <span>
+                  <span className="block text-sm font-medium">Include Ceylon Gem Identity (CGI)</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    Untick to leave the CGI score, badge and breakdown off this link, even for stones that have one.
+                  </span>
+                </span>
+              </label>
+            )}
 
             <div className="space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between">

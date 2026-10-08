@@ -62,7 +62,7 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
             <div className="text-sm mt-2">
               {[g.origin, g.treatment].filter(Boolean).join(" · ") || "—"}
             </div>
-            <div className="mt-3"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>
+            {g.cgiEnabled && <div className="mt-3"><CgiBadge score={g.cgiScore} band={g.cgiBand} size="lg" /></div>}
           </div>
 
           {g.askingPrice != null && (
@@ -113,7 +113,7 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
         </div>
       </div>
 
-      {g.cgiScore != null && (
+      {g.cgiEnabled && g.cgiScore != null && (
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CgiBreakdownCard
             score={g.cgiScore}

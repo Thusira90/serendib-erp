@@ -67,8 +67,8 @@ export default async function QrPrintPage({
       origin = g.origin;
       treatment = g.treatment;
       fromRough = g.transformationsAsOutput[0]?.transformation.inputs[0]?.roughStone.code ?? null;
-      cgiScore = g.cgiScore;
-      cgiBand = g.cgiBand;
+      cgiScore = g.cgiEnabled ? g.cgiScore : null;
+      cgiBand = g.cgiEnabled ? g.cgiBand : null;
     } else {
       const r = await prisma.roughStone.findUnique({ where: { code } });
       if (!r) return null;
