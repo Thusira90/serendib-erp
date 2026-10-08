@@ -18,6 +18,7 @@ import { MoveButton } from "@/components/move-button";
 import { EditRoughButton } from "./edit-rough-button";
 import { CommentsThread } from "@/components/comments-thread";
 import { MediaGallery } from "@/components/media-gallery";
+import { TreatmentsPanel } from "@/components/treatments-panel";
 import { isVideoAsset } from "@/lib/media";
 import { StoneCoverMedia } from "@/components/stone-cover-media";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
@@ -150,6 +151,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
           <TabsTrigger value="bills">Bills</TabsTrigger>
           <TabsTrigger value="media">Media</TabsTrigger>
           <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
+          {can(session.user, "treatment:read") && <TabsTrigger value="treatments">Treatments</TabsTrigger>}
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
@@ -305,6 +307,17 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
         <TabsContent value="notes">
           <CommentsThread entity="RoughStone" entityId={r.id} entityCode={r.code} revalidate={`/rough/${r.id}`} />
         </TabsContent>
+
+        {can(session.user, "treatment:read") && (
+          <TabsContent value="treatments">
+            <TreatmentsPanel
+              kind="ROUGH"
+              stoneId={r.id}
+              stoneLabel={`${r.code} · ${r.gemType}${r.variety ? ` · ${r.variety}` : ""} · ${formatCarat(Number(r.weightCt))}`}
+              canWrite={can(session.user, "treatment:write")}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="history">
           <Card>

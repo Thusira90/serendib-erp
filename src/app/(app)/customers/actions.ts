@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireCapability } from "@/lib/rbac";
 import { codePrefix, nextCode } from "@/lib/ids";
 import { writeAudit, auditDiff } from "@/lib/audit";
-import { customerPreferencesSchema, splitCsv } from "@/lib/customer-preferences";
+import { customerPreferencesSchema, splitCsv, parseExtras } from "@/lib/customer-preferences";
 import { CUSTOMER_KINDS, CUSTOMER_TYPES } from "@/lib/enums";
 import type { CustomerKind, CustomerType } from "@/lib/enums";
 
@@ -63,6 +63,7 @@ function fdPreferences(fd: FormData) {
     budgetMin: dec(fd.get("prefBudgetMin")),
     budgetMax: dec(fd.get("prefBudgetMax")),
     currency: str(fd.get("prefCurrency")) ?? "LKR",
+    extras: parseExtras(fd.get("extrasJson")),
   });
 }
 
