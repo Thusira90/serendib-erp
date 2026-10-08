@@ -190,7 +190,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 2xl:grid-cols-4 gap-3">
             <MiniStat icon={<Coins className="h-4 w-4" />} label="True cost" value={formatCurrency(Number(g.totalCost), g.currency)} />
             <MiniStat icon={<TrendingUp className="h-4 w-4" />} label="Est. margin" value={margin != null ? formatCurrency(margin, g.currency) : "—"} accent={margin != null && margin >= 0} />
             <MiniStat icon={<Layers className="h-4 w-4" />} label="Cost / ct" value={formatCurrency(Number(g.costPerCt), g.currency)} />
@@ -492,7 +492,7 @@ function MiniStat({ icon, label, value, accent = false }: { icon: React.ReactNod
   return (
     <div className="rounded-md border bg-card p-3">
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">{icon} {label}</div>
-      <div className={`font-serif text-xl mt-0.5 num ${accent ? "text-sgs-purple-600" : ""}`}>{value}</div>
+      <div className={`font-serif text-lg mt-0.5 num whitespace-nowrap ${accent ? "text-sgs-purple-600" : ""}`}>{value}</div>
     </div>
   );
 }

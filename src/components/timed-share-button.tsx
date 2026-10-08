@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Clock3, Copy, Check, MessageCircle, Mail, Link2, Users } from "lucide-react";
+import { Clock3, Copy, Check, MessageCircle, Mail, Link2, Users, Eye } from "lucide-react";
 import { createShareLink } from "@/app/(app)/share-links/actions";
 
 type Scope = "CATALOGUE" | "GEMSTONE" | "GEMSTONES" | "COLLECTION" | "ROUGH" | "ROUGHS";
@@ -56,6 +56,8 @@ export function TimedShareButton({
   const [customHours, setCustomHours] = useState<string>("");
   const [broker, setBroker] = useState(false);
   const [generated, setGenerated] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState("Take a look at this — let me know what catches your eye.");
@@ -78,6 +80,31 @@ export function TimedShareButton({
     return null;
   }
 
+  // The preview renders the recipient's page from these draft settings; no link is created or counted.
+  function buildPreviewUrl(fd: FormData): string {
+    const q = new URLSearchParams();
+    const put = (k: string, v: FormDataEntryValue | string | null) => {
+      if (typeof v === "string" && v.trim()) q.set(k, v.trim());
+    };
+    q.set("scope", scope);
+    put("payload", payloadJson());
+    q.set("ttl", String(effectiveMinutes));
+    put("msg", msg);
+    if (broker) q.set("broker", "1");
+    put("name", fd.get("createdByName"));
+    put("phone", fd.get("createdByPhone"));
+    put("email", fd.get("createdByEmail"));
+    put("bName", fd.get("brokerName"));
+    put("bCompany", fd.get("brokerCompany"));
+    put("bPhone", fd.get("brokerPhone"));
+    put("bEmail", fd.get("brokerEmail"));
+    return `/share-preview?${q.toString()}`;
+  }
+
+  function openPreview(url: string) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   async function copyLink() {
     if (!generated) return;
     try {
@@ -89,6 +116,7 @@ export function TimedShareButton({
 
   function reset() {
     setGenerated(null);
+    setPreviewUrl(null);
     setCopied(false);
     setError(null);
     setBroker(false);
@@ -120,6 +148,7 @@ export function TimedShareButton({
 
         {!generated ? (
           <form
+            ref={formRef}
             action={(fd) => start(async () => {
               setError(null);
               try {
@@ -128,7 +157,9 @@ export function TimedShareButton({
                 fd.set("ttlMinutes", String(effectiveMinutes));
                 fd.set("message", msg);
                 fd.set("brokerMode", broker ? "on" : "off");
+                const draftPreview = buildPreviewUrl(fd);
                 const { code } = await createShareLink(fd);
+                setPreviewUrl(draftPreview);
                 const origin = typeof window !== "undefined" ? window.location.origin : "";
                 setGenerated(`${origin}/s/${code}`);
               } catch (e) {
@@ -242,6 +273,13 @@ export function TimedShareButton({
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => formRef.current && openPreview(buildPreviewUrl(new FormData(formRef.current)))}
+              >
+                <Eye className="h-4 w-4" /> Preview
+              </Button>
               <Button disabled={pending}>
                 {pending ? "Generating…" : `Generate link (expires in ${
                   effectiveMinutes < 60 ? `${effectiveMinutes} min`
@@ -294,7 +332,12 @@ export function TimedShareButton({
                 <Mail className="h-4 w-4" /> Email
               </Button>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {previewUrl && (
+                <Button variant="outline" onClick={() => openPreview(previewUrl)}>
+                  <Eye className="h-4 w-4" /> Preview
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => setOpen(false)}>Done</Button>
             </div>
           </div>

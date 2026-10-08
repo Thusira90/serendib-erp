@@ -5,7 +5,7 @@ import { getCompanySettings } from "@/lib/company-settings";
 import { ArrowLeft } from "lucide-react";
 import {
   resolveBrand, resolveContact, Watermark, BrandHeader, ContactFooter, CopyrightNotice,
-  SingleStone, gemsWhereForLink, shareMetadata, opaqueStoneToken, loadShareableMedia,
+  SingleStone, gemsWhereForLink, shareMetadata, opaqueStoneToken, loadShareableMedia, findShareGem,
 } from "../shared";
 import { ExpiredView } from "../expired";
 
@@ -48,18 +48,7 @@ export default async function TimedShareGemPage({
   // Validate the requested gem is actually part of this link's scope,
   // otherwise a leaked URL could be used to enumerate the whole
   // catalogue by trying different codes.
-  const gem = await prisma.gemstone.findFirst({
-    where: {
-      AND: [
-        { code: requestedCode },
-        gemsWhereForLink(link),
-      ],
-    },
-    include: {
-      cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
-      certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
-    },
-  });
+  const gem = await findShareGem(link, requestedCode);
   if (!gem) return notFound();
   const media = await loadShareableMedia(gem.id);
 

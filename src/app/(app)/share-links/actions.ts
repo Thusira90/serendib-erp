@@ -4,21 +4,11 @@ import { z } from "zod";
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { can, requireAuth, type Capability } from "@/lib/rbac";
+import { can, requireAuth } from "@/lib/rbac";
+import { SCOPE_CAPS } from "@/lib/share-scope";
 import { writeAudit } from "@/lib/audit";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" && v ? v : null);
-
-// Sharing sends stone data outside the company, so the creator needs the
-// sharing capability AND permission to see the kind of stone being shared.
-const SCOPE_CAPS: Record<"CATALOGUE" | "GEMSTONE" | "GEMSTONES" | "COLLECTION" | "ROUGH" | "ROUGHS", Capability[]> = {
-  CATALOGUE: ["collection:write", "gemstone:read"],
-  GEMSTONE: ["collection:write", "gemstone:read"],
-  GEMSTONES: ["collection:write", "gemstone:read"],
-  COLLECTION: ["collection:write", "gemstone:read"],
-  ROUGH: ["collection:write", "rough:read"],
-  ROUGHS: ["collection:write", "rough:read"],
-};
 
 const payloadSchema = z.object({
   gemstoneCode: z.string().min(1).max(64).optional(),

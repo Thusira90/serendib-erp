@@ -9,7 +9,7 @@ type LogoProps = {
 
 /**
  * The official SGS interlocked-diamonds mark.
- * - `variant="color"` (default) renders the real logo file from /serendib-logo.jpg.
+ * - `variant="color"` (default) renders the real logo file from /serendib-logo.png.
  * - `variant="mono"` renders an inline SVG in currentColor so it can sit on
  *   a coloured background (login gradient, dark headers) and inherit the
  *   surrounding text colour.
@@ -33,7 +33,7 @@ export function SgsMark({ className, size = 40, variant = "color" }: LogoProps) 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/serendib-logo.jpg"
+      src="/serendib-logo.png"
       alt="Serendib Gemstones"
       width={size}
       height={size}
