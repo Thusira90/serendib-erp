@@ -2,10 +2,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { formatCarat, formatDate } from "@/lib/utils";
 import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
+import { publicOrigin } from "@/lib/public-url";
+import { isVideoAsset } from "@/lib/media";
+import { StoneMediaViewer } from "@/components/stone-media-viewer";
+import { RoughVerify } from "./rough-verify";
 import { SgsMark } from "@/components/brand/logo";
 import { getCompanySettings } from "@/lib/company-settings";
 import { Badge } from "@/components/ui/badge";
-import { Award, Gem, Star, CheckCircle2 } from "lucide-react";
+import { Award, Star, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
 
@@ -43,21 +47,39 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
         include: { versions: { where: { isMaster: true } } },
       },
       digitalAssets: {
-        where: {
-          isPrimary: true,
-          kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] },
-        },
-        take: 1,
+        where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        take: 24,
       },
     },
   });
-  if (!gem) return notFound();
+  if (!gem) {
+    // Rough stones share this address space (SGS-R-... labels); show their price-free profile.
+    const rough = await prisma.roughStone.findUnique({
+      where: { code },
+      include: {
+        digitalAssets: {
+          where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+          take: 24,
+        },
+      },
+    });
+    if (!rough) return notFound();
+    return <RoughVerify rough={rough} company={await getCompanySettings()} />;
+  }
   const company = await getCompanySettings();
 
   const masterCgi = gem.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-  const heroImg = masterCgi?.renderUrl ?? gem.digitalAssets[0]?.url;
+  // Master CGI first, then photos, then videos; media an admin marked never-for-buyers stays off the page.
+  const shareable = gem.digitalAssets.filter((a) => a.partnerHidden !== true);
+  const media = [
+    ...(masterCgi?.renderUrl ? [{ url: masterCgi.renderUrl, kind: "CGI_RENDER" }] : []),
+    ...shareable.filter((a) => !isVideoAsset(a)),
+    ...shareable.filter(isVideoAsset),
+  ];
   const cert = gem.certificates[0];
-  const qr = await renderQrSvg(publicVerifyUrl(gem.code));
+  const qr = await renderQrSvg(publicVerifyUrl(gem.code, await publicOrigin()));
 
   return (
     <div className="min-h-screen bg-sgs-bone">
@@ -77,16 +99,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-8">
           <div className="rounded-xl overflow-hidden border bg-white shadow-luxe">
-            <div className="aspect-square bg-sgs-gradient relative">
-              {heroImg ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImg} alt={gem.code} className="h-full w-full object-cover" />
-              ) : (
-                <div className="h-full w-full grid place-items-center text-white/70">
-                  <Gem className="h-16 w-16" />
-                </div>
-              )}
-            </div>
+            <StoneMediaViewer items={media} alt={gem.gemType} aspect="aspect-square" />
             <div className="p-4 text-center">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Gem ID</div>
               <div className="font-mono text-lg">{gem.code}</div>

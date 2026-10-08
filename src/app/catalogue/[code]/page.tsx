@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { formatCarat, formatCurrency, formatDate } from "@/lib/utils";
 import { Award, ArrowLeft } from "lucide-react";
 import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
+import { publicOrigin } from "@/lib/public-url";
 import { Badge } from "@/components/ui/badge";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
 import { StoneMediaViewer } from "@/components/stone-media-viewer";
@@ -37,7 +38,7 @@ export default async function CatalogueDetail({ params }: { params: Promise<{ co
     ...shareable.filter(isVideoAsset),
   ];
   const cert = g.certificates[0];
-  const qr = await renderQrSvg(publicVerifyUrl(g.code), { size: 160 });
+  const qr = await renderQrSvg(publicVerifyUrl(g.code, await publicOrigin()), { size: 160 });
 
   return (
     <div className="space-y-8">

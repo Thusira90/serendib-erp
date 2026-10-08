@@ -1,12 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { renderQrSvg, publicVerifyUrl } from "@/lib/qr";
+import { publicOrigin } from "@/lib/public-url";
 import { QrPrintButton } from "./qr-print-button";
 import { CopyLinkButton } from "./copy-link-button";
 
 /**
  * QR card for the internal record view.
- * For finished stones the QR points at the public /verify/<code> page.
- * For rough stones the QR points at the internal record (login gated).
+ * The QR points at the public /verify/<code> page for both finished and rough
+ * stones: identity and media only, never price, cost or supplier.
  */
 export async function QrCard({
   code, kind, label,
@@ -15,9 +16,8 @@ export async function QrCard({
   kind: "gemstone" | "rough";
   label: string;
 }) {
-  const url = kind === "gemstone"
-    ? publicVerifyUrl(code)
-    : `/rough/${code}`;
+  // Full address, public for both kinds: scanning shows the stone without any price or cost.
+  const url = publicVerifyUrl(code, await publicOrigin());
   const svg = await renderQrSvg(url, { size: 220 });
   return (
     <Card>
@@ -35,8 +35,8 @@ export async function QrCard({
         </div>
         <CopyLinkButton
           path={url}
-          public={kind === "gemstone"}
-          label={kind === "gemstone" ? "Public verify link" : "Internal record link"}
+          public
+          label="Public verify link"
         />
       </CardContent>
     </Card>
