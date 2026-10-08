@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { resolveContentType } from "@/lib/media";
 
 const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
 const PUBLIC_PREFIX = "/uploads";
@@ -60,7 +61,7 @@ export const uploadBackend = R2 ? "r2" : "local";
 export async function saveUpload(file: File | null | undefined, subdir = "misc"): Promise<SavedFile | null> {
   if (!file || file.size === 0 || !file.name) return null;
   if (file.size > MAX_BYTES) throw new Error(`Upload exceeds ${MAX_BYTES / 1024 / 1024}MB limit.`);
-  const ct = file.type || "application/octet-stream";
+  const ct = resolveContentType(file.type, file.name);
   if (!ALLOWED.has(ct)) throw new Error(`Unsupported content type: ${ct}`);
 
   const safeSub = subdir.replace(/[^a-z0-9-]/gi, "") || "misc";

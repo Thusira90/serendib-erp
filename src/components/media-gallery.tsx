@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Camera, PlusCircle, Trash2 } from "lucide-react";
 import { uploadPhoto, deleteDigitalAsset } from "@/app/(app)/gemstones/cgi-actions";
 import { MEDIA_STAGES, MEDIA_STAGE_LABEL, type MediaStage } from "@/lib/enums";
+import { isVideoAsset } from "@/lib/media";
 
 export type MediaAsset = {
   id: string;
@@ -124,13 +125,13 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 
 function AssetCard({ asset, canWrite }: { asset: MediaAsset; canWrite: boolean }) {
   const [pending, start] = useTransition();
-  const isVideo = asset.contentType?.startsWith("video/");
+  const isVideo = isVideoAsset(asset);
   return (
     <div className={`rounded-lg border overflow-hidden ${asset.isPrimary ? "ring-2 ring-sgs-teal-500" : ""}`}>
       <div className="aspect-square bg-secondary/40">
         {isVideo ? (
           // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video src={asset.url} className="h-full w-full object-cover" controls muted />
+          <video src={asset.url} className="h-full w-full object-cover" controls muted playsInline preload="metadata" />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={asset.url} alt={asset.caption ?? asset.kind} className="h-full w-full object-cover" />

@@ -5,7 +5,7 @@ import { getCompanySettings } from "@/lib/company-settings";
 import { ArrowLeft } from "lucide-react";
 import {
   resolveBrand, resolveContact, Watermark, BrandHeader, ContactFooter, CopyrightNotice,
-  SingleStone, gemsWhereForLink, shareMetadata, opaqueStoneToken,
+  SingleStone, gemsWhereForLink, shareMetadata, opaqueStoneToken, loadShareableMedia,
 } from "../shared";
 import { ExpiredView } from "../expired";
 
@@ -56,15 +56,12 @@ export default async function TimedShareGemPage({
       ],
     },
     include: {
-      digitalAssets: {
-        where: { isPrimary: true, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
-        take: 1,
-      },
       cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
       certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
     },
   });
   if (!gem) return notFound();
+  const media = await loadShareableMedia(gem.id);
 
   // Awaited so serverless does not drop the write when the response finishes.
   await prisma.shareLink.update({
@@ -96,7 +93,7 @@ export default async function TimedShareGemPage({
           </div>
         )}
 
-        <SingleStone gem={gem} neutral={link.brokerMode} />
+        <SingleStone gem={{ ...gem, digitalAssets: media }} neutral={link.brokerMode} />
 
         <ContactFooter contact={contact} isBroker={link.brokerMode} />
         <CopyrightNotice brand={brand} link={link} viewCount={link.viewCount + 1} />

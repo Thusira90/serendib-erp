@@ -25,6 +25,7 @@ import { AddToCollectionButton } from "@/components/add-to-collection-button";
 import { ShareStoneButton } from "@/components/share-stone-button";
 import { TimedShareButton } from "@/components/timed-share-button";
 import { MediaGallery } from "@/components/media-gallery";
+import { isVideoAsset } from "@/lib/media";
 import { LifecycleTimeline } from "@/components/lifecycle-timeline";
 import { buildLifecycleForGemstone } from "@/lib/stone-lifecycle";
 import { StoneBillsSection } from "@/components/stone-bills-section";
@@ -90,14 +91,15 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
   // Digital-readiness state derived from actual records.
   const hasCertIssued = g.certificates.some((c) => c.status === "ISSUED");
   const hasCertAny = g.certificates.length > 0;
-  const hasPhoto = g.digitalAssets.some((a) => ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind));
+  // Stills only: a video filed under a photo kind must not count as a photo or become the cover image.
+  const stills = g.digitalAssets.filter((a) => !isVideoAsset(a) && ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind));
+  const videoCount = g.digitalAssets.filter(isVideoAsset).length;
+  const hasPhoto = stills.length > 0;
   const hasCgiMaster = g.cgiProjects.some((p) => p.versions.some((v) => v.isMaster));
   const hasCgiAny = g.cgiProjects.length > 0;
   const hasPricing = g.askingPrice != null;
 
-  const primaryPhoto = g.digitalAssets.find(
-    (a) => a.isPrimary && ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind)
-  ) ?? g.digitalAssets.find((a) => ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"].includes(a.kind));
+  const primaryPhoto = stills.find((a) => a.isPrimary) ?? stills[0];
 
   return (
     <div className="space-y-6">
@@ -205,7 +207,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
           <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="certification">Certification{hasCertIssued && " ✓"}</TabsTrigger>
-          <TabsTrigger value="photography">Photography{hasPhoto && " ✓"}</TabsTrigger>
+          <TabsTrigger value="photography">Photography{hasPhoto && " ✓"}{videoCount > 0 && ` · ${videoCount} video${videoCount === 1 ? "" : "s"}`}</TabsTrigger>
           <TabsTrigger value="cgi">CGI{hasCgiMaster && " ✓"}</TabsTrigger>
           <TabsTrigger value="costing">Costing</TabsTrigger>
           <TabsTrigger value="bills">Bills</TabsTrigger>
