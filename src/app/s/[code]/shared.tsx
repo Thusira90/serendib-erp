@@ -9,7 +9,8 @@ import { ShieldCheck, Clock3, MessageCircle, Mail, User as UserIcon, Gem } from 
 import { SgsLogo } from "@/components/brand/logo";
 import { CgiBadge, CgiBreakdownCard, CgiMethodologyCard } from "@/components/cgi-badge";
 import { StoneMediaViewer, type ViewerItem } from "@/components/stone-media-viewer";
-import { isVideoAsset } from "@/lib/media";
+import { isVideoAsset, pickCover } from "@/lib/media";
+import { StoneThumb } from "@/components/stone-thumb";
 
 /**
  * Shared parts of the /s/<code> customer-facing view. Both the index
@@ -213,7 +214,7 @@ export function CopyrightNotice({
 /* ------------------------------ Stone views ------------------------------ */
 
 export type Gem = Awaited<ReturnType<typeof prisma.gemstone.findMany>>[number] & {
-  digitalAssets: { url: string; contentType?: string | null; kind?: string | null }[];
+  digitalAssets: { url: string; contentType?: string | null; kind?: string | null; isPrimary?: boolean; partnerHidden?: boolean | null }[];
   cgiProjects: { versions: { renderUrl: string | null; isMaster: boolean }[] }[];
   certificates: { laboratory: { name: string }; certificateNumber: string | null }[];
 };
@@ -239,9 +240,11 @@ export async function loadShareContents(link: NonNullable<ShareLinkRecord>) {
       : prisma.gemstone.findMany({
           where: gemsWhereForLink(link),
           include: {
+            // Enough to find the cover (the chosen one, else a photo, else a video).
             digitalAssets: {
-              where: { isPrimary: true, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
-              take: 1,
+              where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
+              orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+              take: 8,
             },
             cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
             certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
@@ -254,9 +257,9 @@ export async function loadShareContents(link: NonNullable<ShareLinkRecord>) {
           where: roughsWhereForLink(link),
           include: {
             digitalAssets: {
-              where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE"] } },
+              where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
               orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-              take: 5,
+              take: 8,
             },
           },
           orderBy: { createdAt: "desc" },
@@ -283,9 +286,9 @@ export function findShareRough(link: NonNullable<ShareLinkRecord>, code: string)
     where: { AND: [{ code }, roughsWhereForLink(link)] },
     include: {
       digitalAssets: {
-        where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE"] } },
+        where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
         orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-        take: 5,
+        take: 8,
       },
     },
   });
@@ -426,22 +429,17 @@ export function StoneGrid({ gems, shareCode, opaqueFor, hrefFor, showCgi = true 
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {gems.map((g) => {
         const cgi = g.cgiProjects.flatMap((p) => p.versions).find((v) => v.isMaster);
-        const heroImg = cgi?.renderUrl ?? g.digitalAssets[0]?.url;
+        // A cover someone chose wins; otherwise the master CGI render, then the first photo, then a video frame.
+        const cover = pickCover(g.digitalAssets);
+        const hero = cover?.isPrimary || !cgi?.renderUrl ? cover : { url: cgi.renderUrl };
         return (
           <Link
             key={g.id}
             href={hrefFor ? hrefFor(g.code) : `/s/${shareCode}/${opaqueFor ? opaqueStoneToken(opaqueFor, g.id) : encodeURIComponent(g.code)}`}
             className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
           >
-            <div className="aspect-square bg-sgs-gradient relative">
-              {heroImg ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImg} alt={g.gemType} className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-white/80">
-                  <Gem className="h-8 w-8" />
-                </div>
-              )}
+            <div className="aspect-square bg-secondary relative">
+              <StoneThumb cover={hero} alt={g.gemType} />
             </div>
             <div className="p-4 space-y-1.5">
               <div className="text-[10px] uppercase tracking-widest text-sgs-purple-500">
@@ -591,7 +589,7 @@ export function roughsWhereForLink(link: NonNullable<ShareLinkRecord>): Prisma.R
  * request".
  */
 export function SingleRoughStone({ rough }: { rough: Rough }) {
-  const hero = rough.digitalAssets.find((a) => a.isPrimary)?.url ?? rough.digitalAssets[0]?.url;
+  const cover = pickCover(rough.digitalAssets);
   const dims = [rough.lengthMm, rough.widthMm, rough.heightMm]
     .filter((v) => v != null)
     .map((v) => `${Number(v).toFixed(2)} mm`)
@@ -602,11 +600,8 @@ export function SingleRoughStone({ rough }: { rough: Rough }) {
 
   return (
     <div className="rounded-2xl overflow-hidden bg-white border shadow-luxe">
-      <div className="aspect-[16/10] bg-sgs-gradient relative">
-        {hero && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero} alt={rough.gemType} className="absolute inset-0 h-full w-full object-cover" />
-        )}
+      <div className="aspect-[16/10] bg-secondary relative">
+        <StoneThumb cover={cover} alt={rough.gemType} />
       </div>
       <div className="p-8 space-y-6">
         <div>
@@ -671,22 +666,15 @@ export function RoughGrid({ roughs, shareCode, opaqueFor, hrefFor }: { roughs: R
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {roughs.map((r) => {
-        const heroImg = r.digitalAssets.find((a) => a.isPrimary)?.url ?? r.digitalAssets[0]?.url;
+        const cover = pickCover(r.digitalAssets);
         return (
           <Link
             key={r.id}
             href={hrefFor ? hrefFor(r.code) : `/s/${shareCode}/r/${opaqueFor ? opaqueStoneToken(opaqueFor, r.id) : encodeURIComponent(r.code)}`}
             className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
           >
-            <div className="aspect-square bg-sgs-gradient relative">
-              {heroImg ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImg} alt={r.gemType} className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-white/80">
-                  <Gem className="h-8 w-8" />
-                </div>
-              )}
+            <div className="aspect-square bg-secondary relative">
+              <StoneThumb cover={cover} alt={r.gemType} />
             </div>
             <div className="p-4 space-y-1.5">
               <div className="text-[10px] uppercase tracking-widest text-sgs-purple-500">

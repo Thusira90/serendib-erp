@@ -7,6 +7,8 @@ import { EnquireButton } from "./enquire-button";
 import { Gem, Award, ShieldCheck, Sparkles } from "lucide-react";
 import { trackCollectionView } from "@/lib/collection-views";
 import { CgiBadge, CgiMethodologyCard } from "@/components/cgi-badge";
+import { pickCover } from "@/lib/media";
+import { StoneThumb } from "@/components/stone-thumb";
 
 // Public share pages must always reflect the latest state, not a build-time
 // snapshot: the collection contents, prices, and availability can change any
@@ -24,9 +26,9 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
           gemstone: {
             include: {
               digitalAssets: {
-                orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
-                where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
-                take: 3,
+                orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+                where: { kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE", "VIDEO"] } },
+                take: 8,
               },
               cgiProjects: {
                 include: {
@@ -94,7 +96,7 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {collection.items.map((item) => {
             const gem = item.gemstone;
-            const primaryImg = gem.digitalAssets[0]?.url;
+            const cover = pickCover(gem.digitalAssets);
             const masterCgi = gem.cgiProjects.flatMap((p) => p.versions)[0];
             const cert = gem.certificates[0];
             const displayPrice = item.priceOverride != null ? Number(item.priceOverride) : gem.askingPrice != null ? Number(gem.askingPrice) : null;
@@ -105,9 +107,8 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
             return (
               <div key={item.id} className="border rounded-lg bg-card overflow-hidden shadow-luxe hover:shadow-luxe-lg transition-shadow flex flex-col">
                 <div className="aspect-square bg-sgs-gradient-soft relative">
-                  {primaryImg ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={primaryImg} alt={gem.code} className="h-full w-full object-cover" />
+                  {cover ? (
+                    <StoneThumb cover={cover} alt={gem.code} />
                   ) : masterCgi?.thumbnailUrl || masterCgi?.renderUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={masterCgi.thumbnailUrl ?? masterCgi.renderUrl ?? ""} alt={gem.code} className="h-full w-full object-cover" />

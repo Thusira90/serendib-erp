@@ -37,3 +37,21 @@ export function isVideoAsset(a: { contentType?: string | null; kind?: string | n
   if (type.startsWith("image/")) return false;
   return a.kind === "VIDEO" || VIDEO_EXT.has(extOf(a.url));
 }
+
+type CoverCandidate = {
+  url: string;
+  contentType?: string | null;
+  kind?: string | null;
+  isPrimary?: boolean;
+  partnerHidden?: boolean | null;
+};
+
+/**
+ * The cover (thumbnail) of a stone: the asset an admin marked as its cover,
+ * otherwise the first photo, otherwise the first video. A video can be the
+ * cover; it is shown as a still frame. Assets hidden from buyers are skipped.
+ */
+export function pickCover<T extends CoverCandidate>(assets: T[]): T | null {
+  const visible = assets.filter((a) => a.partnerHidden !== true);
+  return visible.find((a) => a.isPrimary) ?? visible.find((a) => !isVideoAsset(a)) ?? visible[0] ?? null;
+}

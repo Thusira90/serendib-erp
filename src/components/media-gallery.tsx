@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Camera, PlusCircle, Trash2 } from "lucide-react";
-import { uploadPhoto, deleteDigitalAsset } from "@/app/(app)/gemstones/cgi-actions";
+import { Camera, Image as ImageIcon, PlusCircle, Trash2 } from "lucide-react";
+import { uploadPhoto, deleteDigitalAsset, setCoverAsset } from "@/app/(app)/gemstones/cgi-actions";
 import { MEDIA_STAGES, MEDIA_STAGE_LABEL, type MediaStage } from "@/lib/enums";
 import { isVideoAsset } from "@/lib/media";
 
@@ -101,7 +101,7 @@ export function MediaGallery({
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {filtered.map((a) => (
-          <AssetCard key={a.id} asset={a} canWrite={canWrite} />
+          <AssetCard key={a.id} asset={a} canWrite={canWrite} canCover={target.kind !== "cutting"} />
         ))}
       </div>
     </div>
@@ -124,7 +124,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-function AssetCard({ asset, canWrite }: { asset: MediaAsset; canWrite: boolean }) {
+function AssetCard({ asset, canWrite, canCover }: { asset: MediaAsset; canWrite: boolean; canCover: boolean }) {
   const [pending, start] = useTransition();
   const isVideo = isVideoAsset(asset);
   return (
@@ -143,11 +143,19 @@ function AssetCard({ asset, canWrite }: { asset: MediaAsset; canWrite: boolean }
           {asset.stage
             ? <Badge variant="teal">{MEDIA_STAGE_LABEL[asset.stage as MediaStage] ?? asset.stage}</Badge>
             : <Badge variant="muted">{asset.kind.replaceAll("_", " ")}</Badge>}
-          {asset.isPrimary && <Badge variant="purple">Primary</Badge>}
+          {asset.isPrimary && <Badge variant="purple">Cover</Badge>}
         </div>
         {asset.caption && <div className="text-xs text-muted-foreground line-clamp-2">{asset.caption}</div>}
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
           <Link href={asset.url} target="_blank" className="text-sgs-teal-700 hover:underline">Open</Link>
+          {canWrite && canCover && !asset.isPrimary && (
+            <form action={(fd) => start(async () => { await setCoverAsset(fd); })}>
+              <input type="hidden" name="id" value={asset.id} />
+              <button type="submit" disabled={pending} title="Use this as the stone's thumbnail" className="inline-flex items-center gap-0.5 text-sgs-teal-700 hover:underline disabled:opacity-40">
+                <ImageIcon className="h-3 w-3" /> Set as cover
+              </button>
+            </form>
+          )}
           {canWrite && (
             <form
               action={(fd) => start(async () => { await deleteDigitalAsset(fd); })}
@@ -257,7 +265,7 @@ function UploadDialog({
             </div>
             <label className="flex items-end gap-2 text-sm pb-2">
               <input type="checkbox" name="isPrimary" />
-              <span>Primary for this kind <span className="text-muted-foreground">(first file only)</span></span>
+              <span>Use as the stone's cover <span className="text-muted-foreground">(first file only)</span></span>
             </label>
           </div>
           <div className="space-y-1.5">

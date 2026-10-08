@@ -156,12 +156,13 @@ export async function uploadPhoto(fd: FormData) {
   // rendered as a broken image, so the upload decides the kind, not the dropdown.
   const isVideo = isVideoAsset({ contentType: saved?.contentType, url });
   const kind: AssetKind = isVideo ? "VIDEO" : requestedKind;
-  const isPrimary = wantsPrimary && !isVideo;
+  // The cover can be a photo or a video; there is one cover per stone.
+  const isPrimary = wantsPrimary;
 
   await prisma.$transaction(async (tx) => {
     if (isPrimary && (gemstoneId || roughStoneId)) {
       await tx.digitalAsset.updateMany({
-        where: gemstoneId ? { gemstoneId, kind } : { roughStoneId: roughStoneId!, kind },
+        where: gemstoneId ? { gemstoneId } : { roughStoneId: roughStoneId! },
         data: { isPrimary: false },
       });
     }
@@ -204,4 +205,29 @@ export async function deleteDigitalAsset(fd: FormData) {
   if (asset.gemstoneId)   revalidatePath(`/gemstones/${asset.gemstoneId}`);
   if (asset.roughStoneId) revalidatePath(`/rough/${asset.roughStoneId}`);
   if (asset.cuttingJobId) revalidatePath(`/cutting/${asset.cuttingJobId}`);
+}
+
+/**
+ * Make one photo or video the cover (thumbnail) of its stone. There is one cover
+ * per stone; it is what share pages, the catalogue and the stone's own card show.
+ * A video cover is shown as a still frame.
+ */
+export async function setCoverAsset(fd: FormData) {
+  const session = await requireCapability("media:write");
+  const id = str(fd.get("id"));
+  if (!id) throw new Error("id required");
+  const asset = await prisma.digitalAsset.findUniqueOrThrow({ where: { id } });
+  if (!asset.gemstoneId && !asset.roughStoneId) throw new Error("Only a stone's photos and videos can be its cover.");
+  const owner = asset.gemstoneId ? { gemstoneId: asset.gemstoneId } : { roughStoneId: asset.roughStoneId! };
+  await prisma.$transaction(async (tx) => {
+    await tx.digitalAsset.updateMany({ where: owner, data: { isPrimary: false } });
+    await tx.digitalAsset.update({ where: { id }, data: { isPrimary: true } });
+    await writeAudit({
+      entity: "DigitalAsset", entityId: id, entityCode: id.slice(0, 8),
+      action: "SET_COVER", userId: session.user.id, userName: session.user.name ?? null,
+      newValue: `Set ${asset.kind} as the cover.`,
+    }, tx);
+  });
+  if (asset.gemstoneId) revalidatePath(`/gemstones/${asset.gemstoneId}`);
+  if (asset.roughStoneId) revalidatePath(`/rough/${asset.roughStoneId}`);
 }
