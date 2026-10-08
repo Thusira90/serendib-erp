@@ -228,6 +228,70 @@ export function isRoughScope(scope: string): boolean {
 }
 
 /**
+ * What the share index page lists: cover photos only, since a catalogue link
+ * can cover hundreds of stones. Shared with the in-app preview.
+ */
+export async function loadShareContents(link: NonNullable<ShareLinkRecord>) {
+  const isRough = isRoughScope(link.scope);
+  const [gems, roughs] = await Promise.all([
+    isRough
+      ? Promise.resolve([])
+      : prisma.gemstone.findMany({
+          where: gemsWhereForLink(link),
+          include: {
+            digitalAssets: {
+              where: { isPrimary: true, kind: { in: ["FINISHED_PHOTO", "MACRO_PHOTO", "CATALOGUE_IMAGE"] } },
+              take: 1,
+            },
+            cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
+            certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        }),
+    isRough
+      ? prisma.roughStone.findMany({
+          where: roughsWhereForLink(link),
+          include: {
+            digitalAssets: {
+              where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE"] } },
+              orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+              take: 5,
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        })
+      : Promise.resolve([]),
+  ]);
+  return { gems, roughs };
+}
+
+/** One stone of a link's scope for its detail page; null when it is not part of the link. */
+export function findShareGem(link: NonNullable<ShareLinkRecord>, code: string) {
+  return prisma.gemstone.findFirst({
+    where: { AND: [{ code }, gemsWhereForLink(link)] },
+    include: {
+      cgiProjects: { include: { versions: { where: { isMaster: true }, take: 1 } } },
+      certificates: { where: { status: "ISSUED" }, include: { laboratory: true }, take: 1 },
+    },
+  });
+}
+
+export function findShareRough(link: NonNullable<ShareLinkRecord>, code: string) {
+  return prisma.roughStone.findFirst({
+    where: { AND: [{ code }, roughsWhereForLink(link)] },
+    include: {
+      digitalAssets: {
+        where: { kind: { in: ["ROUGH_PHOTO", "MACRO_PHOTO", "INSPECTION_PHOTO", "CATALOGUE_IMAGE"] } },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        take: 5,
+      },
+    },
+  });
+}
+
+/**
  * Photos and videos a share page may show for one stone, primary first. The
  * stone grids only need one cover photo, so they do not use this.
  */
@@ -353,7 +417,7 @@ export function opaqueStoneToken(linkId: string, stoneId: string): string {
   return createHash("sha256").update(`${linkId}:${stoneId}`).digest("base64url").slice(0, 12);
 }
 
-export function StoneGrid({ gems, shareCode, opaqueFor }: { gems: Gem[]; shareCode: string; opaqueFor?: string }) {
+export function StoneGrid({ gems, shareCode, opaqueFor, hrefFor }: { gems: Gem[]; shareCode: string; opaqueFor?: string; hrefFor?: (code: string) => string }) {
   if (gems.length === 0) {
     return (
       <div className="rounded-xl border bg-white p-10 text-center text-sm text-muted-foreground">
@@ -369,7 +433,7 @@ export function StoneGrid({ gems, shareCode, opaqueFor }: { gems: Gem[]; shareCo
         return (
           <Link
             key={g.id}
-            href={`/s/${shareCode}/${opaqueFor ? opaqueStoneToken(opaqueFor, g.id) : encodeURIComponent(g.code)}`}
+            href={hrefFor ? hrefFor(g.code) : `/s/${shareCode}/${opaqueFor ? opaqueStoneToken(opaqueFor, g.id) : encodeURIComponent(g.code)}`}
             className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
           >
             <div className="aspect-square bg-sgs-gradient relative">
@@ -599,7 +663,7 @@ export function SingleRoughStone({ rough }: { rough: Rough }) {
 }
 
 /** Grid of rough cards; each links to /s/<code>/r/<roughCode>. */
-export function RoughGrid({ roughs, shareCode, opaqueFor }: { roughs: Rough[]; shareCode: string; opaqueFor?: string }) {
+export function RoughGrid({ roughs, shareCode, opaqueFor, hrefFor }: { roughs: Rough[]; shareCode: string; opaqueFor?: string; hrefFor?: (code: string) => string }) {
   if (roughs.length === 0) {
     return (
       <div className="rounded-xl border bg-white p-10 text-center text-sm text-muted-foreground">
@@ -614,7 +678,7 @@ export function RoughGrid({ roughs, shareCode, opaqueFor }: { roughs: Rough[]; s
         return (
           <Link
             key={r.id}
-            href={`/s/${shareCode}/r/${opaqueFor ? opaqueStoneToken(opaqueFor, r.id) : encodeURIComponent(r.code)}`}
+            href={hrefFor ? hrefFor(r.code) : `/s/${shareCode}/r/${opaqueFor ? opaqueStoneToken(opaqueFor, r.id) : encodeURIComponent(r.code)}`}
             className="group rounded-xl overflow-hidden bg-white border block hover:shadow-luxe-lg transition-shadow"
           >
             <div className="aspect-square bg-sgs-gradient relative">

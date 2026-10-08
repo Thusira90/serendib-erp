@@ -43,6 +43,15 @@ const nextConfig = {
         ],
       },
       {
+        // Draft preview of a share link: internal only, so keep it out of caches, search engines and Referer headers.
+        source: "/share-preview/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+      {
         source: "/s/:path*",
         headers: [
           { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
