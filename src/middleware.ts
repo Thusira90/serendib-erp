@@ -18,6 +18,7 @@ export const PUBLIC_PATHS = [
   "/favicon.ico",
   "/robots.txt",
   "/serendib-logo.jpg",
+  "/serendib-logo.png",
 ] as const;
 
 export function isPublic(pathname: string): boolean {
