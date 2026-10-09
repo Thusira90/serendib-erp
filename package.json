@@ -14,6 +14,7 @@
     "postdb:push": "prisma db execute --file prisma/guard-indexes.sql --schema prisma/schema.prisma",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:demo": "tsx --conditions=react-server --env-file=.env prisma/seed-demo.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
