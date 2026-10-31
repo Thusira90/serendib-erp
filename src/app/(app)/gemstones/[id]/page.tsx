@@ -19,7 +19,8 @@ import { MatchingCustomersPanel } from "./tabs/matches-tab";
 import { QrCard } from "@/components/qr-card";
 import { MoveButton } from "@/components/move-button";
 import { EditGemstoneButton } from "./edit-gemstone-button";
-import { DeleteGemstoneButton } from "./delete-gemstone-button";
+import { DeleteStoneButton } from "@/components/delete-stone-button";
+import { deleteGemstone } from "../delete-actions";
 import { CgiBadge, CgiBreakdownCard } from "@/components/cgi-badge";
 import { CgiSwitchCard } from "./cgi-switch-card";
 import { CommentsThread } from "@/components/comments-thread";
@@ -170,7 +171,7 @@ export default async function GemstoneDetailPage({ params }: { params: Promise<{
             vocab={vocab}
           />
         )}
-        {session.user.role === "SUPER_ADMIN" && <DeleteGemstoneButton id={g.id} code={g.code} />}
+        {session.user.role === "SUPER_ADMIN" && <DeleteStoneButton id={g.id} code={g.code} action={deleteGemstone} />}
         </div>
       </div>
 

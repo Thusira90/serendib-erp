@@ -16,6 +16,8 @@ import { StartCuttingButton } from "./start-cutting-button";
 import { QrCard } from "@/components/qr-card";
 import { MoveButton } from "@/components/move-button";
 import { EditRoughButton } from "./edit-rough-button";
+import { DeleteStoneButton } from "@/components/delete-stone-button";
+import { deleteRoughStone } from "../delete-actions";
 import { CommentsThread } from "@/components/comments-thread";
 import { MediaGallery } from "@/components/media-gallery";
 import { TreatmentsPanel } from "@/components/treatments-panel";
@@ -92,6 +94,7 @@ export default async function RoughDetailPage({ params }: { params: Promise<{ id
             locations={locations}
           />
         )}
+        {session.user.role === "SUPER_ADMIN" && <DeleteStoneButton id={r.id} code={r.code} action={deleteRoughStone} />}
         </div>
       </div>
 
