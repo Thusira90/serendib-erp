@@ -3,18 +3,24 @@
 import { useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { deleteGemstone } from "../delete-actions";
 
 /**
- * Permanently deletes the stone. The parent page must gate rendering on
- * SUPER_ADMIN; the server action enforces it again as a safety net.
+ * Permanently deletes a stone (rough or cut) through the given server
+ * action. The parent page must gate rendering on SUPER_ADMIN; the action
+ * enforces it again as a safety net.
  */
-export function DeleteGemstoneButton({ id, code }: { id: string; code: string }) {
+export function DeleteStoneButton({
+  id, code, action,
+}: {
+  id: string;
+  code: string;
+  action: (fd: FormData) => Promise<{ error: string } | undefined>;
+}) {
   const [pending, start] = useTransition();
   return (
     <form
       action={(fd) => start(async () => {
-        const res = await deleteGemstone(fd);
+        const res = await action(fd);
         if (res?.error) alert(res.error);
       })}
       onSubmit={(e) => {
